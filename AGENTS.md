@@ -1,6 +1,6 @@
 # HDR Toolbox — Knowledge Base
 
-**Generated:** 2026-03-26 15:00
+**Generated:** 2026-03-26 18:30
 **Type:** Rust + Tauri 2 (Windows desktop app)
 
 ## Overview
@@ -64,7 +64,7 @@ Windows system tray app for HDR monitor control — SDR brightness adjustment vi
 - **DisplayConfig types**: Import from `windows::Win32::Devices::Display`, LUID from `Win32::Foundation`
 - **Manual FFI SET struct**: `DISPLAYCONFIG_SET_SDR_WHITE_LEVEL` — NOT in windows-rs, defined with `#[repr(C)]` with 3 fields (header, SDRWhiteLevel, finalValue=1)
 - **FFI pointer casts**: All DisplayConfig calls cast header via `as *mut _ as *mut windows::...::DISPLAYCONFIG_DEVICE_INFO_HEADER`
-- **Release profile**: `panic = "abort"`, `codegen-units = 1`, `lto = true`, `opt-level = "s"`, `strip = true`
+- **Release profile**: `panic = "abort"`, `codegen-units = 1`, `lto = true`, `opt-level = "z"`, `strip = true`
 - **Windows features**: `Win32_Foundation`, `Win32_Graphics_Gdi`, `Win32_UI_Shell`, `Win32_UI_WindowsAndMessaging`, `Win32_Devices_Display` (no `Win32_System_Registry` — unused)
 
 ### Frontend

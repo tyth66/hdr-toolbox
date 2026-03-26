@@ -203,7 +203,7 @@ pub fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
 pub fn setup_tray(app: &AppHandle) -> Result<TrayIcon, tauri::Error> {
     let tray = TrayIconBuilder::with_id(TRAY_ID)
         .tooltip("HDR Toolbox")
-        .icon(Image::from_bytes(include_bytes!("../icons/SDR.png")).unwrap())
+        .icon(Image::from_bytes(include_bytes!("../icons/fluent@1x.png")).unwrap())
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|tray, event| {
             handle_tray_click(tray.app_handle(), event);

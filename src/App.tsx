@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import "./styles.css";
+import HeaderIcon from "../src-tauri/icons/fluent@1x.png";
 
 interface DisplayInfo {
   name: string;
@@ -342,18 +343,9 @@ function App() {
   return (
     <div className="app-container">
       <div className="header">
-        <svg className="header-icon" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="5" fill="#f5a623" />
-          <path
-            d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
-            stroke="#f5a623"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
+        <img className="header-icon" src={HeaderIcon} alt="HDR icon" />
         <span className="header-title">HDR-SDR Brightness</span>
       </div>
-
       <div className="device-selector">
         <label>Display</label>
         <select value={selectedIndex} onChange={handleDeviceChange}>
