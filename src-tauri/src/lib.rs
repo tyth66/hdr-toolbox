@@ -3,6 +3,9 @@
 mod display;
 mod tray;
 
+#[cfg(target_os = "windows")]
+use window_vibrancy::apply_mica;
+
 use display::DisplayInfo;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
@@ -50,6 +53,12 @@ fn update_tray_tooltip_only(app: AppHandle) {
     update_tray_tooltip(&app);
 }
 
+/// Get the tray icon's bounding rectangle for positioning windows above it.
+#[tauri::command]
+fn get_tray_rect(app: AppHandle) -> Option<tauri::Rect> {
+    tray::get_tray_rect(&app)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Set up tracing subscriber
@@ -78,10 +87,24 @@ pub fn run() {
             update_displays_and_tooltip,
             get_cached_displays,
             update_tray_tooltip_only,
+            get_tray_rect,
         ])
         .setup(|app| {
             tracing::info!("Setting up tray icon...");
             setup_tray(app.app_handle())?;
+
+            // Apply Windows 11 Mica backdrop
+            #[cfg(target_os = "windows")]
+            {
+                if let Some(window) = app.get_webview_window("main") {
+                    if let Err(e) = apply_mica(&window, Some(true)) {
+                        tracing::warn!("Failed to apply Mica backdrop: {}", e);
+                    } else {
+                        tracing::info!("Mica backdrop applied successfully");
+                    }
+                }
+            }
+
             tracing::info!("Setup complete!");
             Ok(())
         })

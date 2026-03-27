@@ -147,9 +147,8 @@ pub fn handle_tray_click(app: &AppHandle, event: TrayIconEvent) {
                 if window.is_visible().unwrap_or(false) {
                     let _ = window.hide();
                 } else {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                    let _ = window.center();
+                    // Emit event to let JS handle positioning
+                    let _ = app.emit("show-window", ());
                 }
             }
         }
@@ -174,12 +173,8 @@ pub fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
             // Device selection: switch to that display in the UI
             if let Ok(idx) = id.strip_prefix("display-").unwrap().parse::<usize>() {
                 let _ = app.emit("select-display", idx);
-                // Also show the window so user can adjust brightness
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                    let _ = window.center();
-                }
+                // Emit event to show window - JS will handle positioning
+                let _ = app.emit("show-window", ());
             }
         }
         "autostart" => {
@@ -187,16 +182,27 @@ pub fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
         }
         "about" => {
             let _ = app.emit("show-about", ());
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+            let _ = app.emit("show-window", ());
         }
         "quit" => {
             app.exit(0);
         }
         _ => {}
     }
+}
+
+/// Get the tray icon's bounding rectangle (screen coordinates).
+/// Returns {x, y, width, height} or null if tray not available.
+pub fn get_tray_rect(app: &AppHandle) -> Option<tauri::Rect> {
+    let tray = app.tray_by_id(TRAY_ID)?;
+    tracing::info!("Tray found, getting rect...");
+    let rect = tray.rect().ok().flatten();
+    if let Some(r) = rect {
+        tracing::info!("Tray rect: pos=({:?}), size={:?}", r.position, r.size);
+    } else {
+        tracing::info!("Tray rect is None");
+    }
+    rect
 }
 
 /// Setup the system tray.

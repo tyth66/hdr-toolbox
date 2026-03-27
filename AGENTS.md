@@ -1,6 +1,6 @@
 # HDR Toolbox — Knowledge Base
 
-**Generated:** 2026-03-26 18:30
+**Generated:** 2026-03-27
 **Type:** Rust + Tauri 2 (Windows desktop app)
 
 ## Overview
@@ -19,10 +19,9 @@ Windows system tray app for HDR monitor control — SDR brightness adjustment vi
 │   ├── src/
 │   │   ├── main.rs          # Entry: calls lib::run()
 │   │   ├── lib.rs           # Tauri builder, plugin setup, generate_handler!
-│   │   ├── display.rs       # Core: DisplayConfig GET/SET HDR brightness
-│   │   ├── tray.rs         # System tray (left/right click, menu)
-│   │   └── hotkey.rs       # Utility: shortcut string formatting
-│   ├── Cargo.toml           # Tauri 2, windows-rs 0.62, plugins
+│   │   ├── display.rs       # Core: DisplayConfig GET/SET HDR brightness (272 lines)
+│   │   └── tray.rs         # System tray (left/right click, menu) (217 lines)
+│   ├── Cargo.toml           # Tauri 2, windows-rs 0.62, window-vibrancy (Mica)
 │   └── tauri.conf.json      # Window config, bundle settings (tray managed in Rust)
 ├── package.json              # Vite + React + Tauri CLI
 ├── vite.config.ts
@@ -85,7 +84,8 @@ Windows system tray app for HDR monitor control — SDR brightness adjustment vi
 - **Events emitted** to JS: `"show-about"`, `"toggle-autostart"`, `"select-display"`
 - **JS-side shortcut registration** via `@tauri-apps/plugin-global-shortcut`
 - **JS-side window events**: `blur` listener for blur-to-hide (matches original C++ `WM_ACTIVATE` + `WA_INACTIVE`)
-- **Window**: 300×200, `skipTaskbar`, `alwaysOnTop`, `minimizable: false`, `maximizable: false`, starts hidden
+- **Window**: 300×200, `decorations: false` (custom title bar), `transparent: true`, `skipTaskbar`, `alwaysOnTop`, `minimizable: false`, `maximizable: false`, starts hidden
+- **Mica backdrop**: Applied via `window-vibrancy` crate in `lib.rs` setup — Windows 11 only, requires transparency enabled in Windows Settings
 
 ## Anti-Patterns (This Project)
 
@@ -120,13 +120,14 @@ cd src-tauri && cargo check
 - `display.rs` has `HDR_INFO_DISABLED` atomic kill switch — once `QueryDisplayConfig` fails, all subsequent calls return error until restart
 - **Critical bugfix**: The undocumented `DISPLAYCONFIG_DEVICE_INFO_SET_SDR_WHITE_LEVEL` (0xFFFFFFEE) requires a 3-field struct with `finalValue = 1`, otherwise brightness changes are silently ignored by the OS.
 - Single-instance: default Tauri behavior (second instance blocked)
-- The `hotkey.rs` file is dead code (utility unused) — kept for potential future formatting needs
+- **Dead code**: `hotkey.rs` was planned but never created — referenced in docs but does not exist
 - **Tray tooltip**: Dynamically updated via `update_tray_tooltip()` on every brightness change
 - **Startup notification**: Shows detected HDR displays in a brief overlay on first launch, then auto-hides
 - **Blur-to-hide**: Slider window hides on `blur` event, matching original C++ `WM_ACTIVATE` + `WA_INACTIVE` behavior
-- **Close-to-hide**: Closing the slider window hides it to tray instead of exiting (JS `onCloseRequested` + `preventDefault` in `main.tsx`)
+- **Close-to-hide**: Custom title bar close button calls `window.hide()` (not standard decorations)
 - **Tray menu**: No initial menu on tray icon creation; `update_tray_menu()` pre-builds and sets menu when displays are loaded; Windows automatically shows the pre-set menu on right-click. Dynamic device list rebuilt on every `update_displays_and_tooltip` call.
 - **select-display event**: Switching active display in tray menu switches display in JS UI
+- **Windows 11 Mica UI**: Custom frameless window with Mica backdrop, glass-morphism UI, light/dark mode via `prefers-color-scheme`
 
 ## Build & CI
 

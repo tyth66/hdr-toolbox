@@ -13,8 +13,8 @@ src-tauri/src/
 ├── main.rs              # Binary entry (calls lib::run())
 ├── lib.rs               # Tauri builder, command registration, AppState
 ├── display.rs           # DisplayConfig GET/SET, HDR brightness (272 lines)
-├── tray.rs              # System tray icon + menu (217 lines)
-└── hotkey.rs            # Dead code (unused)
+└── tray.rs              # System tray icon + menu (217 lines)
+                                                # (hotkey.rs: planned but never created)
 ```
 
 ## Module Hierarchy

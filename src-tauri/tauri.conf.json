@@ -17,13 +17,15 @@
         "width": 300,
         "height": 200,
         "resizable": false,
-        "decorations": true,
+        "decorations": false,
+        "transparent": true,
         "minimizable": false,
         "maximizable": false,
         "skipTaskbar": true,
         "alwaysOnTop": true,
         "visible": false,
-        "center": true
+        "center": true,
+        "dragDropEnabled": true
       }
     ],
     "security": {

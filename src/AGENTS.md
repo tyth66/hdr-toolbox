@@ -4,7 +4,7 @@
 
 ## Overview
 
-Single-page React 18 app — slider UI for HDR brightness control. All code in `App.tsx` (459 lines).
+Single-page React 18 app — slider UI for HDR brightness control. Windows 11 Mica design with glass-morphism. All code in `App.tsx` (~470 lines).
 
 ## Structure
 
@@ -12,7 +12,7 @@ Single-page React 18 app — slider UI for HDR brightness control. All code in `
 src/
 ├── App.tsx              # Main (only) component, slider + device selector
 ├── main.tsx             # React mount + Tauri close-to-hide handler
-├── styles.css           # Plain CSS, Fluent-inspired design
+├── styles.css           # Windows 11 Mica design system, glass-morphism
 └── vite-env.d.ts       # Vite type reference
 ```
 
@@ -62,5 +62,8 @@ listen("select-display")  // → switch display from tray
 ## Styling
 
 - Plain CSS (no preprocessor)
-- CSS variable `--progress` (0-100%) for slider fill
-- Windows Fluent-inspired: Segoe UI Variable, #0078d4 accent
+- Windows 11 Mica design system with CSS variables
+- Light/dark mode via `prefers-color-scheme` media query
+- Glass-morphism: `backdrop-filter: blur(20px) saturate(180%)` on panels
+- Custom title bar: `-webkit-app-region: drag` drag region, close button calls `window.hide()`
+- Accent: `#0078d4`, typography: Segoe UI Variable
