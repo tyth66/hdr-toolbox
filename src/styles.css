@@ -20,6 +20,21 @@
   --status-sdr: #64748b;
 }
 
+/* Light mode overrides */
+@media (prefers-color-scheme: light) {
+  :root {
+    --win-bg: #f5f5f5;
+    --mica-bg: linear-gradient(to bottom, #ffffff, #f0f0f0);
+    --mica-border: rgba(0, 0, 0, 0.08);
+    --mica-border-top: rgba(0, 0, 0, 0.05);
+    --text-primary: #1a1a1a;
+    --text-secondary: #666666;
+    --text-muted: #999999;
+    --surface-hover: rgba(0, 0, 0, 0.05);
+    --surface-active: rgba(0, 0, 0, 0.08);
+  }
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -427,10 +442,30 @@ body {
   background: linear-gradient(to bottom, #1e293b, #0f172a);
   border-radius: 8px;
   border: 1px solid var(--mica-border);
-  padding: 20px;
+  padding: 16px;
   max-width: 280px;
   width: 90%;
+  max-height: 180px;
+  overflow-y: auto;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Thin scrollbar matching dark theme */
+.about-dialog::-webkit-scrollbar {
+  width: 4px;
+}
+
+.about-dialog::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.about-dialog::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.about-dialog::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .about-dialog h2 {
@@ -450,19 +485,62 @@ body {
 .about-dialog .shortcuts {
   background: rgba(255, 255, 255, 0.03);
   border-radius: 6px;
-  padding: 10px;
-  margin: 10px 0;
+  padding: 6px 8px;
+  margin: 6px 0;
   font-size: 11px;
   color: var(--text-secondary);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .about-dialog .shortcuts div {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .about-dialog .shortcuts div:last-child {
   margin-bottom: 0;
+}
+
+.about-dialog .shortcuts div:last-child {
+  margin-bottom: 0;
+}
+
+/* Settings Section */
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.settings-row span {
+  color: var(--text-primary);
+}
+
+/* About link in settings */
+.about-link {
+  background: none;
+  border: none;
+  color: var(--win-blue);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.about-link:hover {
+  color: #0066b9;
 }
 
 /* Button */

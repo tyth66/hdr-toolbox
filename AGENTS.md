@@ -1,102 +1,101 @@
 # HDR Toolbox — Knowledge Base
 
-**Generated:** 2026-03-27
+**Generated:** 2026-03-28 (refreshed)
 **Type:** Rust + Tauri 2 (Windows desktop app)
 
-## Overview
+## OVERVIEW
 
-Windows system tray app for HDR monitor control — SDR brightness adjustment via DisplayConfig API, hotkeys, auto-start. Rust backend + React/TypeScript frontend bundled by Tauri.
+Windows system tray app for HDR monitor SDR brightness control via Windows DisplayConfig API. Rust FFI backend + React/TypeScript frontend bundled by Tauri 2.
 
-## Structure
+## STRUCTURE
 
 ```
 ./
-├── src/                      # React frontend (UI layer)
-│   ├── App.tsx              # Slider UI, device selector, hotkey handlers
-│   ├── main.tsx             # Tauri event listeners
-│   └── styles.css           # Plain CSS, no preprocessor
+├── src/                      # React 18 frontend (UI layer)
+│   ├── App.tsx              # Slider UI, device selector, hotkeys (684 lines)
+│   ├── main.tsx             # Tauri event listeners, close-to-hide
+│   └── styles.css           # Windows 11 Mica design, glass-morphism
 ├── src-tauri/
 │   ├── src/
-│   │   ├── main.rs          # Entry: calls lib::run()
-│   │   ├── lib.rs           # Tauri builder, plugin setup, generate_handler!
-│   │   ├── display.rs       # Core: DisplayConfig GET/SET HDR brightness (272 lines)
-│   │   └── tray.rs         # System tray (left/right click, menu) (217 lines)
-│   ├── Cargo.toml           # Tauri 2, windows-rs 0.62, window-vibrancy (Mica)
-│   └── tauri.conf.json      # Window config, bundle settings (tray managed in Rust)
-├── package.json              # Vite + React + Tauri CLI
-├── vite.config.ts
-└── tsconfig.json
+│   │   ├── main.rs          # Binary entry: calls lib::run()
+│   │   ├── lib.rs           # Tauri builder, plugin setup, AppState (162 lines)
+│   │   ├── display.rs       # DisplayConfig FFI: GET/SET SDR white level + MCCS (488 lines)
+│   │   └── tray.rs         # System tray: icon, menu, click handlers (189 lines)
+│   ├── Cargo.toml           # Tauri 2, windows-rs 0.62, window-vibrancy
+│   └── tauri.conf.json      # Window: 300×200, frameless, transparent, skipTaskbar
+├── package.json              # Vite + React 18 + Tauri CLI
+├── vite.config.ts           # Vite config with manualChunks (vendor/tauri)
+└── tsconfig.json            # Strict mode, ES2020, JSX react-jsx
 ```
 
-## Code Map
+## WHERE TO LOOK
+
+| Task | Location | Notes |
+|------|----------|-------|
+| DisplayConfig FFI | `src-tauri/src/display.rs` | Undocumented SET_SDR_WHITE_LEVEL struct |
+| Tray management | `src-tauri/src/tray.rs` | Dynamic menu, pre-set before right-click |
+| Window blur-to-hide | `src-tauri/src/lib.rs` | `on_window_event` in setup |
+| Slider UI + state | `src/App.tsx` | Ref sync pattern for async listeners |
+| Hotkey registration | `src/App.tsx` | JS-side via `@tauri-apps/plugin-global-shortcut` |
+
+## CODE MAP
 
 | Symbol | Type | Location | Role |
 |--------|------|----------|------|
-| `HDR_INFO_DISABLED` | static | display.rs:18 | Atomic kill switch on repeated failures |
-| `DisplayInfo` | struct | display.rs:22 | Serde-serializable HDR display descriptor |
-| `get_sdr_white_level_raw` | fn | display.rs:44 | FFI call: GET SDR white level |
-| `DISPLAYCONFIG_SET_SDR_WHITE_LEVEL` | struct | display.rs:75 | Undocumented SET struct (3 fields, not in windows-rs) |
-| `set_sdr_white_level_raw` | fn | display.rs:82 | FFI call: SET SDR white level |
-| `get_hdr_displays` | fn | display.rs:118 | Tauri command: enumerate HDR monitors |
-| `set_brightness` | fn | display.rs:246 | Tauri command: set brightness for 1 display |
-| `set_brightness_all` | fn | display.rs:261 | Tauri command: broadcast to all displays |
-| `AppState` | struct | lib.rs:12 | Shared state holding display list for tray menu |
-| `update_displays_and_tooltip` | fn | lib.rs:30 | Cache displays + update tray tooltip |
-| `get_cached_displays` | fn | lib.rs:42 | Get cached display list for tray menu |
-| `build_full_menu` | fn | tray.rs:37 | Build dynamic tray menu with device list |
-| `update_tray_tooltip` | fn | tray.rs:87 | Update tray tooltip with display name/nits |
-| `update_tray_menu` | fn | tray.rs:110 | Rebuild and set tray menu before right-click |
-| `handle_tray_click` | fn | tray.rs:137 | Left/right click on tray |
-| `handle_menu_event` | fn | tray.rs:171 | Tray menu item clicks |
-| `setup_tray` | fn | tray.rs:203 | Build tray icon with embedded icon (include_bytes!) |
+| `HDR_INFO_DISABLED` | static | display.rs:23 | Atomic kill switch |
+| `HDR_CONSECUTIVE_FAILURES` | static | display.rs:25 | Atomic failure counter |
+| `DisplayInfo` | struct | display.rs:29 | Serde-serializable HDR display with min/max percentage (MCCS) |
+| `DISPLAYCONFIG_SET_SDR_WHITE_LEVEL` | struct | display.rs:78 | Custom `#[repr(C)]` 3-field SET struct |
+| `get_brightness_range_from_physical_monitor` | fn | display.rs:62 | MCCS GetMonitorBrightness wrapper |
+| `get_hmonitor_for_display` | fn | display.rs:111 | Get HMONITOR from LUID/target |
+| `get_hdr_displays` | fn | display.rs:280 | Tauri command: enumerate HDR monitors |
+| `set_brightness` | fn | display.rs:446 | Tauri command: set 1 display (percentage-based) |
+| `set_brightness_all` | fn | display.rs:467 | Tauri command: broadcast all |
+| `AppState` | struct | lib.rs:14 | Mutex<Vec<DisplayInfo>> + startup_info_active + is_dragging |
+| `update_displays_and_tooltip` | fn | lib.rs:35 | Cache + update tray |
+| `set_dragging_mode` | fn | lib.rs:70 | Tauri command: set is_dragging flag |
+| `build_full_menu` | fn | tray.rs:14 | Dynamic tray menu with device list + Quit |
+| `handle_tray_click` | fn | tray.rs:103 | Left/right tray click |
+| `setup_tray` | fn | tray.rs:175 | TrayIcon from embedded PNG bytes |
+| `TRAY_ID` | const | tray.rs:11 | `"main-tray"` |
 
-## Key Conventions
+## CONVENTIONS
 
 ### Rust
-
-- **Edition 2021**, MSRV not pinned (Tauri 2 requires 1.77+)
-- **Error handling**: `Result<T, String>` for Tauri commands, raw `WIN32_ERROR` for FFI
-- **Logging**: `tracing` + `tracing-subscriber` with `fmt` and `env-filter`, `INFO` level
+- **Error handling**: `Result<T, String>` for Tauri cmds; raw `WIN32_ERROR` for FFI
+- **No `anyhow`/`thiserror`**
+- **Logging**: `tracing` + `tracing-subscriber`, `INFO` level
 - **Serde**: `#[derive(Serialize, Deserialize)]` only on `DisplayInfo`
 - **Static init**: `once_cell::Lazy` for `HDR_INFO_DISABLED`
-- **No `anyhow`/`thiserror`** — plain `Result<T, String>` everywhere
-- **DisplayConfig types**: Import from `windows::Win32::Devices::Display`, LUID from `Win32::Foundation`
-- **Manual FFI SET struct**: `DISPLAYCONFIG_SET_SDR_WHITE_LEVEL` — NOT in windows-rs, defined with `#[repr(C)]` with 3 fields (header, SDRWhiteLevel, finalValue=1)
-- **FFI pointer casts**: All DisplayConfig calls cast header via `as *mut _ as *mut windows::...::DISPLAYCONFIG_DEVICE_INFO_HEADER`
+- **Windows FFI**: Import from `windows::Win32::Devices::Display` + `Win32::Foundation::LUID`
+- **Windows features**: `Win32_Foundation`, `Win32_Graphics_Gdi`, `Win32_UI_Shell`, `Win32_UI_WindowsAndMessaging`, `Win32_Devices_Display`
 - **Release profile**: `panic = "abort"`, `codegen-units = 1`, `lto = true`, `opt-level = "z"`, `strip = true`
-- **Windows features**: `Win32_Foundation`, `Win32_Graphics_Gdi`, `Win32_UI_Shell`, `Win32_UI_WindowsAndMessaging`, `Win32_Devices_Display` (no `Win32_System_Registry` — unused)
 
 ### Frontend
-
-- **React 18** with hooks only (`useState`, `useEffect`, `useCallback`)
-- **Plain CSS** — no preprocessor, CSS variables for slider progress
-- **Tauri JS APIs**: `invoke()` for commands, `listen()` for events, `register()` for shortcuts
-- **No router** — single-window app, shown/hidden via tray
-- **`displayInfo` passed by value** to `set_brightness_all` — deserialized from JSON
+- **React 18**: Hooks only (`useState`, `useEffect`, `useCallback`, `useRef`)
+- **Plain CSS**: No preprocessor, CSS variables, `prefers-color-scheme`
+- **Tauri JS**: `invoke()` for commands, `listen()` for events
+- **No router**: Single window, show/hide via tray
+- **Ref sync**: `displaysRef.current` kept in sync with `displays` state for async listeners
 
 ### Tauri 2
+- **`tray-icon` + `image-png`** features (built-in, not plugins)
+- **`devtools` disabled** in production
+- **Plugins**: global-shortcut (JS reg), autostart (JS `enable()`/`disable()`)
+- **Window**: 300×200, `decorations: false`, `transparent: true`, `alwaysOnTop`, starts hidden
+- **Mica backdrop**: `window-vibrancy::apply_mica` in `lib.rs` setup (Windows 11 only)
 
-- **`tray-icon` + `image-png`** features enabled (not plugins — built into tauri; `image-png` required for `Image::from_bytes` with PNG data)
-- **`devtools` NOT enabled** — removed for production performance (WebView2 overhead)
-- **Global shortcut/autostart** via `tauri-plugin-*` crates
-- **Plugins registered in `lib.rs`** via `.plugin(...)`
-- **Tray menu items** rebuilt dynamically for autostart checkmark
-- **Events emitted** to JS: `"show-about"`, `"toggle-autostart"`, `"select-display"`
-- **JS-side shortcut registration** via `@tauri-apps/plugin-global-shortcut`
-- **JS-side window events**: `blur` listener for blur-to-hide (matches original C++ `WM_ACTIVATE` + `WA_INACTIVE`)
-- **Window**: 300×200, `decorations: false` (custom title bar), `transparent: true`, `skipTaskbar`, `alwaysOnTop`, `minimizable: false`, `maximizable: false`, starts hidden
-- **Mica backdrop**: Applied via `window-vibrancy` crate in `lib.rs` setup — Windows 11 only, requires transparency enabled in Windows Settings
+## ANTI-PATTERNS (THIS PROJECT)
 
-## Anti-Patterns (This Project)
+- **NEVER use `app.global_shortcut()`** — use JS plugin API instead
+- **NEVER use `AutostartExt`** — use JS `enable()`/`disable()` from `@tauri-apps/plugin-autostart`
+- **NEVER use `WIN32_ERROR(0) with !=`** — `WIN32_ERROR` is `i32`; compare directly: `result != 0`
+- **NEVER cast FFI results via `.0`** on `WIN32_ERROR`
+- **NEVER use `menu.popup_menu()`** — menu auto-shows on right-click; call `set_menu` BEFORE click
+- **NEVER use `DISPLAYCONFIG_SDR_WHITE_LEVEL` for SET** — SET requires custom 3-field `#[repr(C)]` struct with `finalValue = 1`
+- **NEVER use `tauri://blur`** — unreliable for frameless windows; use Rust `on_window_event`
 
-- **NEVER use `app.global_shortcut()`** — it returns `&GlobalShortcut`, not `GlobalShortcut`. Use plugin JS API instead.
-- **NEVER use `AutostartExt`** — doesn't exist in tauri-plugin-autostart 2.x. Autostart handled in JS via `enable()`/`disable()`.
-- **NEVER use `WIN32_ERROR(0)` with `!=`** — `WIN32_ERROR` is `i32`. Compare directly: `result != 0`.
-- **NEVER cast FFI results via `.0`** on WIN32_ERROR — use directly or `{:?}` formatting.
-- **NEVER use `menu.popup_menu()`** — doesn't exist on `TrayIcon`. Omit; menu auto-shows on right-click.
-- **NEVER use `DISPLAYCONFIG_SDR_WHITE_LEVEL` for SET operations** — the documented GET struct has 2 fields, but the undocumented SET version has 3 fields including `finalValue` which must be `1`. Define a custom struct with `#[repr(C)]`.
-
-## Commands
+## COMMANDS
 
 ```bash
 # Development
@@ -112,28 +111,109 @@ npm run build
 cd src-tauri && cargo check
 ```
 
-## Notes
+## NOTES
 
-- HDR detection: skips non-HDR monitors (checked via `DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO`, bit 0x2)
-- Brightness range: 80–480 nits, clamped to multiples of 4
-- Nits↔API value: `api = nits * 1000 / 80`, `nits = api * 80 / 1000`
-- `display.rs` has `HDR_INFO_DISABLED` atomic kill switch — once `QueryDisplayConfig` fails, all subsequent calls return error until restart
-- **Critical bugfix**: The undocumented `DISPLAYCONFIG_DEVICE_INFO_SET_SDR_WHITE_LEVEL` (0xFFFFFFEE) requires a 3-field struct with `finalValue = 1`, otherwise brightness changes are silently ignored by the OS.
-- Single-instance: default Tauri behavior (second instance blocked)
-- **Dead code**: `hotkey.rs` was planned but never created — referenced in docs but does not exist
-- **Tray tooltip**: Dynamically updated via `update_tray_tooltip()` on every brightness change
-- **Startup notification**: Shows detected HDR displays in a brief overlay on first launch, then auto-hides
-- **Blur-to-hide**: Slider window hides on `blur` event, matching original C++ `WM_ACTIVATE` + `WA_INACTIVE` behavior
-- **Close-to-hide**: Custom title bar close button calls `window.hide()` (not standard decorations)
-- **Tray menu**: No initial menu on tray icon creation; `update_tray_menu()` pre-builds and sets menu when displays are loaded; Windows automatically shows the pre-set menu on right-click. Dynamic device list rebuilt on every `update_displays_and_tooltip` call.
-- **select-display event**: Switching active display in tray menu switches display in JS UI
-- **Windows 11 Mica UI**: Custom frameless window with Mica backdrop, glass-morphism UI, light/dark mode via `prefers-color-scheme`
+- **Brightness range**: UI slider 0-100% (matching Windows), converted to nits via fixed range (80-480 nits) for DisplayConfig API. MCCS `GetMonitorBrightness` is called to get actual monitor min/max percentages, stored in `DisplayInfo.min_percentage`/`max_percentage` (currently informational only, falls back to 0-100).
+- **MCCS vs SDR White Level**: MCCS `GetMonitorBrightness` returns **backlight brightness** (OSD control, 0-100%), NOT SDR White Level brightness. These are different concepts. MCCS controls the monitor's internal backlight, while SDR White Level controls Windows HDR metadata brightness mapping (80-480 nits).
+- **Luminance acquisition**: See section "LUMINANCE ACQUISITION" for details on reading monitor brightness range, including the planned DXGI migration.
+- **Nits↔API**: `api = nits * 1000 / 80`, `nits = api * 80 / 1000`
+- **HDR detection**: Uses `DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO` bit 0x2
+- **Kill switch**: `HDR_INFO_DISABLED` atomic — disables after 3 consecutive failures; success resets counter
+- **Critical SET bugfix**: `DISPLAYCONFIG_DEVICE_INFO_SET_SDR_WHITE_LEVEL` (`0xFFFFFFEE`) needs 3-field struct with `finalValue = 1` — SET silently fails otherwise
+- **Tray tooltip**: Updated on every brightness change via `update_tray_tooltip_only`
+- **Blur-to-hide**: Rust `on_window_event(Focused(false))` hides window unless `startup_info_active` or `is_dragging` flag is true
+- **Close-to-hide**: Custom close button calls `window.hide()` (not `window.close()`)
+- **Quit**: Tray menu Quit or Settings overlay Quit calls `invoke("quit")` → `app.exit(0)` in Rust (bypasses close-to-hide)
+- **Tray menu pattern**: Pre-build menu via `update_tray_menu()` after display load; Windows auto-shows on right-click. Menu always contains Quit button even when no HDR displays. Settings/About remain in the settings overlay.
+- **Error cache sync**: When `get_hdr_displays` fails, `catch` block calls `update_displays_and_tooltip({ displays: [] })` to sync empty state to Rust tray menu.
+- **Startup overlay**: Shows detected HDR displays for 4s then auto-dismisses (info overlay only, main window stays); `startup_info_active` flag prevents blur-to-hide during this window
+- **Drag-to-hide fix**: `set_dragging_mode` command sets `is_dragging` flag; JS clears it 200ms after `startDragging()` to handle click-without-drag
+- **Dead code**: `hotkey.rs` was planned but never created
 
-## Build & CI
+## LUMINANCE ACQUISITION
 
-- **No CI/CD**: Manual builds only (`npm run tauri build`)
-- **No tests**: Project has zero test files, no test dependencies, no test scripts
+### Overview
 
-## Optimization Notes
+Reads monitor brightness range (nits) to replace hardcoded 80-480 nits fallback. Used by `set_brightness` to convert UI percentage → actual nits.
 
-See `issue.md` for pending performance optimizations and known issues.
+**Important**: MCCS `GetMonitorBrightness` returns **backlight brightness** (OSD control), NOT SDR White Level brightness:
+- MCCS: Controls monitor's internal backlight (0-100% via DDC/CI)
+- SDR White Level: Controls Windows HDR metadata brightness mapping (80-480 nits)
+
+### Current Implementation: WinRT DisplayMonitor EDID
+
+**Status**: Implemented (WinRT)
+
+**API flow**:
+```
+DisplayMonitor::GetDeviceSelector() → DeviceInformation::FindAllAsyncAqsFilter() → 
+DisplayMonitor::FromIdAsync() → MinLuminanceInNits() / MaxLuminanceInNits()
+```
+
+**Data structure**: `DisplayInfo` includes `min_nits: Option<u32>`, `max_nits: Option<u32>`
+
+**Device matching**: By display name string (DisplayConfig) ↔ (WinRT)
+
+**Fallback**: If EDID unavailable → 80-480 nits
+
+**Frontend**: `set_brightness` calls use `display.min_nits ?? 80` / `display.max_nits ?? 480`
+
+**Cargo.toml features**: `Devices_Display`, `Devices_Enumeration`, `Foundation`, `Foundation_Collections`, `windows-future = "0.3"`
+
+### Planned Migration: DXGI IDXGIOutput6
+
+**Status**: Planned (replaces WinRT EDID)
+
+**Why DXGI instead of EDID**: EDID data is sourced from the monitor's firmware (vendor-stated values) and can be inaccurate, vendor-inflated, or missing entirely. DXGI returns the actual HDR metadata that the Windows HDR pipeline uses, reflecting real display behavior.
+
+**API flow**:
+```
+CreateDXGIFactory1() → EnumAdapters1() → EnumOutputs() → 
+QueryInterface → IDXGIOutput6 → GetDesc1()
+```
+
+**Data returned**:
+| Field | Meaning |
+|-------|---------|
+| `MinLuminance` | Black level (nits) |
+| `MaxLuminance` | Peak brightness (nits) |
+| `MaxFullFrameLuminance` | Full-frame max (similar to MaxFALL) |
+| `ColorSpace` | HDR判断: `DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020` = HDR10 |
+
+**Device matching**: By adapter LUID + output index (more reliable than string name matching)
+
+**Fallback chain**:
+```
+DXGI (primary)
+    ↓ fail / invalid
+EDID WinRT (secondary)
+    ↓ fail
+80-480 nits (final fallback)
+```
+
+**Required Cargo.toml features** (new):
+```toml
+"Win32_Graphics_Dxgi",
+"Win32_Graphics_Dxgi_Common",
+```
+
+**Risks & Mitigations**:
+| Risk | Mitigation |
+|------|------------|
+| HDR not enabled in Windows | Fallback to EDID or 80-480 |
+| HDMI without metadata | Fallback; suggest DisplayPort |
+| GPU < WDDM 2.4 | Fallback to EDID or 80-480 |
+| `max_nits <= 0` (HDMI issue) | Treat as fallback |
+| `max_nits > 2000` (vendor inflation) | Clamp to 1000 nits |
+
+### Risks & Limitations (Current WinRT Implementation)
+
+- **Device name matching**: May fail if DisplayConfig name differs from WinRT device name
+- **Display support**: EDID luminance data not available on all monitors
+- **Driver dependency**: GPU driver must report EDID luminance correctly
+- **EDID inaccuracy**: Vendor-stated values may not reflect actual HDR behavior
+
+## BUILD & CI
+
+- **No CI/CD**: Manual builds only
+- **No tests**: Zero test files

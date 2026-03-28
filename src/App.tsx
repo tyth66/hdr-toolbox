@@ -13,29 +13,52 @@ const POSITION_KEY = "hdr-toolbox-window-position";
 interface DisplayInfo {
   name: string;
   nits: number;
+  min_percentage: number;
+  max_percentage: number;
   hdr_enabled: boolean;
   adapter_id_low: number;
   adapter_id_high: number;
   target_id: number;
+  min_nits?: number;
+  max_nits?: number;
 }
 
 const HOTKEY_INCREASE = "Ctrl+Alt+Up";
 const HOTKEY_DECREASE = "Ctrl+Alt+Down";
-const HOTKEY_STEP = 40;
-const MIN_NITS = 80;
-const MAX_NITS = 480;
+const HOTKEY_STEP = 10; // percentage points for hotkeys
+const MIN_SLIDER = 0;
+const MAX_SLIDER = 100;
+const DEFAULT_MIN_NITS = 80;
+const DEFAULT_MAX_NITS = 480;
+
+// Convert nits to percentage (0-100) using standard nits range
+const nitsToPercentage = (nits: number): number => {
+  const range = DEFAULT_MAX_NITS - DEFAULT_MIN_NITS;
+  if (range === 0) return 0;
+  return Math.round(((nits - DEFAULT_MIN_NITS) / range) * 100);
+};
+
+// Convert percentage (0-100) to nits using standard nits range
+const percentageToNits = (percentage: number): number => {
+  const range = DEFAULT_MAX_NITS - DEFAULT_MIN_NITS;
+  return Math.round(((percentage / 100) * range) + DEFAULT_MIN_NITS);
+};
 
 function App() {
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [currentNits, setCurrentNits] = useState(200);
+  const [currentPercentage, setCurrentPercentage] = useState(50); // 0-100 slider
   const [hdrActive, setHdrActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [autostartEnabled, setAutostartEnabled] = useState(false);
   const [showStartupInfo, setShowStartupInfo] = useState(false);
   // Use ref to always have fresh display list in async listeners
   const displaysRef = useRef<DisplayInfo[]>([]);
+  // Track showStartupInfo for Rust-side blur-to-hide (avoids cross-language state sync race)
+  const showStartupInfoRef = useRef(false);
   // Track if user is actively dragging the slider (for real-time updates)
   const isDraggingRef = useRef(false);
   // Debounce timer for real-time slider apply
@@ -45,6 +68,13 @@ function App() {
   useEffect(() => {
     displaysRef.current = displays;
   }, [displays]);
+
+  // Sync showStartupInfo to ref for cross-language state access
+  useEffect(() => {
+    showStartupInfoRef.current = showStartupInfo;
+    // Also emit to Rust so the blur-to-hide handler uses fresh state
+    invoke("set_startup_info_mode", { active: showStartupInfo }).catch(() => {});
+  }, [showStartupInfo]);
 
   // Position window - restore from storage or place above tray
   const positionWindow = useCallback(async () => {
@@ -109,9 +139,17 @@ function App() {
     }
     e.preventDefault();
     try {
+      // Set dragging mode before starting drag to prevent blur-to-hide
+      await invoke("set_dragging_mode", { active: true });
       await getCurrentWindow().startDragging();
+      // Clear dragging mode after a short delay (covers click-without-drag case)
+      setTimeout(() => {
+        invoke("set_dragging_mode", { active: false }).catch(() => {});
+      }, 200);
     } catch (err) {
       console.error("Failed to start dragging:", err);
+      // Clear dragging mode on error
+      invoke("set_dragging_mode", { active: false }).catch(() => {});
     }
   }, []);
 
@@ -158,18 +196,22 @@ function App() {
 
       if (result.length > 0) {
         setSelectedIndex(0);
-        setCurrentNits(result[0].nits);
+        const pct = nitsToPercentage(result[0].nits);
+        setCurrentPercentage(pct);
         setHdrActive(result[0].hdr_enabled);
-        // Show startup info - first show the window, then display the info
-        await showWindow();
+        // Set startup info mode BEFORE showing window to prevent blur-to-hide race
+        await invoke("set_startup_info_mode", { active: true });
         setShowStartupInfo(true);
+        await showWindow();
         setTimeout(() => {
           setShowStartupInfo(false);
-          getCurrentWindow().hide();
+          invoke("set_startup_info_mode", { active: false }).catch(() => {});
         }, 4000);
       }
     } catch (e) {
       setError(String(e));
+      // Clear Rust cache so tray menu reflects empty state
+      await invoke("update_displays_and_tooltip", { displays: [] });
     } finally {
       setLoading(false);
     }
@@ -177,6 +219,11 @@ function App() {
 
   useEffect(() => {
     loadDisplays();
+
+    // Load autostart status
+    isEnabled().then(setAutostartEnabled).catch((e) => {
+      console.warn("Failed to get autostart status:", e);
+    });
 
     // Listen for show-window event (from tray click/menu)
     const unlistenShowWindow = listen("show-window", async () => {
@@ -186,125 +233,90 @@ function App() {
       await positionWindow();
     });
 
-    // Listen for about event from tray menu
-    const unlistenAbout = listen("show-about", () => {
-      setShowAbout(true);
-    });
-
-    // Listen for autostart toggle from tray menu
-    const unlistenAutostart = listen("toggle-autostart", async () => {
-      try {
-        const enabled = await isEnabled();
-        if (enabled) {
-          await disable();
-        } else {
-          await enable();
-        }
-      } catch (e) {
-        console.error("Failed to toggle autostart:", e);
-      }
-    });
-
     // Listen for device selection from tray menu
     const unlistenSelectDisplay = listen<number>("select-display", (event) => {
       const idx = event.payload;
       const currentDisplays = displaysRef.current;
       if (idx >= 0 && idx < currentDisplays.length) {
         setSelectedIndex(idx);
-        setCurrentNits(currentDisplays[idx].nits);
+        const pct = nitsToPercentage(currentDisplays[idx].nits);
+        setCurrentPercentage(pct);
         setHdrActive(currentDisplays[idx].hdr_enabled);
       }
     });
 
     return () => {
       unlistenShowWindow.then((fn) => fn());
-      unlistenAbout.then((fn) => fn());
-      unlistenAutostart.then((fn) => fn());
       unlistenSelectDisplay.then((fn) => fn());
     };
   }, [loadDisplays, showWindow, positionWindow]);
 
-  // Hide window on blur (matches original C++ behavior: WM_ACTIVATE + WA_INACTIVE)
-  useEffect(() => {
-    let unlistenBlur: (() => void) | null = null;
-
-    const setupBlurListener = async () => {
-      try {
-        const win = getCurrentWindow();
-        unlistenBlur = await win.listen("blur", async () => {
-          // Don't hide if startup info or about dialog is showing
-          if (showStartupInfo) return;
-          await win.hide();
-        });
-      } catch (e) {
-        // Ignore errors (window might not be available in all contexts)
-      }
-    };
-
-    setupBlurListener();
-
-    return () => {
-      if (unlistenBlur) {
-        unlistenBlur();
-      }
-    };
-  }, [showStartupInfo]);
-
   // Register global hotkeys - use refs to avoid stale closures
   useEffect(() => {
+    let settled = false;
+    const registered = { up: false, down: false };
+
     const setupHotkeys = async () => {
       try {
         await register(HOTKEY_INCREASE, async () => {
+          if (settled) return;
           const idx = selectedIndex;
           const displayList = displaysRef.current;
           const display = displayList[idx];
           if (!display) return;
-          const newNits = Math.min(currentNits + HOTKEY_STEP, MAX_NITS);
-          const clampedNits = Math.max(MIN_NITS, Math.min(MAX_NITS, newNits));
+          const newPercentage = Math.min(currentPercentage + HOTKEY_STEP, MAX_SLIDER);
           try {
             await invoke("set_brightness", {
               adapterLow: display.adapter_id_low,
               adapterHigh: display.adapter_id_high,
               targetId: display.target_id,
-              nits: clampedNits,
+              percentage: newPercentage,
+              minNits: display.min_nits ?? 80,
+              maxNits: display.max_nits ?? 480,
             });
-            setCurrentNits(clampedNits);
+            setCurrentPercentage(newPercentage);
+            const newNits = percentageToNits(newPercentage);
             const updatedDisplays = displayList.map((d, i) =>
-              i === idx ? { ...d, nits: clampedNits } : d
+              i === idx ? { ...d, nits: newNits } : d
             );
             setDisplays(updatedDisplays);
-            // Use tooltip-only update to avoid menu rebuild on hotkey presses
             await invoke("update_tray_tooltip_only");
           } catch (e) {
             console.error("Failed to set brightness:", e);
           }
         });
+        if (settled) { unregister(HOTKEY_INCREASE).catch(() => {}); return; }
+        registered.up = true;
 
         await register(HOTKEY_DECREASE, async () => {
+          if (settled) return;
           const idx = selectedIndex;
           const displayList = displaysRef.current;
           const display = displayList[idx];
           if (!display) return;
-          const newNits = Math.max(currentNits - HOTKEY_STEP, MIN_NITS);
-          const clampedNits = Math.max(MIN_NITS, Math.min(MAX_NITS, newNits));
+          const newPercentage = Math.max(currentPercentage - HOTKEY_STEP, MIN_SLIDER);
           try {
             await invoke("set_brightness", {
               adapterLow: display.adapter_id_low,
               adapterHigh: display.adapter_id_high,
               targetId: display.target_id,
-              nits: clampedNits,
+              percentage: newPercentage,
+              minNits: display.min_nits ?? 80,
+              maxNits: display.max_nits ?? 480,
             });
-            setCurrentNits(clampedNits);
+            setCurrentPercentage(newPercentage);
+            const newNits = percentageToNits(newPercentage);
             const updatedDisplays = displayList.map((d, i) =>
-              i === idx ? { ...d, nits: clampedNits } : d
+              i === idx ? { ...d, nits: newNits } : d
             );
             setDisplays(updatedDisplays);
-            // Use tooltip-only update to avoid menu rebuild on hotkey presses
             await invoke("update_tray_tooltip_only");
           } catch (e) {
             console.error("Failed to set brightness:", e);
           }
         });
+        if (settled) { unregister(HOTKEY_DECREASE).catch(() => {}); return; }
+        registered.down = true;
       } catch (e) {
         console.warn("Failed to register hotkeys:", e);
       }
@@ -313,32 +325,39 @@ function App() {
     setupHotkeys();
 
     return () => {
-      unregister(HOTKEY_INCREASE).catch(() => {});
-      unregister(HOTKEY_DECREASE).catch(() => {});
+      settled = true;
+      // Cleanup is synchronous - unregister without await
+      // This is safe because we guard with `settled` flag in handlers
+      if (registered.up) unregister(HOTKEY_INCREASE).catch(() => {});
+      if (registered.down) unregister(HOTKEY_DECREASE).catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentNits, selectedIndex]);
+    // Intentionally excluded: currentPercentage is read via ref in hotkey handlers, not as dependency
+  }, [currentPercentage, selectedIndex]);
 
-  // Apply brightness to a single display
-  const applyBrightness = useCallback(async (nits: number) => {
+  // Apply brightness to a single display (percentage 0-100)
+  const applyBrightness = useCallback(async (percentage: number) => {
     const display = displays[selectedIndex];
     if (!display) return;
 
-    const clampedNits = Math.max(MIN_NITS, Math.min(MAX_NITS, nits));
+    const clampedPercentage = Math.max(MIN_SLIDER, Math.min(MAX_SLIDER, percentage));
+    const nits = percentageToNits(clampedPercentage);
 
     try {
       await invoke("set_brightness", {
         adapterLow: display.adapter_id_low,
         adapterHigh: display.adapter_id_high,
         targetId: display.target_id,
-        nits: clampedNits,
+        percentage: clampedPercentage,
+        minNits: display.min_nits ?? 80,
+        maxNits: display.max_nits ?? 480,
       });
 
-      setCurrentNits(clampedNits);
+      setCurrentPercentage(clampedPercentage);
 
       // Update the display's cached nits value and sync to Rust state/tooltip
       const updatedDisplays = displays.map((d, i) =>
-        i === selectedIndex ? { ...d, nits: clampedNits } : d
+        i === selectedIndex ? { ...d, nits } : d
       );
       setDisplays(updatedDisplays);
       await invoke("update_displays_and_tooltip", { displays: updatedDisplays });
@@ -350,18 +369,18 @@ function App() {
   // Handle device selection from side nav
   const handleDeviceSelect = (idx: number) => {
     setSelectedIndex(idx);
-    setCurrentNits(displays[idx].nits);
+    const pct = nitsToPercentage(displays[idx].nits);
+    setCurrentPercentage(pct);
     setHdrActive(displays[idx].hdr_enabled);
   };
 
   // Handle slider change (real-time)
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const nits = parseInt(e.target.value, 10);
-    setCurrentNits(nits);
+    const percentage = parseInt(e.target.value, 10);
+    setCurrentPercentage(percentage);
 
-    // Update progress CSS variable
-    const progress = ((nits - MIN_NITS) / (MAX_NITS - MIN_NITS)) * 100;
-    e.target.style.setProperty("--progress", `${progress}%`);
+    // Update progress CSS variable (already percentage)
+    e.target.style.setProperty("--progress", `${percentage}%`);
 
     // Real-time brightness apply during drag (debounced ~50ms)
     if (sliderDebounceRef.current !== null) {
@@ -369,26 +388,31 @@ function App() {
     }
     sliderDebounceRef.current = setTimeout(async () => {
       if (isDraggingRef.current) {
-        await applyBrightness(nits);
+        await applyBrightness(percentage);
       }
     }, 50);
   };
 
   // Handle slider drag start
   const handleSliderDown = () => {
+    if (sliderDebounceRef.current !== null) {
+      clearTimeout(sliderDebounceRef.current);
+      sliderDebounceRef.current = null;
+    }
     isDraggingRef.current = true;
   };
 
   // Handle slider commit (on mouse up / touch end)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Event type is complex Tauri event; any is acceptable here for the commit handler
   const handleSliderCommit = async (e: any) => {
     isDraggingRef.current = false;
     if (sliderDebounceRef.current !== null) {
       clearTimeout(sliderDebounceRef.current);
       sliderDebounceRef.current = null;
     }
-    const nits = parseInt(e.target.value, 10);
-    await applyBrightness(nits);
+    const percentage = parseInt(e.target.value, 10);
+    await applyBrightness(percentage);
   };
 
   // Handle HDR toggle
@@ -411,8 +435,8 @@ function App() {
     getCurrentWindow().hide();
   };
 
-  // Calculate slider progress percentage
-  const sliderProgress = ((currentNits - MIN_NITS) / (MAX_NITS - MIN_NITS)) * 100;
+  // Calculate slider progress percentage (slider is now 0-100)
+  const sliderProgress = currentPercentage;
 
   if (loading) {
     return (
@@ -468,7 +492,7 @@ function App() {
       <header className="title-bar" onMouseDown={handleTitleBarMouseDown}>
         <span className="title-bar-title">HDR Toolbox</span>
         <div className="title-bar-actions">
-          <button className="title-bar-btn" onClick={() => setShowAbout(true)} title="About">
+          <button className="title-bar-btn" onClick={() => setShowSettings(true)} title="Settings">
             <span className="material-symbols-outlined">settings</span>
           </button>
           <button className="title-bar-btn title-bar-close" onClick={handleClose} title="Close">
@@ -499,8 +523,8 @@ function App() {
             <div className="slider-header">
               <span className="slider-label">SDR Brightness</span>
               <div className="slider-value">
-                <span className="nits-value">{currentNits}</span>
-                <span className="nits-unit">nits</span>
+                <span className="nits-value">{currentPercentage}</span>
+                <span className="nits-unit">%</span>
               </div>
             </div>
 
@@ -511,10 +535,10 @@ function App() {
               />
               <input
                 type="range"
-                min={MIN_NITS}
-                max={MAX_NITS}
-                step={40}
-                value={currentNits}
+                min={MIN_SLIDER}
+                max={MAX_SLIDER}
+                step={1}
+                value={currentPercentage}
                 onChange={handleSliderChange}
                 onMouseDown={handleSliderDown}
                 onMouseUp={handleSliderCommit}
@@ -524,8 +548,8 @@ function App() {
             </div>
 
             <div className="slider-range">
-              <span>{MIN_NITS}</span>
-              <span>{MAX_NITS} nits</span>
+              <span>{MIN_SLIDER}</span>
+              <span>{MAX_SLIDER}%</span>
             </div>
           </div>
 
@@ -550,6 +574,59 @@ function App() {
         </section>
       </div>
 
+      {/* Settings Overlay */}
+      {showSettings && (
+        <div className="about-overlay" onClick={() => setShowSettings(false)}>
+          <div className="about-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2>Settings</h2>
+            <div className="settings-section">
+              <div className="settings-row">
+                <span>Auto-start with Windows</span>
+                <button
+                  className={`hdr-toggle ${autostartEnabled ? 'active' : ''}`}
+                  onClick={async () => {
+                    try {
+                      if (autostartEnabled) {
+                        await disable();
+                        setAutostartEnabled(false);
+                      } else {
+                        await enable();
+                        setAutostartEnabled(true);
+                      }
+                    } catch (e) {
+                      console.error("Failed to toggle autostart:", e);
+                    }
+                  }}
+                >
+                  <span className="toggle-thumb" />
+                </button>
+              </div>
+              <div className="settings-row">
+                <span>Quit HDR Toolbox</span>
+                <button
+                  className="btn"
+                  style={{ background: "rgba(239,68,68,0.2)", color: "#f87171" }}
+                  onClick={() => {
+                    invoke("quit");
+                  }}
+                >
+                  Quit
+                </button>
+              </div>
+            </div>
+            <p style={{ fontSize: "11px", color: "#999", marginTop: "8px" }}>
+              v1.0.0 · <button className="about-link" onClick={() => setShowAbout(true)}>About</button>
+            </p>
+            <button
+              className="btn btn-primary close-btn"
+              onClick={() => setShowSettings(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* About Overlay */}
       {showAbout && (
         <div className="about-overlay" onClick={() => setShowAbout(false)}>
@@ -563,13 +640,10 @@ function App() {
                 <strong>Left-click tray:</strong> Toggle slider
               </div>
               <div>
-                <strong>Right-click tray:</strong> Menu
+                <strong>Ctrl+Alt+↑:</strong> +{HOTKEY_STEP}%
               </div>
               <div>
-                <strong>Ctrl+Alt+↑:</strong> +{HOTKEY_STEP} nits
-              </div>
-              <div>
-                <strong>Ctrl+Alt+↓:</strong> -{HOTKEY_STEP} nits
+                <strong>Ctrl+Alt+↓:</strong> -{HOTKEY_STEP}%
               </div>
             </div>
             <p style={{ fontSize: "11px", color: "#999" }}>
@@ -599,7 +673,7 @@ function App() {
               ))}
             </ul>
             <p style={{ fontSize: "11px", color: "#999" }}>
-              Auto-closing in a few seconds...
+              Click outside to close
             </p>
           </div>
         </div>

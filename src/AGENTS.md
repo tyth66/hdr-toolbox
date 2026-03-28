@@ -2,68 +2,114 @@
 
 **Parent:** ./AGENTS.md (root)
 
-## Overview
+**Generated:** 2026-03-28 (refreshed)
 
-Single-page React 18 app — slider UI for HDR brightness control. Windows 11 Mica design with glass-morphism. All code in `App.tsx` (~470 lines).
+## OVERVIEW
 
-## Structure
+Single-page React 18 app — slider UI for HDR brightness. Windows 11 Mica glass-morphism design. 684 lines TSX + 578 lines CSS.
+
+## STRUCTURE
 
 ```
 src/
-├── App.tsx              # Main (only) component, slider + device selector
-├── main.tsx             # React mount + Tauri close-to-hide handler
-├── styles.css           # Windows 11 Mica design system, glass-morphism
+├── App.tsx              # Main component: slider, device nav, overlays (684 lines)
+├── main.tsx             # React mount + Tauri close-to-hide handler (18 lines)
+├── styles.css           # Windows 11 Mica design, glass-morphism, dark theme (578 lines)
 └── vite-env.d.ts       # Vite type reference
 ```
 
-## Where to Look
+## WHERE TO LOOK
 
-| Task | Location |
-|------|----------|
-| Slider UI logic | App.tsx:handleSliderChange |
-| Device switching | App.tsx:handleDeviceChange |
-| Debounced brightness apply | App.tsx:sliderDebounceRef |
-| Tauri event listeners | main.tsx, App.tsx useEffect |
-| Hotkey registration | App.tsx useEffect (Ctrl+Alt+Up/Down) |
-| CSS slider styling | styles.css (.slider-range) |
+| Task | Location | Notes |
+|------|----------|-------|
+| Slider logic + debounce | App.tsx:handleSliderChange, sliderDebounceRef | 50ms debounce on drag |
+| Device switching | App.tsx:handleDeviceSelect | Side nav buttons |
+| Real-time brightness apply | App.tsx:applyBrightness | Debounced, updates Rust state |
+| Hotkey handlers | App.tsx:useEffect (Ctrl+Alt+↑/↓) | Refs for stale closure avoidance |
+| Tauri event listeners | App.tsx:useEffect (mount) | show-window, select-display |
+| Window positioning | App.tsx:positionWindow | Restore from localStorage or place above tray |
+| Startup overlay | App.tsx:loadDisplays | 4s auto-dismiss (info only), main window stays |
+| Settings overlay | App.tsx:showSettings state | Autostart toggle + quit button |
+| About overlay | App.tsx:showAbout state | Shortcuts + description |
+| Close-to-hide | main.tsx:onCloseRequested | `event.preventDefault()` + `window.hide()` |
+| CSS slider styling | styles.css:.brightness-slider | WebKit/Moz custom thumb |
 
-## State Management
+## STATE MANAGEMENT
 
 | Hook | Purpose |
 |------|---------|
-| `useState` | displays[], selectedIndex, currentNits, loading, error, showAbout |
-| `useEffect` | Load displays, blur listener, hotkey setup |
-| `useCallback` | showWindow, loadDisplays, applyBrightness |
-| `useRef` | displaysRef (async sync), isDraggingRef, sliderDebounceRef |
+| `useState` | `displays[]`, `selectedIndex`, `currentNits`, `loading`, `error`, `showSettings`, `showAbout`, `autostartEnabled`, `showStartupInfo` |
+| `useEffect` | Load displays, hotkey setup, position listener, autostart status |
+| `useCallback` | `showWindow`, `loadDisplays`, `applyBrightness`, `positionWindow` |
+| `useRef` | `displaysRef` (async sync), `isDraggingRef`, `sliderDebounceRef`, `showStartupInfoRef` |
 
-**Ref sync pattern**: `displaysRef.current` kept in sync with `displays` state for async listeners.
+**Ref sync pattern**: `displaysRef.current = displays` kept in sync for async event listeners that need fresh display list.
 
-## Tauri Integration
+## TAURI INTEGRATION
 
 ```typescript
 // Commands → Rust
-invoke("get_hdr_displays")         // → DisplayInfo[]
-invoke("set_brightness", {adapter, target, nits})
-invoke("set_brightness_all", {displays, nits})
-invoke("update_displays_and_tooltip")
+invoke("get_hdr_displays")              // → DisplayInfo[] (luminance from EDID, DXGI migration planned)
+invoke("set_brightness", {adapterLow, adapterHigh, targetId, percentage, minNits, maxNits})
+invoke("set_brightness_all", {displays, percentage})  // Uses luminance range from DisplayInfo
+invoke("update_displays_and_tooltip", {displays})
+invoke("update_tray_tooltip_only")
+invoke("get_tray_rect")                 // → {x,y,width,height} | null
+invoke("set_startup_info_mode", {active: boolean})
+invoke("quit")                          // Exit process (bypasses close-to-hide)
 
 // Events ← Rust
-listen("show-about")      // → open about dialog
-listen("toggle-autostart") // → toggle autostart
-listen("select-display")  // → switch display from tray
+listen("show-window", ...)              // From tray left-click
+listen("select-display", payload: idx)  // From tray menu device selection
+
+// JS-only (no Rust involved)
+enable() / disable() / isEnabled()      // Autostart plugin
 ```
 
-## Anti-Patterns
+**DisplayInfo interface** (App.tsx):
+```typescript
+interface DisplayInfo {
+  name: string;
+  nits: number;
+  min_percentage: number;
+  max_percentage: number;
+  hdr_enabled: boolean;
+  adapter_id_low: number;
+  adapter_id_high: number;
+  target_id: number;
+  min_nits?: number;   // From luminance source (EDID or DXGI, optional)
+  max_nits?: number;   // From luminance source (EDID or DXGI, optional)
+}
+```
+
+## CONSTANTS
+
+```typescript
+WINDOW_WIDTH = 300
+WINDOW_HEIGHT = 200
+POSITION_KEY = "hdr-toolbox-window-position"  // localStorage key
+HOTKEY_INCREASE = "Ctrl+Alt+Up"
+HOTKEY_DECREASE = "Ctrl+Alt+Down"
+HOTKEY_STEP = 10  // percentage points per hotkey press
+MIN_NITS = 80
+MAX_NITS = 480
+SLIDER_STEP = 40  // matches API requirement (multiples of 4)
+```
+
+## STYLING
+
+- **Plain CSS**: No preprocessor, CSS variables for theming
+- **Design**: Windows 11 Mica with glass-morphism (`backdrop-filter: blur(40px)`)
+- **Theme**: Dark by default, light mode via `prefers-color-scheme` media query
+- **Accent**: `#0078d4` (Windows blue)
+- **Typography**: Inter font, Material Symbols Outlined icons
+- **Slider**: Custom WebKit/Moz thumbs with glow effect
+- **Title bar**: Custom draggable, `-webkit-app-region: drag`, close button calls `window.hide()`
+
+## ANTI-PATTERNS
 
 - **No class components** — hooks only
-- **No router** — single-window, show/hide via tray
+- **No router** — single window, show/hide via tray
 - **No async setState** — use ref pattern for async listeners
-
-## Styling
-
-- Plain CSS (no preprocessor)
-- Windows 11 Mica design system with CSS variables
-- Light/dark mode via `prefers-color-scheme` media query
-- Glass-morphism: `backdrop-filter: blur(20px) saturate(180%)` on panels
-- Custom title bar: `-webkit-app-region: drag` drag region, close button calls `window.hide()`
-- Accent: `#0078d4`, typography: Segoe UI Variable
+- **No `tauri://blur`** — blur handled in Rust via `on_window_event`
+- **Quit uses `invoke("quit")`** — bypasses window close-to-hide handler, calls `app.exit(0)` in Rust

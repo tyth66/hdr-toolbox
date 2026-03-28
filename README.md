@@ -9,9 +9,9 @@ A lightweight Windows system tray application for quickly adjusting HDR monitor 
 | 🎛️ **System Tray Control** | Always running in the system tray |
 | 🖱️ **Left-click** | Toggle brightness slider window |
 | 🖱️ **Right-click** | Show context menu with dynamic device list |
-| ⌨️ **Global Hotkeys** | `Ctrl+Alt+↑/↓` to increase/decrease brightness by 40 nits |
+| ⌨️ **Global Hotkeys** | `Ctrl+Alt+↑/↓` to increase/decrease brightness by 10% |
 | 🖥️ **Multi-Monitor** | Independent control for each HDR display |
-| 🚀 **Auto-start** | Optional Windows startup registration |
+| 🚀 **Auto-start** | Toggle in settings overlay (⚙️ button) |
 | 💡 **Real-time Slider** | Dragging the slider applies brightness immediately |
 
 ## 📋 System Requirements
@@ -59,22 +59,23 @@ src-tauri/target/release/hdr-toolbox.exe
 | Action | Input |
 |--------|-------|
 | Show/hide slider | Left-click tray icon |
-| Open menu | Right-click tray icon |
-| Switch display from tray | Right-click → select a display |
-| Increase brightness | `Ctrl+Alt+↑` (+40 nits) |
-| Decrease brightness | `Ctrl+Alt+↓` (-40 nits) |
-| Apply to all HDR monitors | Click "Apply All" button |
+| Open device menu | Right-click tray icon |
+| Switch display | Right-click → select a display |
+| Open settings | Click ⚙️ (settings) button in title bar |
+| Increase brightness | `Ctrl+Alt+↑` (+10%) |
+| Decrease brightness | `Ctrl+Alt+↓` (-10%) |
 | Hide on blur | Clicking outside window hides it |
 
 ### Startup Behavior
 
-On first launch, the app shows a notification listing all detected HDR displays and their current brightness levels. The window auto-hides after 4 seconds. The slider window also auto-hides when it loses focus (blur). The system tray tooltip always shows the current brightness of the active display.
+On first launch, the app shows a notification listing all detected HDR displays and their current brightness levels. After 4 seconds the notification auto-dismisses, leaving the main slider window visible for immediate use. The window auto-hides when it loses focus (blur). The system tray tooltip always shows the current brightness of the active display.
 
 ### Brightness Range
 
-- **Minimum**: 80 nits
-- **Maximum**: 480 nits
-- **Step**: 40 nits (API requirement: values must be multiples of 4)
+- **UI Slider**: 0–100% (matching Windows display slider)
+- **Nits Range**: 80–480 nits (per display, depending on HDR metadata)
+- **Conversion**: percentage → nits via `((percentage / 100) * (max_nits - min_nits)) + min_nits`
+- **Hotkeys**: ±10% per press
 
 ## 🏗️ Architecture
 

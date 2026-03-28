@@ -10,40 +10,22 @@ use tauri::{
 
 pub const TRAY_ID: &str = "main-tray";
 
-/// Build a static menu (About, Autostart, Quit).
-fn build_static_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
-    let auto_start_item = MenuItem::with_id(
-        app,
-        "autostart",
-        "Auto-start with Windows",
-        true,
-        None::<&str>,
-    )?;
-    let about_item = MenuItem::with_id(app, "about", "About", true, None::<&str>)?;
-    let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-
-    Menu::with_items(
-        app,
-        &[
-            &auto_start_item as &dyn tauri::menu::IsMenuItem<tauri::Wry>,
-            &PredefinedMenuItem::separator(app)? as &dyn tauri::menu::IsMenuItem<tauri::Wry>,
-            &about_item as &dyn tauri::menu::IsMenuItem<tauri::Wry>,
-            &quit_item as &dyn tauri::menu::IsMenuItem<tauri::Wry>,
-        ],
-    )
-}
-
 /// Build the full tray menu including dynamic device list.
 fn build_full_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
     let state = app.state::<AppState>();
     let displays = state.displays.lock().unwrap();
 
     if displays.is_empty() {
+        // Still include Quit button so the menu is interactive even without HDR displays
         let no_display =
             MenuItem::with_id(app, "no-display", "No HDR displays", false, None::<&str>)?;
+        let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
         return Menu::with_items(
             app,
-            &[&no_display as &dyn tauri::menu::IsMenuItem<tauri::Wry>],
+            &[
+                &no_display as &dyn tauri::menu::IsMenuItem<tauri::Wry>,
+                &quit_item as &dyn tauri::menu::IsMenuItem<tauri::Wry>,
+            ],
         );
     }
 
@@ -57,27 +39,16 @@ fn build_full_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
         })
         .collect();
 
-    let auto_start_item = MenuItem::with_id(
-        app,
-        "autostart",
-        "Auto-start with Windows",
-        true,
-        None::<&str>,
-    )?;
-    let about_item = MenuItem::with_id(app, "about", "About", true, None::<&str>)?;
-    let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let sep1 = PredefinedMenuItem::separator(app)?;
-    let sep2 = PredefinedMenuItem::separator(app)?;
-
-    // Build combined list of trait objects
+    // Build combined list of trait objects (device list + separator + quit)
     let mut all_items: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> = Vec::new();
     for item in &device_items {
         all_items.push(item as &dyn tauri::menu::IsMenuItem<tauri::Wry>);
     }
-    all_items.push(&sep1 as &dyn tauri::menu::IsMenuItem<tauri::Wry>);
-    all_items.push(&auto_start_item as &dyn tauri::menu::IsMenuItem<tauri::Wry>);
-    all_items.push(&sep2 as &dyn tauri::menu::IsMenuItem<tauri::Wry>);
-    all_items.push(&about_item as &dyn tauri::menu::IsMenuItem<tauri::Wry>);
+
+    // Add separator and Quit button
+    let separator = PredefinedMenuItem::separator(app)?;
+    all_items.push(&separator as &dyn tauri::menu::IsMenuItem<tauri::Wry>);
+    let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     all_items.push(&quit_item as &dyn tauri::menu::IsMenuItem<tauri::Wry>);
 
     Menu::with_items(app, &all_items)
@@ -177,14 +148,9 @@ pub fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
                 let _ = app.emit("show-window", ());
             }
         }
-        "autostart" => {
-            let _ = app.emit("toggle-autostart", ());
-        }
-        "about" => {
-            let _ = app.emit("show-about", ());
-            let _ = app.emit("show-window", ());
-        }
         "quit" => {
+            // Exit the application immediately
+            tracing::info!("Quit menu item clicked, exiting...");
             app.exit(0);
         }
         _ => {}

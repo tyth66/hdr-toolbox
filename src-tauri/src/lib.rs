@@ -13,12 +13,18 @@ use tauri::{AppHandle, Manager, State};
 /// Shared app state holding current display list for tray menu access.
 pub struct AppState {
     pub displays: Mutex<Vec<DisplayInfo>>,
+    /// Whether startup info overlay is showing — prevents blur-to-hide
+    pub startup_info_active: Mutex<bool>,
+    /// Whether window is being dragged — prevents blur-to-hide during drag
+    pub is_dragging: Mutex<bool>,
 }
 
 impl Default for AppState {
     fn default() -> Self {
         Self {
             displays: Mutex::new(Vec::new()),
+            startup_info_active: Mutex::new(false),
+            is_dragging: Mutex::new(false),
         }
     }
 }
@@ -59,6 +65,28 @@ fn get_tray_rect(app: AppHandle) -> Option<tauri::Rect> {
     tray::get_tray_rect(&app)
 }
 
+/// Set whether startup info overlay is active (prevents blur-to-hide).
+#[tauri::command]
+fn set_startup_info_mode(state: State<AppState>, active: bool) {
+    let mut flag = state.startup_info_active.lock().unwrap();
+    *flag = active;
+    tracing::info!("Startup info mode: {}", active);
+}
+
+/// Set whether window is being dragged (prevents blur-to-hide during drag).
+#[tauri::command]
+fn set_dragging_mode(state: State<AppState>, active: bool) {
+    let mut flag = state.is_dragging.lock().unwrap();
+    *flag = active;
+    tracing::info!("Dragging mode: {}", active);
+}
+
+/// Exit the application immediately (bypasses window close-to-hide handler).
+#[tauri::command]
+fn quit(app: AppHandle) {
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Set up tracing subscriber
@@ -88,6 +116,9 @@ pub fn run() {
             get_cached_displays,
             update_tray_tooltip_only,
             get_tray_rect,
+            set_startup_info_mode,
+            set_dragging_mode,
+            quit,
         ])
         .setup(|app| {
             tracing::info!("Setting up tray icon...");
@@ -102,6 +133,24 @@ pub fn run() {
                     } else {
                         tracing::info!("Mica backdrop applied successfully");
                     }
+                    // Listen for window focus loss to auto-hide (blur-to-hide)
+                    let win_handle = window.clone();
+                    let app_handle = app.app_handle().clone();
+                    window.on_window_event(move |event| {
+                        if let tauri::WindowEvent::Focused(false) = event {
+                            // Check if startup info is showing — skip hide if so
+                            if let Some(state) = app_handle.try_state::<AppState>() {
+                                let startup_active = *state.startup_info_active.lock().unwrap();
+                                let dragging = *state.is_dragging.lock().unwrap();
+                                if startup_active || dragging {
+                                    tracing::info!("Window lost focus but startup/dragging active, skipping hide");
+                                    return;
+                                }
+                            }
+                            tracing::info!("Window lost focus, hiding...");
+                            let _ = win_handle.hide();
+                        }
+                    });
                 }
             }
 
