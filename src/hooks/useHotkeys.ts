@@ -1,20 +1,25 @@
 import { useEffect } from "react";
 import type { RefObject } from "react";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
+import type { HotkeyConfig } from "../types";
 import { HOTKEYS, SLIDER } from "../types";
 
 type UseHotkeysOptions = {
   currentPercentageRef: RefObject<number>;
   applyBrightness: (percentage: number) => Promise<void>;
+  hotkeys: HotkeyConfig;
+  onRegistrationError?: () => void;
 };
 
 export function useHotkeys({
   currentPercentageRef,
   applyBrightness,
+  hotkeys,
+  onRegistrationError,
 }: UseHotkeysOptions) {
   useEffect(() => {
     let settled = false;
-    const registered = { up: false, down: false };
+    const registered = { increase: false, decrease: false };
 
     const adjustBrightnessByHotkey = async (delta: number) => {
       const nextPercentage = Math.max(
@@ -30,27 +35,28 @@ export function useHotkeys({
 
     const setupHotkeys = async () => {
       try {
-        await register(HOTKEYS.INCREASE, async () => {
+        await register(hotkeys.increase, async () => {
           if (settled) return;
           await adjustBrightnessByHotkey(HOTKEYS.STEP);
         });
         if (settled) {
-          unregister(HOTKEYS.INCREASE).catch(() => {});
+          unregister(hotkeys.increase).catch(() => {});
           return;
         }
-        registered.up = true;
+        registered.increase = true;
 
-        await register(HOTKEYS.DECREASE, async () => {
+        await register(hotkeys.decrease, async () => {
           if (settled) return;
           await adjustBrightnessByHotkey(-HOTKEYS.STEP);
         });
         if (settled) {
-          unregister(HOTKEYS.DECREASE).catch(() => {});
+          unregister(hotkeys.decrease).catch(() => {});
           return;
         }
-        registered.down = true;
+        registered.decrease = true;
       } catch (err) {
         console.warn("Failed to register hotkeys:", err);
+        onRegistrationError?.();
       }
     };
 
@@ -58,8 +64,8 @@ export function useHotkeys({
 
     return () => {
       settled = true;
-      if (registered.up) unregister(HOTKEYS.INCREASE).catch(() => {});
-      if (registered.down) unregister(HOTKEYS.DECREASE).catch(() => {});
+      if (registered.increase) unregister(hotkeys.increase).catch(() => {});
+      if (registered.decrease) unregister(hotkeys.decrease).catch(() => {});
     };
-  }, [applyBrightness, currentPercentageRef]);
+  }, [applyBrightness, currentPercentageRef, hotkeys, onRegistrationError]);
 }

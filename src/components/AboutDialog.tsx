@@ -1,11 +1,12 @@
-import { HOTKEYS } from "../types";
+import { HOTKEYS, type HotkeyConfig } from "../types";
 
 type AboutDialogProps = {
   open: boolean;
+  hotkeys: HotkeyConfig;
   onClose: () => void;
 };
 
-export function AboutDialog({ open, onClose }: AboutDialogProps) {
+export function AboutDialog({ open, hotkeys, onClose }: AboutDialogProps) {
   if (!open) {
     return null;
   }
@@ -23,10 +24,10 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
             <strong>Left-click tray:</strong> Toggle slider
           </div>
           <div>
-            <strong>{HOTKEYS.INCREASE}:</strong> +{HOTKEYS.STEP}%
+            <strong>{hotkeys.increase}:</strong> +{HOTKEYS.STEP}%
           </div>
           <div>
-            <strong>{HOTKEYS.DECREASE}:</strong> -{HOTKEYS.STEP}%
+            <strong>{hotkeys.decrease}:</strong> -{HOTKEYS.STEP}%
           </div>
         </div>
         <p style={{ fontSize: "11px", color: "#999" }}>v1.0.0 | MIT License</p>

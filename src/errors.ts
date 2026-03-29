@@ -65,3 +65,17 @@ export function mapQuitError(): AppNotice {
     message: "HDR Toolbox could not close cleanly. Try again from the tray menu.",
   };
 }
+
+export function mapHotkeyValidationError(message: string): AppNotice {
+  return {
+    title: "Shortcut update failed",
+    message,
+  };
+}
+
+export function mapHotkeyRegistrationError(): AppNotice {
+  return {
+    title: "Shortcut registration failed",
+    message: "The selected shortcut may be unavailable or already in use by another app.",
+  };
+}

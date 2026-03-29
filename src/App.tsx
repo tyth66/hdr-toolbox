@@ -11,14 +11,17 @@ import { StatusBar } from "./components/StatusBar";
 import { TitleBar } from "./components/TitleBar";
 import {
   mapAutostartError,
+  mapHotkeyRegistrationError,
+  mapHotkeyValidationError,
   mapQuitError,
 } from "./errors";
+import { loadHotkeys, saveHotkeys, validateHotkeys } from "./hotkeys";
 import { useDisplays } from "./hooks/useDisplays";
 import { useHotkeys } from "./hooks/useHotkeys";
 import { useStartupOverlay } from "./hooks/useStartupOverlay";
 import { useWindowPosition } from "./hooks/useWindowPosition";
 import { quit } from "./services/tauriApi";
-import { SLIDER } from "./types";
+import { HOTKEYS, SLIDER, type HotkeyConfig, type HotkeyDirection } from "./types";
 
 export type { DisplayInfo } from "./types";
 
@@ -28,6 +31,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [autostartEnabled, setAutostartEnabled] = useState(false);
+  const [hotkeys, setHotkeys] = useState<HotkeyConfig>(() => loadHotkeys());
   const isDraggingRef = useRef(false);
   const sliderDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wheelDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -56,7 +60,12 @@ function App() {
     startStartupOverlay,
   });
 
-  useHotkeys({ currentPercentageRef, applyBrightness });
+  useHotkeys({
+    currentPercentageRef,
+    applyBrightness,
+    hotkeys,
+    onRegistrationError: () => setNotice(mapHotkeyRegistrationError()),
+  });
 
   useEffect(() => {
     loadDisplays();
@@ -129,6 +138,35 @@ function App() {
       console.error("Failed to quit:", err);
       setNotice(mapQuitError());
     }
+  };
+
+  const handleHotkeyChange = (direction: HotkeyDirection, value: string) => {
+    const nextHotkeys = {
+      ...hotkeys,
+      [direction]: value,
+    };
+
+    const validationError = validateHotkeys(nextHotkeys);
+    if (validationError) {
+      setNotice(mapHotkeyValidationError(validationError));
+      return false;
+    }
+
+    setHotkeys(nextHotkeys);
+    saveHotkeys(nextHotkeys);
+    setNotice(null);
+    return true;
+  };
+
+  const handleHotkeyReset = () => {
+    const defaultHotkeys: HotkeyConfig = {
+      increase: HOTKEYS.increase,
+      decrease: HOTKEYS.decrease,
+    };
+
+    setHotkeys(defaultHotkeys);
+    saveHotkeys(defaultHotkeys);
+    setNotice(null);
   };
 
   const handleSliderChange = (percentage: number, element: HTMLInputElement) => {
@@ -289,13 +327,20 @@ function App() {
       <SettingsDialog
         open={showSettings}
         autostartEnabled={autostartEnabled}
+        hotkeys={hotkeys}
         onClose={() => setShowSettings(false)}
         onToggleAutostart={handleToggleAutostart}
+        onUpdateHotkey={handleHotkeyChange}
+        onResetHotkeys={handleHotkeyReset}
         onShowAbout={() => setShowAbout(true)}
         onQuit={handleQuit}
       />
 
-      <AboutDialog open={showAbout} onClose={() => setShowAbout(false)} />
+      <AboutDialog
+        open={showAbout}
+        hotkeys={hotkeys}
+        onClose={() => setShowAbout(false)}
+      />
 
       <StartupInfoDialog
         open={showStartupInfo}

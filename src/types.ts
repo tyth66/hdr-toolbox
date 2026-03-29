@@ -17,6 +17,13 @@ export interface DisplayInfo {
   max_nits?: number;
 }
 
+export type HotkeyDirection = "increase" | "decrease";
+
+export interface HotkeyConfig {
+  increase: string;
+  decrease: string;
+}
+
 // Constants shared across the app
 export const LUMINANCE = {
   MIN_NITS: 80,
@@ -31,9 +38,9 @@ export const WINDOW_CONFIG = {
   POSITION_KEY: "hdr-toolbox-window-position",
 } as const;
 
-export const HOTKEYS = {
-  INCREASE: "Ctrl+Alt+Up",
-  DECREASE: "Ctrl+Alt+Down",
+export const HOTKEYS: HotkeyConfig & { STEP: number } = {
+  increase: "Ctrl+Alt+Up",
+  decrease: "Ctrl+Alt+Down",
   STEP: 10, // percentage points per hotkey press
 } as const;
 

@@ -1,8 +1,15 @@
+import { useEffect, useState } from "react";
+import { formatHotkeyFromEvent } from "../hotkeys";
+import type { HotkeyConfig, HotkeyDirection } from "../types";
+
 type SettingsDialogProps = {
   open: boolean;
   autostartEnabled: boolean;
+  hotkeys: HotkeyConfig;
   onClose: () => void;
   onToggleAutostart: () => Promise<void>;
+  onUpdateHotkey: (direction: HotkeyDirection, value: string) => boolean;
+  onResetHotkeys: () => void;
   onShowAbout: () => void;
   onQuit: () => Promise<void>;
 };
@@ -10,11 +17,52 @@ type SettingsDialogProps = {
 export function SettingsDialog({
   open,
   autostartEnabled,
+  hotkeys,
   onClose,
   onToggleAutostart,
+  onUpdateHotkey,
+  onResetHotkeys,
   onShowAbout,
   onQuit,
 }: SettingsDialogProps) {
+  const [recording, setRecording] = useState<HotkeyDirection | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setRecording(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !recording) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (event.key === "Escape" && !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey) {
+        setRecording(null);
+        return;
+      }
+
+      const formatted = formatHotkeyFromEvent(event);
+      if (!formatted) {
+        return;
+      }
+
+      if (onUpdateHotkey(recording, formatted)) {
+        setRecording(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onUpdateHotkey, open, recording]);
+
   if (!open) {
     return null;
   }
@@ -33,6 +81,30 @@ export function SettingsDialog({
               }}
             >
               <span className="toggle-thumb" />
+            </button>
+          </div>
+          <div className="settings-row">
+            <span>Increase</span>
+            <button
+              className={`btn shortcut-btn ${recording === "increase" ? "shortcut-btn-recording" : ""}`}
+              onClick={() => setRecording(recording === "increase" ? null : "increase")}
+            >
+              {recording === "increase" ? "Press keys..." : hotkeys.increase}
+            </button>
+          </div>
+          <div className="settings-row">
+            <span>Decrease</span>
+            <button
+              className={`btn shortcut-btn ${recording === "decrease" ? "shortcut-btn-recording" : ""}`}
+              onClick={() => setRecording(recording === "decrease" ? null : "decrease")}
+            >
+              {recording === "decrease" ? "Press keys..." : hotkeys.decrease}
+            </button>
+          </div>
+          <div className="settings-row">
+            <span>Reset shortcuts</span>
+            <button className="btn" onClick={onResetHotkeys}>
+              Default
             </button>
           </div>
           <div className="settings-row">
