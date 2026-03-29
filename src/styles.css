@@ -153,6 +153,61 @@ body {
   overflow: hidden;
 }
 
+.notice-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 12px 0;
+  padding: 8px 10px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 6px;
+  color: #fbbf24;
+}
+
+.notice-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notice-copy strong {
+  font-size: 11px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.notice-copy span {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #fde68a;
+}
+
+.notice-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #fde68a;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.notice-dismiss:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff7ed;
+}
+
+.notice-dismiss .material-symbols-outlined {
+  font-size: 14px;
+}
+
 /* Side Nav */
 .side-nav {
   width: 44px;

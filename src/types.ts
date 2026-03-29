@@ -40,6 +40,7 @@ export const HOTKEYS = {
 export const SLIDER = {
   MIN: 0,
   MAX: 100,
+  WHEEL_STEP: 5,
 } as const;
 
 /**

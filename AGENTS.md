@@ -1,6 +1,6 @@
 ﻿# HDR Toolbox - Knowledge Base
 
-**Generated:** 2026-03-29 (refreshed after refactor)
+**Generated:** 2026-03-29 (refreshed after refresh UX, error handling, and wheel brightness)
 **Type:** Rust + Tauri 2 (Windows desktop app)
 
 ## OVERVIEW
@@ -64,6 +64,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 | Hotkey registration | `src/hooks/useHotkeys.ts` | JS plugin side, ref-driven state |
 | Window position / drag | `src/hooks/useWindowPosition.ts` | Saved position + tray positioning |
 | Startup overlay | `src/hooks/useStartupOverlay.ts` | 4s startup info + Rust sync |
+| Error mapping | `src/errors.ts` | User-facing initialization, refresh, and brightness messages |
 | Raw DisplayConfig FFI | `src-tauri/src/display/ffi.rs` | GET/SET SDR white level + MCCS |
 | Display service logic | `src-tauri/src/display/service.rs` | HDR enumeration, fallback, kill switch |
 | Display command boundary | `src-tauri/src/display/commands.rs` | `#[tauri::command]` wrappers |
@@ -85,6 +86,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - Keep display switching, refresh, and brightness logic in `useDisplays`
 - Keep global shortcut registration in `useHotkeys`
 - Keep pure helper logic in separately testable modules when possible
+- Keep user-facing error wording in `src/errors.ts`, not inline in UI components
 
 ## RUST ARCHITECTURE
 
@@ -128,6 +130,8 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - `tauri://blur` is intentionally not used
 - The title bar includes a manual refresh button beside the settings button
 - Each time the window is shown from the tray, the frontend performs a **silent refresh** of display state without replaying the startup overlay
+- The brightness slider supports mouse-wheel adjustment while the pointer is over the slider track
+- Non-blocking failures use an auto-dismissing notice banner; initialization failures still use a blocking full-page error state
 
 ## COMMANDS
 

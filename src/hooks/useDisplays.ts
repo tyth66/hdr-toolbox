@@ -13,6 +13,12 @@ import {
   findMatchingDisplayIndex,
   getSelectedDisplaySnapshot,
 } from "./displayState";
+import {
+  type AppNotice,
+  mapBrightnessError,
+  mapInitialLoadError,
+  mapRefreshError,
+} from "../errors";
 
 type UseDisplaysOptions = {
   showWindow: () => Promise<void>;
@@ -30,6 +36,7 @@ export function useDisplays({
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<AppNotice | null>(null);
 
   const displaysRef = useRef<DisplayInfo[]>([]);
   const selectedIndexRef = useRef(0);
@@ -69,34 +76,40 @@ export function useDisplays({
 
   const applyBrightness = useCallback(
     async (percentage: number) => {
-      const idx = selectedIndexRef.current;
-      const display = displaysRef.current[idx];
-      if (!display) {
-        return;
+      try {
+        const idx = selectedIndexRef.current;
+        const display = displaysRef.current[idx];
+        if (!display) {
+          return;
+        }
+
+        const clampedPercentage = Math.max(
+          SLIDER.MIN,
+          Math.min(SLIDER.MAX, percentage)
+        );
+
+        await setBrightness(
+          display.adapter_id_low,
+          display.adapter_id_high,
+          display.target_id,
+          clampedPercentage,
+          display.min_nits ?? 80,
+          display.max_nits ?? 480
+        );
+
+        setCurrentPercentage(clampedPercentage);
+        currentPercentageRef.current = clampedPercentage;
+        const updatedDisplays = buildBrightnessUpdate(
+          displaysRef.current,
+          idx,
+          clampedPercentage
+        );
+        await syncDisplayState(updatedDisplays);
+        setNotice(null);
+      } catch (err) {
+        setNotice(mapBrightnessError());
+        throw err;
       }
-
-      const clampedPercentage = Math.max(
-        SLIDER.MIN,
-        Math.min(SLIDER.MAX, percentage)
-      );
-
-      await setBrightness(
-        display.adapter_id_low,
-        display.adapter_id_high,
-        display.target_id,
-        clampedPercentage,
-        display.min_nits ?? 80,
-        display.max_nits ?? 480
-      );
-
-      setCurrentPercentage(clampedPercentage);
-      currentPercentageRef.current = clampedPercentage;
-      const updatedDisplays = buildBrightnessUpdate(
-        displaysRef.current,
-        idx,
-        clampedPercentage
-      );
-      await syncDisplayState(updatedDisplays);
     },
     [syncDisplayState]
   );
@@ -122,6 +135,7 @@ export function useDisplays({
       if (initial) {
         setLoading(true);
         setError(null);
+        setNotice(null);
       } else {
         setIsRefreshing(true);
       }
@@ -137,15 +151,17 @@ export function useDisplays({
           await startStartupOverlay();
           await showWindow();
         }
+
+        setNotice(null);
       }
     } catch (err) {
       if (initial) {
-        setError(String(err));
+        setError(mapInitialLoadError(err));
         setDisplays([]);
         displaysRef.current = [];
         await updateDisplaysAndTooltip([]);
-      } else if (!silent) {
-        console.error("Failed to refresh displays:", err);
+      } else {
+        setNotice(mapRefreshError(err, silent));
       }
     } finally {
       refreshInFlightRef.current = false;
@@ -172,6 +188,8 @@ export function useDisplays({
     loading,
     isRefreshing,
     error,
+    notice,
+    setNotice,
     loadDisplays,
     refreshDisplays,
     selectDisplay,

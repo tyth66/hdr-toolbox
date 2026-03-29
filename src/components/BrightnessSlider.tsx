@@ -1,3 +1,4 @@
+import type { WheelEventHandler } from "react";
 import { SLIDER } from "../types";
 
 type BrightnessSliderProps = {
@@ -5,6 +6,7 @@ type BrightnessSliderProps = {
   onChange: (value: number, element: HTMLInputElement) => void;
   onPointerDown: () => void;
   onCommit: (value: number) => Promise<void>;
+  onWheelAdjust: WheelEventHandler<HTMLDivElement>;
 };
 
 export function BrightnessSlider({
@@ -12,6 +14,7 @@ export function BrightnessSlider({
   onChange,
   onPointerDown,
   onCommit,
+  onWheelAdjust,
 }: BrightnessSliderProps) {
   return (
     <div className="slider-section">
@@ -23,7 +26,7 @@ export function BrightnessSlider({
         </div>
       </div>
 
-      <div className="slider-wrapper">
+      <div className="slider-wrapper" onWheel={onWheelAdjust}>
         <div className="slider-fill" style={{ width: `${value}%` }} />
         <input
           type="range"

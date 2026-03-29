@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type WheelEvent } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import "./styles.css";
@@ -9,13 +9,20 @@ import { SettingsDialog } from "./components/SettingsDialog";
 import { StartupInfoDialog } from "./components/StartupInfoDialog";
 import { StatusBar } from "./components/StatusBar";
 import { TitleBar } from "./components/TitleBar";
+import {
+  mapAutostartError,
+  mapQuitError,
+} from "./errors";
 import { useDisplays } from "./hooks/useDisplays";
 import { useHotkeys } from "./hooks/useHotkeys";
 import { useStartupOverlay } from "./hooks/useStartupOverlay";
 import { useWindowPosition } from "./hooks/useWindowPosition";
 import { quit } from "./services/tauriApi";
+import { SLIDER } from "./types";
 
 export type { DisplayInfo } from "./types";
+
+const NOTICE_AUTO_DISMISS_MS = 5000;
 
 function App() {
   const [showSettings, setShowSettings] = useState(false);
@@ -23,6 +30,7 @@ function App() {
   const [autostartEnabled, setAutostartEnabled] = useState(false);
   const isDraggingRef = useRef(false);
   const sliderDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wheelDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { showWindow, hideWindow, handleTitleBarMouseDown } = useWindowPosition();
   const { showStartupInfo, startStartupOverlay, closeStartupOverlay } =
@@ -37,6 +45,8 @@ function App() {
     loading,
     isRefreshing,
     error,
+    notice,
+    setNotice,
     loadDisplays,
     refreshDisplays,
     previewPercentage,
@@ -75,18 +85,50 @@ function App() {
       if (sliderDebounceRef.current !== null) {
         clearTimeout(sliderDebounceRef.current);
       }
+
+      if (wheelDebounceRef.current !== null) {
+        clearTimeout(wheelDebounceRef.current);
+      }
     };
   }, []);
 
-  const handleToggleAutostart = async () => {
-    if (autostartEnabled) {
-      await disable();
-      setAutostartEnabled(false);
+  useEffect(() => {
+    if (!notice) {
       return;
     }
 
-    await enable();
-    setAutostartEnabled(true);
+    const timeoutId = setTimeout(() => {
+      setNotice(null);
+    }, NOTICE_AUTO_DISMISS_MS);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [notice, setNotice]);
+
+  const handleToggleAutostart = async () => {
+    try {
+      if (autostartEnabled) {
+        await disable();
+        setAutostartEnabled(false);
+      } else {
+        await enable();
+        setAutostartEnabled(true);
+      }
+      setNotice(null);
+    } catch (err) {
+      console.error("Failed to toggle autostart:", err);
+      setNotice(mapAutostartError());
+    }
+  };
+
+  const handleQuit = async () => {
+    try {
+      await quit();
+    } catch (err) {
+      console.error("Failed to quit:", err);
+      setNotice(mapQuitError());
+    }
   };
 
   const handleSliderChange = (percentage: number, element: HTMLInputElement) => {
@@ -101,8 +143,7 @@ function App() {
       if (isDraggingRef.current) {
         try {
           await applyBrightness(percentage);
-        } catch (err) {
-          console.error("Failed to set brightness:", err);
+        } catch {
         }
       }
     }, 50);
@@ -125,9 +166,41 @@ function App() {
 
     try {
       await applyBrightness(percentage);
-    } catch (err) {
-      console.error("Failed to set brightness:", err);
+    } catch {
     }
+  };
+
+  const handleSliderWheel = (event: WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+
+    const direction = event.deltaY > 0 ? -1 : 1;
+
+    const nextPercentage = Math.max(
+      SLIDER.MIN,
+      Math.min(
+        SLIDER.MAX,
+        currentPercentageRef.current + (direction * SLIDER.WHEEL_STEP)
+      )
+    );
+
+    if (nextPercentage === currentPercentageRef.current) {
+      return;
+    }
+
+    previewPercentage(nextPercentage);
+
+    if (wheelDebounceRef.current !== null) {
+      clearTimeout(wheelDebounceRef.current);
+    }
+
+    wheelDebounceRef.current = setTimeout(async () => {
+      try {
+        await applyBrightness(nextPercentage);
+      } catch {
+      } finally {
+        wheelDebounceRef.current = null;
+      }
+    }, 60);
   };
 
   if (loading) {
@@ -177,6 +250,23 @@ function App() {
         onClose={hideWindow}
       />
 
+      {notice ? (
+        <div className="notice-banner" role="status" aria-live="polite">
+          <div className="notice-copy">
+            <strong>{notice.title}</strong>
+            <span>{notice.message}</span>
+          </div>
+          <button
+            className="notice-dismiss"
+            type="button"
+            onClick={() => setNotice(null)}
+            title="Dismiss"
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+      ) : null}
+
       <div className="main-layout">
         <DeviceNav
           displays={displays}
@@ -190,6 +280,7 @@ function App() {
             onChange={handleSliderChange}
             onPointerDown={handleSliderDown}
             onCommit={handleSliderCommit}
+            onWheelAdjust={handleSliderWheel}
           />
           <StatusBar hdrActive={hdrActive} />
         </section>
@@ -201,7 +292,7 @@ function App() {
         onClose={() => setShowSettings(false)}
         onToggleAutostart={handleToggleAutostart}
         onShowAbout={() => setShowAbout(true)}
-        onQuit={quit}
+        onQuit={handleQuit}
       />
 
       <AboutDialog open={showAbout} onClose={() => setShowAbout(false)} />

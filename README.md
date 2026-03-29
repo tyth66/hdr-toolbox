@@ -11,8 +11,10 @@ A lightweight Windows system tray application for adjusting HDR monitor SDR cont
 - Per-display HDR brightness control
 - Auto-start toggle in settings
 - Real-time slider updates while dragging
+- Mouse-wheel brightness adjustment while hovering the slider
 - Manual refresh button in the title bar, beside the settings button
 - Silent display-state refresh every time the window is shown from the tray
+- Product-style error handling with auto-dismissing notice banners for non-blocking failures
 
 ## Requirements
 
@@ -99,6 +101,8 @@ src-tauri/src/
 - The custom SET struct requires `final_value = 1`
 - The title bar refresh button triggers a manual display rescan
 - Showing the window from the tray performs a silent state refresh every time, without replaying the startup overlay
+- Scrolling the mouse wheel over the brightness slider adjusts brightness in `5%` steps
+- Non-blocking failures show a notice banner that auto-dismisses after 5 seconds; initialization failures remain blocking
 
 ## License
 

@@ -24,8 +24,7 @@ export function useHotkeys({
 
       try {
         await applyBrightness(nextPercentage);
-      } catch (err) {
-        console.error("Failed to set brightness:", err);
+      } catch {
       }
     };
 

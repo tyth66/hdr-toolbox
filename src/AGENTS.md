@@ -1,7 +1,7 @@
 ﻿# Frontend - React/TypeScript UI Layer
 
 **Parent:** ./AGENTS.md
-**Generated:** 2026-03-29 (refreshed after tests and refresh UX updates)
+**Generated:** 2026-03-29 (refreshed after refresh UX, notices, and wheel brightness)
 
 ## OVERVIEW
 
@@ -12,9 +12,11 @@ React 18 single-window UI for HDR brightness control. The frontend is split into
 ```text
 src/
 |- App.tsx                    # Composition layer
+|- errors.ts                  # User-facing error/notice mapping
 |- main.tsx                   # React mount + close-to-hide
 |- styles.css                 # Shared styling
 |- types.ts                   # DisplayInfo, LUMINANCE, HOTKEYS, SLIDER
+|- errors.test.ts             # Error mapping tests
 |- types.test.ts              # Pure conversion tests
 |- tauriApi.ts                # Compatibility re-export
 |- components/
@@ -44,6 +46,8 @@ src/
 | Display load/apply logic | `hooks/useDisplays.ts` | Source of truth for display state |
 | Refresh on show | `hooks/useDisplays.ts` + `App.tsx` | Tray show event refreshes state every time without startup overlay |
 | Manual refresh button | `components/TitleBar.tsx` | Refresh control next to settings |
+| Wheel brightness | `components/BrightnessSlider.tsx` + `App.tsx` | Mouse wheel over slider adjusts brightness in 5% steps |
+| User-facing errors | `errors.ts` + `App.tsx` | Blocking init errors + auto-dismissing notice banner |
 | Pure display state helpers | `hooks/displayState.ts` | Selection restore and display update helpers |
 | Hotkeys | `hooks/useHotkeys.ts` | Registers global shortcuts once |
 | Window drag/position | `hooks/useWindowPosition.ts` | Tray placement + saved position |
@@ -58,10 +62,11 @@ src/
 - `types.ts` is the only place for shared frontend constants
 - `services/tauriApi.ts` is the only place for typed Rust command wrappers
 - Put testable pure logic in helper modules before embedding it in hooks
+- Keep user-facing error copy centralized in `errors.ts`
 
 ## CURRENT HOOK OWNERSHIP
 
-- `useDisplays`: display list, selected display, current percentage, apply brightness, refresh logic
+- `useDisplays`: display list, selected display, current percentage, apply brightness, refresh logic, user notices
 - `useHotkeys`: `Ctrl+Alt+Up/Down` registration and brightness step dispatch
 - `useWindowPosition`: show/hide, tray placement, drag guard, saved position
 - `useStartupOverlay`: startup info visibility and Rust-side blur guard sync
@@ -70,3 +75,4 @@ src/
 
 - `types.test.ts`: nits / percentage conversion helpers
 - `hooks/displayState.test.ts`: selection restore and targeted display update helpers
+- `errors.test.ts`: user-facing error mapping helpers

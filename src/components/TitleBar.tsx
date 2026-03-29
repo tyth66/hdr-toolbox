@@ -29,9 +29,7 @@ export function TitleBar({
           <button
             className="title-bar-btn"
             onClick={() => {
-              onRefresh?.().catch((err) => {
-                console.error("Failed to refresh displays:", err);
-              });
+              onRefresh?.().catch(() => {});
             }}
             title={refreshing ? "Refreshing..." : "Refresh Displays"}
             disabled={refreshing}

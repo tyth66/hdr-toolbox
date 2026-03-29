@@ -29,9 +29,7 @@ export function SettingsDialog({
             <button
               className={`hdr-toggle ${autostartEnabled ? "active" : ""}`}
               onClick={() => {
-                onToggleAutostart().catch((err) => {
-                  console.error("Failed to toggle autostart:", err);
-                });
+                onToggleAutostart().catch(() => {});
               }}
             >
               <span className="toggle-thumb" />
@@ -43,9 +41,7 @@ export function SettingsDialog({
               className="btn"
               style={{ background: "rgba(239,68,68,0.2)", color: "#f87171" }}
               onClick={() => {
-                onQuit().catch((err) => {
-                  console.error("Failed to quit:", err);
-                });
+                onQuit().catch(() => {});
               }}
             >
               Quit
