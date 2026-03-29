@@ -23,14 +23,16 @@ export function loadHotkeys(): HotkeyConfig {
 
     const parsed = JSON.parse(rawValue) as Partial<HotkeyConfig>;
     return {
-      increase:
+      increase: normalizeHotkeyShortcut(
         typeof parsed.increase === "string" && parsed.increase.length > 0
           ? parsed.increase
-          : HOTKEYS.increase,
-      decrease:
+          : HOTKEYS.increase
+      ),
+      decrease: normalizeHotkeyShortcut(
         typeof parsed.decrease === "string" && parsed.decrease.length > 0
           ? parsed.decrease
-          : HOTKEYS.decrease,
+          : HOTKEYS.decrease
+      ),
     };
   } catch {
     return getDefaultHotkeys();
@@ -45,6 +47,46 @@ export function saveHotkeys(hotkeys: HotkeyConfig): void {
   window.localStorage.setItem(HOTKEY_SETTINGS_KEY, JSON.stringify(hotkeys));
 }
 
+function normalizeHotkeyModifier(part: string): string {
+  const normalized = part.trim().toLowerCase();
+
+  if (["ctrl", "control", "cmdorctrl", "commandorcontrol"].includes(normalized)) {
+    return "CommandOrControl";
+  }
+
+  if (normalized === "alt" || normalized === "option") {
+    return "Alt";
+  }
+
+  if (normalized === "shift") {
+    return "Shift";
+  }
+
+  if (["meta", "cmd", "command", "super", "win", "windows"].includes(normalized)) {
+    return "Meta";
+  }
+
+  return part.trim();
+}
+
+export function normalizeHotkeyShortcut(shortcut: string): string {
+  const parts = shortcut
+    .split("+")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return shortcut;
+  }
+
+  const key = normalizeHotkeyKey(parts[parts.length - 1]) ?? parts[parts.length - 1];
+  const modifiers = parts
+    .slice(0, -1)
+    .map(normalizeHotkeyModifier);
+
+  return [...modifiers, key].join("+");
+}
+
 export function isModifierOnlyKey(key: string): boolean {
   return ["Control", "Alt", "Shift", "Meta"].includes(key);
 }
@@ -55,7 +97,7 @@ export function formatHotkeyFromEvent(event: Pick<KeyboardEvent, "key" | "ctrlKe
   }
 
   const modifiers: string[] = [];
-  if (event.ctrlKey) modifiers.push("Ctrl");
+  if (event.ctrlKey) modifiers.push("CommandOrControl");
   if (event.altKey) modifiers.push("Alt");
   if (event.shiftKey) modifiers.push("Shift");
   if (event.metaKey) modifiers.push("Meta");
@@ -66,6 +108,12 @@ export function formatHotkeyFromEvent(event: Pick<KeyboardEvent, "key" | "ctrlKe
   }
 
   return [...modifiers, key].join("+");
+}
+
+export function formatHotkeyLabel(shortcut: string): string {
+  return normalizeHotkeyShortcut(shortcut)
+    .replace(/CommandOrControl/g, "Ctrl")
+    .replace(/Meta/g, "Win");
 }
 
 export function normalizeHotkeyKey(key: string): string | null {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type WheelEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type WheelEvent } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import "./styles.css";
@@ -15,7 +15,12 @@ import {
   mapHotkeyValidationError,
   mapQuitError,
 } from "./errors";
-import { loadHotkeys, saveHotkeys, validateHotkeys } from "./hotkeys";
+import {
+  loadHotkeys,
+  normalizeHotkeyShortcut,
+  saveHotkeys,
+  validateHotkeys,
+} from "./hotkeys";
 import { useDisplays } from "./hooks/useDisplays";
 import { useHotkeys } from "./hooks/useHotkeys";
 import { useStartupOverlay } from "./hooks/useStartupOverlay";
@@ -60,11 +65,15 @@ function App() {
     startStartupOverlay,
   });
 
+  const handleHotkeyRegistrationError = useCallback(() => {
+    setNotice(mapHotkeyRegistrationError());
+  }, [setNotice]);
+
   useHotkeys({
     currentPercentageRef,
     applyBrightness,
     hotkeys,
-    onRegistrationError: () => setNotice(mapHotkeyRegistrationError()),
+    onRegistrationError: handleHotkeyRegistrationError,
   });
 
   useEffect(() => {
@@ -143,7 +152,7 @@ function App() {
   const handleHotkeyChange = (direction: HotkeyDirection, value: string) => {
     const nextHotkeys = {
       ...hotkeys,
-      [direction]: value,
+      [direction]: normalizeHotkeyShortcut(value),
     };
 
     const validationError = validateHotkeys(nextHotkeys);

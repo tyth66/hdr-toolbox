@@ -39,15 +39,15 @@ export const WINDOW_CONFIG = {
 } as const;
 
 export const HOTKEYS: HotkeyConfig & { STEP: number } = {
-  increase: "Ctrl+Alt+Up",
-  decrease: "Ctrl+Alt+Down",
-  STEP: 10, // percentage points per hotkey press
+  increase: "CommandOrControl+Alt+Up",
+  decrease: "CommandOrControl+Alt+Down",
+  STEP: 4, // percentage points per hotkey press
 } as const;
 
 export const SLIDER = {
   MIN: 0,
   MAX: 100,
-  WHEEL_STEP: 5,
+  WHEEL_STEP: 2,
 } as const;
 
 /**

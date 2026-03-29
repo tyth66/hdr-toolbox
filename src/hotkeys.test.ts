@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  formatHotkeyLabel,
   formatHotkeyFromEvent,
+  normalizeHotkeyShortcut,
   normalizeHotkeyKey,
   validateHotkeys,
 } from "./hotkeys.ts";
@@ -15,7 +17,7 @@ test("formatHotkeyFromEvent captures modifier combinations", () => {
       shiftKey: false,
       metaKey: false,
     }),
-    "Ctrl+Alt+Up"
+    "CommandOrControl+Alt+Up"
   );
 });
 
@@ -36,6 +38,20 @@ test("normalizeHotkeyKey normalizes supported special keys", () => {
   assert.equal(normalizeHotkeyKey(" "), "Space");
   assert.equal(normalizeHotkeyKey("F8"), "F8");
   assert.equal(normalizeHotkeyKey("q"), "Q");
+});
+
+test("normalizeHotkeyShortcut upgrades legacy ctrl labels to accelerator format", () => {
+  assert.equal(
+    normalizeHotkeyShortcut("Ctrl+Alt+q"),
+    "CommandOrControl+Alt+Q"
+  );
+});
+
+test("formatHotkeyLabel keeps accelerators user-friendly", () => {
+  assert.equal(
+    formatHotkeyLabel("CommandOrControl+Alt+Q"),
+    "Ctrl+Alt+Q"
+  );
 });
 
 test("validateHotkeys rejects duplicate bindings", () => {

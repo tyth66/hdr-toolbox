@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { formatHotkeyFromEvent } from "../hotkeys";
+import { formatHotkeyFromEvent, formatHotkeyLabel } from "../hotkeys";
 import type { HotkeyConfig, HotkeyDirection } from "../types";
 
 type SettingsDialogProps = {
@@ -89,7 +89,7 @@ export function SettingsDialog({
               className={`btn shortcut-btn ${recording === "increase" ? "shortcut-btn-recording" : ""}`}
               onClick={() => setRecording(recording === "increase" ? null : "increase")}
             >
-              {recording === "increase" ? "Press keys..." : hotkeys.increase}
+              {recording === "increase" ? "Press keys..." : formatHotkeyLabel(hotkeys.increase)}
             </button>
           </div>
           <div className="settings-row">
@@ -98,7 +98,7 @@ export function SettingsDialog({
               className={`btn shortcut-btn ${recording === "decrease" ? "shortcut-btn-recording" : ""}`}
               onClick={() => setRecording(recording === "decrease" ? null : "decrease")}
             >
-              {recording === "decrease" ? "Press keys..." : hotkeys.decrease}
+              {recording === "decrease" ? "Press keys..." : formatHotkeyLabel(hotkeys.decrease)}
             </button>
           </div>
           <div className="settings-row">

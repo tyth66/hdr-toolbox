@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { RefObject } from "react";
-import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
+import { register, unregister, type ShortcutEvent } from "@tauri-apps/plugin-global-shortcut";
 import type { HotkeyConfig } from "../types";
 import { HOTKEYS, SLIDER } from "../types";
 
@@ -35,8 +35,8 @@ export function useHotkeys({
 
     const setupHotkeys = async () => {
       try {
-        await register(hotkeys.increase, async () => {
-          if (settled) return;
+        await register(hotkeys.increase, async (event: ShortcutEvent) => {
+          if (settled || event.state !== "Pressed") return;
           await adjustBrightnessByHotkey(HOTKEYS.STEP);
         });
         if (settled) {
@@ -45,8 +45,8 @@ export function useHotkeys({
         }
         registered.increase = true;
 
-        await register(hotkeys.decrease, async () => {
-          if (settled) return;
+        await register(hotkeys.decrease, async (event: ShortcutEvent) => {
+          if (settled || event.state !== "Pressed") return;
           await adjustBrightnessByHotkey(-HOTKEYS.STEP);
         });
         if (settled) {

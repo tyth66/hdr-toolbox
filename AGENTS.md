@@ -1,6 +1,6 @@
 ﻿# HDR Toolbox - Knowledge Base
 
-**Generated:** 2026-03-29 (refreshed after refresh UX, error handling, and wheel brightness)
+**Generated:** 2026-03-29 (refreshed after custom hotkeys and step tuning)
 **Type:** Rust + Tauri 2 (Windows desktop app)
 
 ## OVERVIEW
@@ -61,7 +61,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 | Tauri API boundary | `src/services/tauriApi.ts` | Only place that should call `invoke()` |
 | Display state flow | `src/hooks/useDisplays.ts` | Initial load, refresh, apply brightness |
 | Display state helpers | `src/hooks/displayState.ts` | Pure helper logic for selection and updates |
-| Hotkey registration | `src/hooks/useHotkeys.ts` | JS plugin side, ref-driven state |
+| Hotkey registration | `src/hooks/useHotkeys.ts` + `src/hotkeys.ts` | JS plugin side, user-configurable accelerators |
 | Window position / drag | `src/hooks/useWindowPosition.ts` | Saved position + tray positioning |
 | Startup overlay | `src/hooks/useStartupOverlay.ts` | 4s startup info + Rust sync |
 | Error mapping | `src/errors.ts` | User-facing initialization, refresh, and brightness messages |
@@ -130,7 +130,8 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - `tauri://blur` is intentionally not used
 - The title bar includes a manual refresh button beside the settings button
 - Each time the window is shown from the tray, the frontend performs a **silent refresh** of display state without replaying the startup overlay
-- The brightness slider supports mouse-wheel adjustment while the pointer is over the slider track
+- Global brightness hotkeys are user-configurable and use a 4% step
+- The brightness slider supports mouse-wheel adjustment while the pointer is over the slider track with a 2% step
 - Non-blocking failures use an auto-dismissing notice banner; initialization failures still use a blocking full-page error state
 
 ## COMMANDS

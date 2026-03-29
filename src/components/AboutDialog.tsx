@@ -1,3 +1,4 @@
+import { formatHotkeyLabel } from "../hotkeys";
 import { HOTKEYS, type HotkeyConfig } from "../types";
 
 type AboutDialogProps = {
@@ -24,10 +25,10 @@ export function AboutDialog({ open, hotkeys, onClose }: AboutDialogProps) {
             <strong>Left-click tray:</strong> Toggle slider
           </div>
           <div>
-            <strong>{hotkeys.increase}:</strong> +{HOTKEYS.STEP}%
+            <strong>{formatHotkeyLabel(hotkeys.increase)}:</strong> +{HOTKEYS.STEP}%
           </div>
           <div>
-            <strong>{hotkeys.decrease}:</strong> -{HOTKEYS.STEP}%
+            <strong>{formatHotkeyLabel(hotkeys.decrease)}:</strong> -{HOTKEYS.STEP}%
           </div>
         </div>
         <p style={{ fontSize: "11px", color: "#999" }}>v1.0.0 | MIT License</p>

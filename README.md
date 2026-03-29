@@ -7,7 +7,7 @@ A lightweight Windows system tray application for adjusting HDR monitor SDR cont
 - System tray control
 - Left-click tray icon to show or hide the slider window
 - Right-click tray icon to open the dynamic device menu
-- Global hotkeys: `Ctrl+Alt+Up` / `Ctrl+Alt+Down`
+- Customizable global hotkeys for brightness up/down
 - Per-display HDR brightness control
 - Auto-start toggle in settings
 - Real-time slider updates while dragging
@@ -60,15 +60,18 @@ src-tauri/target/release/hdr-toolbox.exe
 ```text
 src/
 |- App.tsx
+|- hotkeys.ts
 |- components/
 |- hooks/
 |- services/
+|- hotkeys.test.ts
 |- types.ts
 |- types.test.ts
 '- hooks/displayState.test.ts
 ```
 
 - `App.tsx`: composition layer
+- `hotkeys.ts`: shortcut normalization, persistence, and user-facing labels
 - `components/`: presentational UI
 - `hooks/`: display state, hotkeys, window positioning, startup overlay
 - `services/tauriApi.ts`: typed Rust command wrappers
@@ -101,7 +104,8 @@ src-tauri/src/
 - The custom SET struct requires `final_value = 1`
 - The title bar refresh button triggers a manual display rescan
 - Showing the window from the tray performs a silent state refresh every time, without replaying the startup overlay
-- Scrolling the mouse wheel over the brightness slider adjusts brightness in `5%` steps
+- Global hotkeys are configurable in Settings and adjust brightness in `4%` steps
+- Scrolling the mouse wheel over the brightness slider adjusts brightness in `2%` steps
 - Non-blocking failures show a notice banner that auto-dismisses after 5 seconds; initialization failures remain blocking
 
 ## License
