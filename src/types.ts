@@ -9,6 +9,7 @@ export interface DisplayInfo {
   nits: number;
   min_percentage: number;
   max_percentage: number;
+  hdr_supported: boolean;
   hdr_enabled: boolean;
   adapter_id_low: number;
   adapter_id_high: number;

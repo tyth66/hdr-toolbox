@@ -3,8 +3,10 @@ use windows::Win32::Devices::Display::{
     DestroyPhysicalMonitors, DisplayConfigGetDeviceInfo, DisplayConfigSetDeviceInfo,
     GetDisplayConfigBufferSizes, GetNumberOfPhysicalMonitorsFromHMONITOR,
     GetPhysicalMonitorsFromHMONITOR, QueryDisplayConfig,
+    DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE,
     DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL, DISPLAYCONFIG_PATH_INFO,
-    DISPLAYCONFIG_SDR_WHITE_LEVEL, PHYSICAL_MONITOR, QDC_ONLY_ACTIVE_PATHS,
+    DISPLAYCONFIG_SDR_WHITE_LEVEL, DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE, PHYSICAL_MONITOR,
+    QDC_ONLY_ACTIVE_PATHS,
 };
 use windows::Win32::Foundation::{HWND, LUID};
 use windows::Win32::Graphics::Gdi::{HMONITOR, MONITOR_DEFAULTTONEAREST, MonitorFromWindow};
@@ -181,6 +183,39 @@ pub(super) fn set_sdr_white_level_raw(
         } else {
             Err(format!(
                 "DisplayConfigSetDeviceInfo(SET_SDR_WHITE_LEVEL) failed: {}",
+                result
+            ))
+        }
+    }
+}
+
+pub(super) fn set_advanced_color_state(
+    adapter_id: LUID,
+    target_id: u32,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut set_params = DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE {
+        header: windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER {
+            r#type: DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE,
+            size: std::mem::size_of::<DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE>() as u32,
+            adapterId: adapter_id,
+            id: target_id,
+        },
+        Anonymous: windows::Win32::Devices::Display::DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE_0 {
+            value: if enabled { 1 } else { 0 },
+        },
+    };
+
+    unsafe {
+        let result = DisplayConfigSetDeviceInfo(
+            &mut set_params.header as *mut _
+                as *mut windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER,
+        );
+        if result == 0 {
+            Ok(())
+        } else {
+            Err(format!(
+                "DisplayConfigSetDeviceInfo(SET_ADVANCED_COLOR_STATE) failed: {}",
                 result
             ))
         }

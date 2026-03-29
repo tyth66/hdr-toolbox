@@ -1,7 +1,7 @@
 ﻿# Rust Backend - Tauri 2 Core
 
 **Parent:** ./AGENTS.md
-**Generated:** 2026-03-29 (refreshed after tests and silent refresh)
+**Generated:** 2026-03-30 (refreshed after architecture refactor)
 
 ## OVERVIEW
 
@@ -12,7 +12,12 @@ Windows DisplayConfig backend for HDR SDR brightness control. The display subsys
 ```text
 src-tauri/src/
 |- main.rs                    # Binary entry
-|- lib.rs                     # Tauri builder, plugins, AppState
+|- lib.rs                     # Tauri builder and module wiring
+|- app/
+|  |- mod.rs
+|  |- state.rs                # AppState + TrayState
+|  |- commands.rs             # Non-display Tauri commands
+|  '- window.rs               # Backdrop + blur-to-hide behavior
 |- tray.rs                    # Tray icon/menu/event handling
 '- display/
    |- mod.rs                  # Module exports
@@ -26,20 +31,22 @@ src-tauri/src/
 
 | Task | Location | Notes |
 |------|----------|-------|
-| Shared display model | `display/model.rs` | `DisplayInfo`, luminance constants |
-| Raw GET/SET SDR white level | `display/ffi.rs` | Undocumented SET struct lives here |
-| HDR display discovery | `display/service.rs` | QueryDisplayConfig + fallback logic |
+| Shared display model | `display/model.rs` | `DisplayInfo`, luminance constants, `hdr_supported` / `hdr_enabled` |
+| Raw GET/SET SDR white level + HDR state | `display/ffi.rs` | SDR white level and advanced color state writes live here |
+| HDR-capable display discovery | `display/service.rs` | QueryDisplayConfig + supported/enabled parsing + fallback logic |
 | Failure-state helpers | `display/service.rs` | Kill switch and reset helper functions |
-| Tauri command boundary | `display/commands.rs` | Stable JS-facing commands |
-| Tray behavior | `tray.rs` | Left/right click and menu events |
-| App state / blur-to-hide | `lib.rs` | `AppState`, `on_window_event` |
+| Tauri command boundary | `display/commands.rs` | Stable JS-facing commands plus authoritative state updates |
+| App state | `app/state.rs` | `AppState`, `TrayState`, `TrayDisplaySummary` |
+| Window behavior | `app/window.rs` | `on_window_event`, Mica, blur-to-hide |
+| Tray behavior | `tray.rs` | Left/right click and menu events from summary state |
 
 ## MODULE RULES
 
 - `ffi.rs` should contain unsafe Windows interaction, not app policy
 - `service.rs` should own fallback, enumeration, kill switch, and conversions
-- `commands.rs` should stay thin and forward-only
+- `commands.rs` should stay at the command boundary and own state synchronization, not low-level Windows details
 - `lib.rs` should not absorb display business logic again
+- `tray.rs` should depend on tray summary state, not full `DisplayInfo`
 - Add tests in `service.rs` when logic can be validated without Windows handles
 
 ## COMMAND SURFACE
@@ -47,9 +54,7 @@ src-tauri/src/
 - `get_hdr_displays`
 - `set_brightness`
 - `set_brightness_all`
-- `update_displays_and_tooltip`
-- `get_cached_displays`
-- `update_tray_tooltip_only`
+- `set_hdr_enabled`
 - `get_tray_rect`
 - `set_startup_info_mode`
 - `set_dragging_mode`
@@ -58,6 +63,7 @@ src-tauri/src/
 ## CURRENT TEST COVERAGE
 
 - `percentage_to_nits`
+- advanced color supported/enabled bit parsing
 - failure-state disable threshold
 - failure-state reset behavior
 
@@ -66,5 +72,10 @@ src-tauri/src/
 - SDR white level control still uses undocumented type `0xFFFFFFEE`
 - The custom SET struct must include `final_value = 1`
 - MCCS values are informational only
+- `DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO` bit 0 (`0x1`) is treated as HDR-capable, bit 1 (`0x2`) as currently enabled
+- `DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE` is now used to toggle HDR
+- Enumeration now keeps HDR-capable displays even when HDR is off, so HDR toggling can target them
+- Rust commands now update authoritative display state and tray summary state directly
+- Tray rendering is now based on `TrayState` summaries rather than the full display model
 - Physical monitor handles are explicitly released after MCCS queries
 - Failure kill switch still disables HDR enumeration after repeated failures

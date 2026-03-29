@@ -52,6 +52,13 @@ export function mapBrightnessError(): AppNotice {
   };
 }
 
+export function mapHdrToggleError(): AppNotice {
+  return {
+    title: "HDR toggle failed",
+    message: "HDR Toolbox could not change the Windows HDR state for the selected display.",
+  };
+}
+
 export function mapAutostartError(): AppNotice {
   return {
     title: "Auto-start update failed",

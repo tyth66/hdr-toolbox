@@ -3,6 +3,7 @@ import { SLIDER } from "../types";
 
 type BrightnessSliderProps = {
   value: number;
+  disabled?: boolean;
   onChange: (value: number, element: HTMLInputElement) => void;
   onPointerDown: () => void;
   onCommit: (value: number) => Promise<void>;
@@ -11,6 +12,7 @@ type BrightnessSliderProps = {
 
 export function BrightnessSlider({
   value,
+  disabled = false,
   onChange,
   onPointerDown,
   onCommit,
@@ -26,6 +28,10 @@ export function BrightnessSlider({
         </div>
       </div>
 
+      {disabled ? (
+        <div className="slider-helper">Available when HDR is enabled</div>
+      ) : null}
+
       <div className="slider-wrapper" onWheel={onWheelAdjust}>
         <div className="slider-fill" style={{ width: `${value}%` }} />
         <input
@@ -39,7 +45,8 @@ export function BrightnessSlider({
           onMouseUp={(event) => onCommit(parseInt(event.currentTarget.value, 10))}
           onTouchStart={onPointerDown}
           onTouchEnd={(event) => onCommit(parseInt(event.currentTarget.value, 10))}
-          className="brightness-slider"
+          className={`brightness-slider ${disabled ? "disabled" : ""}`}
+          disabled={disabled}
         />
       </div>
 

@@ -8,7 +8,8 @@ A lightweight Windows system tray application for adjusting HDR monitor SDR cont
 - Left-click tray icon to show or hide the slider window
 - Right-click tray icon to open the dynamic device menu
 - Customizable global hotkeys for brightness up/down
-- Per-display HDR brightness control
+- Per-display HDR-capable display control with current HDR state awareness
+- Live HDR toggle in the status bar
 - Auto-start toggle in settings
 - Real-time slider updates while dragging
 - Mouse-wheel brightness adjustment while hovering the slider
@@ -60,28 +61,53 @@ src-tauri/target/release/hdr-toolbox.exe
 ```text
 src/
 |- App.tsx
+|- app/
+|  |- useAppController.ts
+|  '- useNoticeController.ts
+|- brightness/
+|  '- useBrightnessController.ts
 |- hotkeys.ts
 |- components/
 |- hooks/
+|  |- useDisplaySelection.ts
+|  |- useDisplayDeviceActions.ts
+|  |- useDisplays.ts
+|  |- useHotkeys.ts
+|  |- useWindowPosition.ts
+|  |- useStartupOverlay.ts
+|  |- displayState.ts
+|  '- displayState.test.ts
 |- services/
+|  '- tauriApi.ts
+|- displayContract.test.ts
 |- hotkeys.test.ts
 |- types.ts
 |- types.test.ts
-'- hooks/displayState.test.ts
+'- errors.ts
 ```
 
-- `App.tsx`: composition layer
+- `App.tsx`: thin composition layer
+- `app/`: app-level controllers for initialization, dialogs, autostart, and notices
+- `brightness/`: slider interaction controller
 - `hotkeys.ts`: shortcut normalization, persistence, and user-facing labels
 - `components/`: presentational UI
-- `hooks/`: display state, hotkeys, window positioning, startup overlay
+- `hooks/useDisplays.ts`: public display-state hook facade
+- `hooks/useDisplaySelection.ts`: selected-display and derived percentage state
+- `hooks/useDisplayDeviceActions.ts`: refresh, brightness apply, and HDR toggle flows
 - `services/tauriApi.ts`: typed Rust command wrappers
-- `*.test.ts`: pure frontend logic tests
+- `displayContract.test.ts`: source-based TypeScript/Rust contract checks
+- `*.test.ts`: frontend logic and contract tests
 
 ### Backend
 
 ```text
 src-tauri/src/
 |- lib.rs
+|- app/
+|  |- mod.rs
+|  |- state.rs
+|  |- commands.rs
+|  '- window.rs
 |- tray.rs
 '- display/
    |- model.rs
@@ -90,10 +116,13 @@ src-tauri/src/
    '- commands.rs
 ```
 
+- `app/state.rs`: shared `AppState` plus tray summary state
+- `app/commands.rs`: app-level commands such as tray rect, startup overlay guard, dragging guard, and quit
+- `app/window.rs`: Mica and blur-to-hide window behavior
 - `display/ffi.rs`: raw Windows DisplayConfig / MCCS calls
-- `display/service.rs`: HDR enumeration, failure-state logic, and brightness logic
-- `display/commands.rs`: Tauri command boundary
-- `tray.rs`: tray icon, tooltip, and menu events
+- `display/service.rs`: HDR-capable display enumeration, failure-state logic, and brightness logic
+- `display/commands.rs`: Tauri command boundary plus Rust-owned display-state updates
+- `tray.rs`: tray icon, tooltip, and menu events backed by tray summary state
 
 ## Important Notes
 
@@ -102,11 +131,18 @@ src-tauri/src/
 - MCCS brightness is queried only as informational metadata
 - The SDR white level SET path relies on undocumented Windows device info type `0xFFFFFFEE`
 - The custom SET struct requires `final_value = 1`
+- Display enumeration now returns HDR-capable displays even if HDR is currently off
+- `DisplayInfo` tracks both `hdr_supported` and `hdr_enabled`
+- HDR toggle uses `DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE`
+- Rust now owns the authoritative display state; the frontend consumes command results instead of pushing display state back into Tauri
+- Tray rendering now uses a Rust-side summary model instead of depending directly on full `DisplayInfo`
 - The title bar refresh button triggers a manual display rescan
 - Showing the window from the tray performs a silent state refresh every time, without replaying the startup overlay
 - Global hotkeys are configurable in Settings and adjust brightness in `4%` steps
 - Scrolling the mouse wheel over the brightness slider adjusts brightness in `2%` steps
+- SDR brightness controls are disabled while HDR is off
 - Non-blocking failures show a notice banner that auto-dismisses after 5 seconds; initialization failures remain blocking
+- `npm test` now also validates the TypeScript/Rust `DisplayInfo` contract and shared luminance constants
 
 ## License
 

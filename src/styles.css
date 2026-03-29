@@ -270,6 +270,12 @@ body {
   align-items: baseline;
 }
 
+.slider-helper {
+  margin-top: -4px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
 .slider-label {
   font-size: 9px;
   font-weight: 600;
@@ -330,6 +336,11 @@ body {
   cursor: pointer;
   position: relative;
   z-index: 2;
+}
+
+.brightness-slider.disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .brightness-slider::-webkit-slider-thumb {
@@ -437,6 +448,11 @@ body {
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   padding: 0;
+}
+
+.hdr-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .hdr-toggle.active {

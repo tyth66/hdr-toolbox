@@ -1,6 +1,6 @@
 //! System tray management for HDR Toolbox.
 
-use crate::AppState;
+use crate::app::{AppState, TrayDisplaySummary};
 use tauri::{
     image::Image,
     menu::{Menu, MenuBuilder, MenuItem, PredefinedMenuItem},
@@ -12,10 +12,13 @@ pub const TRAY_ID: &str = "main-tray";
 
 /// Build the full tray menu including dynamic device list.
 /// Returns the Menu along with owned MenuItems to avoid lifetime issues.
-fn build_full_menu(app: &AppHandle, displays: Vec<crate::DisplayInfo>) -> Result<Menu<tauri::Wry>, tauri::Error> {
+fn build_full_menu(
+    app: &AppHandle,
+    displays: Vec<TrayDisplaySummary>,
+) -> Result<Menu<tauri::Wry>, tauri::Error> {
     if displays.is_empty() {
         // Still include Quit button so the menu is interactive even without HDR displays
-        let no_display = MenuItem::with_id(app, "no-display", "No HDR displays", false, None::<&str>)
+        let no_display = MenuItem::with_id(app, "no-display", "No HDR-capable displays", false, None::<&str>)
             .map_err(|e| {
                 tracing::error!("Failed to create no-display menu item: {}", e);
                 e
@@ -75,23 +78,23 @@ fn build_full_menu(app: &AppHandle, displays: Vec<crate::DisplayInfo>) -> Result
 pub fn update_tray_tooltip(app: &AppHandle) {
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         let state = app.state::<AppState>();
-        let displays = match state.displays.lock() {
+        let tray_state = match state.tray_state.lock() {
             Ok(guard) => guard,
             Err(e) => {
-                tracing::error!("Failed to lock displays mutex for tooltip: {}", e);
+                tracing::error!("Failed to lock tray_state mutex for tooltip: {}", e);
                 return;
             }
         };
 
-        let tooltip = if displays.is_empty() {
-            "HDR Toolbox - No HDR displays".to_string()
-        } else if displays.len() == 1 {
+        let tooltip = if tray_state.displays.is_empty() {
+            "HDR Toolbox - No HDR-capable displays".to_string()
+        } else if tray_state.displays.len() == 1 {
             format!(
                 "HDR Toolbox - {}: {} nits",
-                displays[0].name, displays[0].nits
+                tray_state.displays[0].name, tray_state.displays[0].nits
             )
         } else {
-            format!("HDR Toolbox - {} displays", displays.len())
+            format!("HDR Toolbox - {} displays", tray_state.displays.len())
         };
 
         let _ = tray.set_tooltip(Some(&tooltip));
@@ -100,7 +103,7 @@ pub fn update_tray_tooltip(app: &AppHandle) {
 
 /// Rebuild and set the tray menu with current display list.
 /// Must be called BEFORE right-click so the menu is ready to show.
-/// Called from update_displays_and_tooltip after displays are loaded.
+/// Called whenever Rust display state changes.
 pub fn update_tray_menu(app: &AppHandle) {
     let tray = match app.tray_by_id(TRAY_ID) {
         Some(t) => t,
@@ -109,11 +112,11 @@ pub fn update_tray_menu(app: &AppHandle) {
 
     let (display_count, displays) = {
         let state = app.state::<AppState>();
-        let lock_result = state.displays.lock();
+        let lock_result = state.tray_state.lock();
         match lock_result {
-            Ok(guard) => (guard.len(), guard.clone()),
+            Ok(guard) => (guard.displays.len(), guard.displays.clone()),
             Err(e) => {
-                tracing::error!("Failed to lock displays mutex: {}", e);
+                tracing::error!("Failed to lock tray_state mutex: {}", e);
                 (0, Vec::new())
             }
         }

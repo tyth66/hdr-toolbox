@@ -12,8 +12,8 @@ export async function setBrightness(
   percentage: number,
   minNits: number,
   maxNits: number
-): Promise<void> {
-  return invoke("set_brightness", {
+): Promise<DisplayInfo[]> {
+  return invoke<DisplayInfo[]>("set_brightness", {
     adapterLow,
     adapterHigh,
     targetId,
@@ -30,14 +30,18 @@ export async function setBrightnessAll(
   return invoke("set_brightness_all", { displays, percentage });
 }
 
-export async function updateDisplaysAndTooltip(
-  displays: DisplayInfo[]
-): Promise<void> {
-  return invoke("update_displays_and_tooltip", { displays });
-}
-
-export async function updateTrayTooltipOnly(): Promise<void> {
-  return invoke("update_tray_tooltip_only");
+export async function setHdrEnabled(
+  adapterLow: number,
+  adapterHigh: number,
+  targetId: number,
+  enabled: boolean
+): Promise<DisplayInfo[]> {
+  return invoke<DisplayInfo[]>("set_hdr_enabled", {
+    adapterLow,
+    adapterHigh,
+    targetId,
+    enabled,
+  });
 }
 
 export async function getTrayRect(): Promise<{

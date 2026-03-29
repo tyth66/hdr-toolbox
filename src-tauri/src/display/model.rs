@@ -16,6 +16,7 @@ pub struct DisplayInfo {
     pub nits: u32,
     pub min_percentage: u32,
     pub max_percentage: u32,
+    pub hdr_supported: bool,
     pub hdr_enabled: bool,
     pub adapter_id_low: i32,
     pub adapter_id_high: i32,

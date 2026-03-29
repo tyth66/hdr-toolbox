@@ -11,7 +11,7 @@ use windows::Win32::Graphics::Gdi::DISPLAYCONFIG_COLOR_ENCODING;
 
 use super::ffi::{
     get_brightness_range_from_physical_monitor, get_hmonitor_for_display, get_sdr_white_level_raw,
-    set_sdr_white_level_raw,
+    set_advanced_color_state, set_sdr_white_level_raw,
 };
 use super::model::{luminance, DisplayInfo};
 
@@ -77,9 +77,11 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
     for i in 0..path_count as usize {
         let path = paths[i];
         let display_name = get_display_name(path);
-        let hdr_enabled = is_hdr_enabled(path);
+        let advanced_color_info = get_advanced_color_info(path);
+        let hdr_supported = advanced_color_info.is_supported();
+        let hdr_enabled = advanced_color_info.is_enabled();
 
-        if !hdr_enabled {
+        if !hdr_supported {
             continue;
         }
 
@@ -117,6 +119,7 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
             nits,
             min_percentage,
             max_percentage,
+            hdr_supported,
             hdr_enabled,
             adapter_id_low: path.targetInfo.adapterId.LowPart as i32,
             adapter_id_high: path.targetInfo.adapterId.HighPart as i32,
@@ -127,7 +130,7 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
     }
 
     if displays.is_empty() {
-        Err("No HDR displays found. Ensure HDR is enabled in Windows Settings.".to_string())
+        Err("No HDR-capable displays found. Ensure your monitor supports HDR and the display driver is working correctly.".to_string())
     } else {
         Ok(displays)
     }
@@ -170,8 +173,25 @@ pub(super) fn set_brightness_all_impl(
         .collect()
 }
 
+pub(super) fn set_hdr_enabled_impl(
+    adapter_low: i32,
+    adapter_high: i32,
+    target_id: u32,
+    enabled: bool,
+) -> Result<(), String> {
+    let adapter_id = LUID {
+        LowPart: adapter_low as u32,
+        HighPart: adapter_high as i32,
+    };
+    set_advanced_color_state(adapter_id, target_id, enabled)
+}
+
 fn percentage_to_nits(percentage: u32, min_nits: u32, max_nits: u32) -> u32 {
     ((percentage.clamp(0, 100) * (max_nits.saturating_sub(min_nits))) / 100) + min_nits
+}
+
+pub(super) fn percentage_to_nits_public(percentage: u32, min_nits: u32, max_nits: u32) -> u32 {
+    percentage_to_nits(percentage, min_nits, max_nits)
 }
 
 fn record_failure(counter: &AtomicUsize, disabled: &AtomicBool) -> usize {
@@ -218,7 +238,22 @@ fn get_display_name(path: DISPLAYCONFIG_PATH_INFO) -> String {
     }
 }
 
-fn is_hdr_enabled(path: DISPLAYCONFIG_PATH_INFO) -> bool {
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct AdvancedColorState {
+    value: u32,
+}
+
+impl AdvancedColorState {
+    fn is_supported(self) -> bool {
+        (self.value & 0x1) != 0
+    }
+
+    fn is_enabled(self) -> bool {
+        (self.value & 0x2) != 0
+    }
+}
+
+fn get_advanced_color_info(path: DISPLAYCONFIG_PATH_INFO) -> AdvancedColorState {
     let mut advanced_color = DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO {
         header: windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER {
             r#type: DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO,
@@ -233,9 +268,11 @@ fn is_hdr_enabled(path: DISPLAYCONFIG_PATH_INFO) -> bool {
 
     unsafe {
         if DisplayConfigGetDeviceInfo(&mut advanced_color.header as *mut _ as *mut _) == 0 {
-            (advanced_color.Anonymous.value & 0x2) != 0
+            AdvancedColorState {
+                value: advanced_color.Anonymous.value,
+            }
         } else {
-            false
+            AdvancedColorState::default()
         }
     }
 }
@@ -244,7 +281,7 @@ fn is_hdr_enabled(path: DISPLAYCONFIG_PATH_INFO) -> bool {
 mod tests {
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-    use super::{percentage_to_nits, record_failure, reset_failure_state};
+    use super::{percentage_to_nits, record_failure, reset_failure_state, AdvancedColorState};
     use crate::display::model::luminance;
 
     #[test]
@@ -290,5 +327,19 @@ mod tests {
 
         assert_eq!(counter.load(Ordering::Relaxed), 0);
         assert!(!disabled.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn advanced_color_state_reads_supported_and_enabled_bits() {
+        let supported_only = AdvancedColorState { value: 0x1 };
+        let supported_and_enabled = AdvancedColorState { value: 0x3 };
+        let unsupported = AdvancedColorState { value: 0x0 };
+
+        assert!(supported_only.is_supported());
+        assert!(!supported_only.is_enabled());
+        assert!(supported_and_enabled.is_supported());
+        assert!(supported_and_enabled.is_enabled());
+        assert!(!unsupported.is_supported());
+        assert!(!unsupported.is_enabled());
     }
 }
