@@ -16,6 +16,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 |  |- main.tsx                 # React mount + close-to-hide handler
 |  |- styles.css               # Windows 11 Mica / glass UI
 |  |- types.ts                 # Shared frontend types and constants
+|  |- types.test.ts            # Frontend pure conversion tests
 |  |- tauriApi.ts              # Backward-compatible re-export
 |  |- components/
 |  |  |- TitleBar.tsx
@@ -29,7 +30,9 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 |  |  |- useDisplays.ts
 |  |  |- useHotkeys.ts
 |  |  |- useWindowPosition.ts
-|  |  '- useStartupOverlay.ts
+|  |  |- useStartupOverlay.ts
+|  |  |- displayState.ts       # Pure display-state helpers
+|  |  '- displayState.test.ts  # Frontend display-state tests
 |  '- services/
 |     '- tauriApi.ts           # Typed Tauri invoke wrappers
 |- src-tauri/
@@ -41,7 +44,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 |  |     |- mod.rs             # Display module exports
 |  |     |- model.rs           # DisplayInfo + luminance constants
 |  |     |- ffi.rs             # Raw Windows DisplayConfig / MCCS calls
-|  |     |- service.rs         # HDR enumeration + brightness business logic
+|  |     |- service.rs         # HDR enumeration + brightness business logic + tests
 |  |     '- commands.rs        # Tauri commands for display operations
 |  |- Cargo.toml               # Tauri 2, windows-rs 0.62, window-vibrancy
 |  '- tauri.conf.json          # Window: 300x200, frameless, transparent
@@ -56,7 +59,8 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 |------|----------|-------|
 | Frontend composition | `src/App.tsx` | Wires hooks + components |
 | Tauri API boundary | `src/services/tauriApi.ts` | Only place that should call `invoke()` |
-| Display state flow | `src/hooks/useDisplays.ts` | Load displays, select display, apply brightness |
+| Display state flow | `src/hooks/useDisplays.ts` | Initial load, refresh, apply brightness |
+| Display state helpers | `src/hooks/displayState.ts` | Pure helper logic for selection and updates |
 | Hotkey registration | `src/hooks/useHotkeys.ts` | JS plugin side, ref-driven state |
 | Window position / drag | `src/hooks/useWindowPosition.ts` | Saved position + tray positioning |
 | Startup overlay | `src/hooks/useStartupOverlay.ts` | 4s startup info + Rust sync |
@@ -72,19 +76,21 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - `hooks/`: stateful logic and side effects
 - `services/`: typed Tauri bridge
 - `types.ts`: shared constants and conversion helpers
+- `*.test.ts`: Node test runner coverage for pure frontend logic
 
 ### Key frontend rules
 
 - Do not scatter raw `invoke()` calls outside `src/services/tauriApi.ts`
 - Keep tray/window/autostart side effects in hooks, not UI components
-- Keep display switching and brightness logic in `useDisplays`
+- Keep display switching, refresh, and brightness logic in `useDisplays`
 - Keep global shortcut registration in `useHotkeys`
+- Keep pure helper logic in separately testable modules when possible
 
 ## RUST ARCHITECTURE
 
 - `display/model.rs`: shared display model and luminance constants
 - `display/ffi.rs`: raw Windows FFI and monitor-handle lifecycle
-- `display/service.rs`: HDR display discovery and brightness business logic
+- `display/service.rs`: HDR display discovery, brightness business logic, failure-state helpers, tests
 - `display/commands.rs`: stable Tauri command surface
 - `tray.rs`: tray UI and tray-to-frontend event bridge
 - `lib.rs`: app state, plugin setup, non-display commands
@@ -96,6 +102,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - No `anyhow` / `thiserror`
 - Use `display::model::luminance::*` instead of hardcoded luminance values
 - Keep undocumented DisplayConfig details inside `display/ffi.rs`
+- Keep pure service logic testable without touching Windows APIs when possible
 
 ### Frontend
 - React hooks only
@@ -103,6 +110,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - Keep `App.tsx` as composition, not business logic dumping ground
 - Use `src/types.ts` for constants and shared types
 - Use `src/services/tauriApi.ts` for Rust commands
+- Exclude `*.test.ts` from production TypeScript build
 
 ### Tauri 2
 - `tray-icon` + `image-png` features
@@ -118,6 +126,8 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - The custom SET struct requires `final_value = 1`
 - Tray menu must be set before right-click; do not use `popup_menu()`
 - `tauri://blur` is intentionally not used
+- The title bar includes a manual refresh button beside the settings button
+- Each time the window is shown from the tray, the frontend performs a **silent refresh** of display state without replaying the startup overlay
 
 ## COMMANDS
 
@@ -125,6 +135,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 npm run tauri dev
 npm run tauri build
 npm run build
+npm test
 cd src-tauri && cargo check
 ```
 
@@ -132,4 +143,5 @@ cd src-tauri && cargo check
 
 - Frontend build passes
 - Rust `cargo check` passes
-- No automated tests yet
+- Frontend Node tests pass
+- Rust unit tests pass

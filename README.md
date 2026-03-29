@@ -11,6 +11,8 @@ A lightweight Windows system tray application for adjusting HDR monitor SDR cont
 - Per-display HDR brightness control
 - Auto-start toggle in settings
 - Real-time slider updates while dragging
+- Manual refresh button in the title bar, beside the settings button
+- Silent display-state refresh every time the window is shown from the tray
 
 ## Requirements
 
@@ -32,6 +34,17 @@ npm run build
 npm run tauri build
 ```
 
+## Test
+
+```bash
+npm test
+```
+
+This runs:
+
+- frontend Node-based tests for pure TypeScript logic
+- Rust unit tests for display service helpers
+
 Output binary:
 
 ```text
@@ -48,13 +61,16 @@ src/
 |- components/
 |- hooks/
 |- services/
-'- types.ts
+|- types.ts
+|- types.test.ts
+'- hooks/displayState.test.ts
 ```
 
 - `App.tsx`: composition layer
 - `components/`: presentational UI
 - `hooks/`: display state, hotkeys, window positioning, startup overlay
 - `services/tauriApi.ts`: typed Rust command wrappers
+- `*.test.ts`: pure frontend logic tests
 
 ### Backend
 
@@ -70,7 +86,7 @@ src-tauri/src/
 ```
 
 - `display/ffi.rs`: raw Windows DisplayConfig / MCCS calls
-- `display/service.rs`: HDR enumeration and brightness logic
+- `display/service.rs`: HDR enumeration, failure-state logic, and brightness logic
 - `display/commands.rs`: Tauri command boundary
 - `tray.rs`: tray icon, tooltip, and menu events
 
@@ -81,6 +97,8 @@ src-tauri/src/
 - MCCS brightness is queried only as informational metadata
 - The SDR white level SET path relies on undocumented Windows device info type `0xFFFFFFEE`
 - The custom SET struct requires `final_value = 1`
+- The title bar refresh button triggers a manual display rescan
+- Showing the window from the tray performs a silent state refresh every time, without replaying the startup overlay
 
 ## License
 

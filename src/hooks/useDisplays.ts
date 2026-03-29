@@ -7,9 +7,12 @@ import {
 import {
   type DisplayInfo,
   SLIDER,
-  nitsToPercentage,
-  percentageToNits,
 } from "../types";
+import {
+  buildBrightnessUpdate,
+  findMatchingDisplayIndex,
+  getSelectedDisplaySnapshot,
+} from "./displayState";
 
 type UseDisplaysOptions = {
   showWindow: () => Promise<void>;
@@ -25,11 +28,13 @@ export function useDisplays({
   const [currentPercentage, setCurrentPercentage] = useState(50);
   const [hdrActive, setHdrActive] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const displaysRef = useRef<DisplayInfo[]>([]);
   const selectedIndexRef = useRef(0);
   const currentPercentageRef = useRef(50);
+  const refreshInFlightRef = useRef(false);
 
   useEffect(() => {
     displaysRef.current = displays;
@@ -44,17 +49,16 @@ export function useDisplays({
   }, [currentPercentage]);
 
   const selectDisplay = useCallback((idx: number, source = displaysRef.current) => {
-    if (idx < 0 || idx >= source.length) {
+    const snapshot = getSelectedDisplaySnapshot(source, idx);
+    if (!snapshot) {
       return;
     }
 
-    setSelectedIndex(idx);
-    selectedIndexRef.current = idx;
-
-    const percentage = nitsToPercentage(source[idx].nits);
-    setCurrentPercentage(percentage);
-    currentPercentageRef.current = percentage;
-    setHdrActive(source[idx].hdr_enabled);
+    setSelectedIndex(snapshot.selectedIndex);
+    selectedIndexRef.current = snapshot.selectedIndex;
+    setCurrentPercentage(snapshot.currentPercentage);
+    currentPercentageRef.current = snapshot.currentPercentage;
+    setHdrActive(snapshot.hdrActive);
   }, []);
 
   const syncDisplayState = useCallback(async (updatedDisplays: DisplayInfo[]) => {
@@ -87,10 +91,10 @@ export function useDisplays({
 
       setCurrentPercentage(clampedPercentage);
       currentPercentageRef.current = clampedPercentage;
-
-      const nits = percentageToNits(clampedPercentage);
-      const updatedDisplays = displaysRef.current.map((item, itemIndex) =>
-        itemIndex === idx ? { ...item, nits } : item
+      const updatedDisplays = buildBrightnessUpdate(
+        displaysRef.current,
+        idx,
+        clampedPercentage
       );
       await syncDisplayState(updatedDisplays);
     },
@@ -102,28 +106,60 @@ export function useDisplays({
     currentPercentageRef.current = percentage;
   }, []);
 
-  const loadDisplays = useCallback(async () => {
+  const refreshDisplays = useCallback(async (options?: {
+    initial?: boolean;
+    silent?: boolean;
+  }) => {
+    const { initial = false, silent = false } = options ?? {};
+    const previousDisplay = displaysRef.current[selectedIndexRef.current];
+
+    if (refreshInFlightRef.current) {
+      return;
+    }
+
     try {
-      setLoading(true);
-      setError(null);
+      refreshInFlightRef.current = true;
+      if (initial) {
+        setLoading(true);
+        setError(null);
+      } else {
+        setIsRefreshing(true);
+      }
 
       const result = await getHdrDisplays();
       await syncDisplayState(result);
 
       if (result.length > 0) {
-        selectDisplay(0, result);
-        await startStartupOverlay();
-        await showWindow();
+        const matchedIndex = findMatchingDisplayIndex(result, previousDisplay);
+        selectDisplay(matchedIndex >= 0 ? matchedIndex : 0, result);
+
+        if (initial) {
+          await startStartupOverlay();
+          await showWindow();
+        }
       }
     } catch (err) {
-      setError(String(err));
-      setDisplays([]);
-      displaysRef.current = [];
-      await updateDisplaysAndTooltip([]);
+      if (initial) {
+        setError(String(err));
+        setDisplays([]);
+        displaysRef.current = [];
+        await updateDisplaysAndTooltip([]);
+      } else if (!silent) {
+        console.error("Failed to refresh displays:", err);
+      }
     } finally {
-      setLoading(false);
+      refreshInFlightRef.current = false;
+      if (initial) {
+        setLoading(false);
+      } else {
+        setIsRefreshing(false);
+      }
     }
   }, [selectDisplay, showWindow, startStartupOverlay, syncDisplayState]);
+
+  const loadDisplays = useCallback(async () => {
+    await refreshDisplays({ initial: true });
+  }, [refreshDisplays]);
 
   return {
     displays,
@@ -134,8 +170,10 @@ export function useDisplays({
     currentPercentageRef,
     hdrActive,
     loading,
+    isRefreshing,
     error,
     loadDisplays,
+    refreshDisplays,
     selectDisplay,
     previewPercentage,
     applyBrightness,

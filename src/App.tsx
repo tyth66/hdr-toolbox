@@ -35,8 +35,10 @@ function App() {
     currentPercentageRef,
     hdrActive,
     loading,
+    isRefreshing,
     error,
     loadDisplays,
+    refreshDisplays,
     previewPercentage,
     applyBrightness,
   } = useDisplays({
@@ -55,6 +57,7 @@ function App() {
 
     const unlistenShowWindow = listen("show-window", async () => {
       await showWindow();
+      await refreshDisplays({ silent: true });
     });
 
     const unlistenSelectDisplay = listen<number>("select-display", (event) => {
@@ -65,7 +68,7 @@ function App() {
       unlistenShowWindow.then((fn) => fn());
       unlistenSelectDisplay.then((fn) => fn());
     };
-  }, [loadDisplays, selectDisplay, showWindow]);
+  }, [loadDisplays, refreshDisplays, selectDisplay, showWindow]);
 
   useEffect(() => {
     return () => {
@@ -168,6 +171,8 @@ function App() {
     <div className="mica-window">
       <TitleBar
         onMouseDown={handleTitleBarMouseDown}
+        refreshing={isRefreshing}
+        onRefresh={() => refreshDisplays()}
         onOpenSettings={() => setShowSettings(true)}
         onClose={hideWindow}
       />

@@ -31,25 +31,22 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
         GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut path_count, &mut mode_count)
     };
     if result != windows::Win32::Foundation::WIN32_ERROR(0) {
-        let failures = HDR_CONSECUTIVE_FAILURES.fetch_add(1, Ordering::Relaxed) + 1;
+        let failures = record_failure(&HDR_CONSECUTIVE_FAILURES, &HDR_INFO_DISABLED);
         if failures >= MAX_CONSECUTIVE_FAILURES {
-            HDR_INFO_DISABLED.store(true, Ordering::Relaxed);
             tracing::error!("HDR disabled after {} consecutive failures", failures);
         }
         return Err(format!("GetDisplayConfigBufferSizes failed: {:#?}", result));
     }
 
     if path_count == 0 {
-        let failures = HDR_CONSECUTIVE_FAILURES.fetch_add(1, Ordering::Relaxed) + 1;
+        let failures = record_failure(&HDR_CONSECUTIVE_FAILURES, &HDR_INFO_DISABLED);
         if failures >= MAX_CONSECUTIVE_FAILURES {
-            HDR_INFO_DISABLED.store(true, Ordering::Relaxed);
             tracing::error!("HDR disabled after {} consecutive failures", failures);
         }
         return Err("No display paths found".to_string());
     }
 
-    HDR_CONSECUTIVE_FAILURES.store(0, Ordering::Relaxed);
-    HDR_INFO_DISABLED.store(false, Ordering::Relaxed);
+    reset_failure_state(&HDR_CONSECUTIVE_FAILURES, &HDR_INFO_DISABLED);
 
     let mut paths = vec![DISPLAYCONFIG_PATH_INFO::default(); path_count as usize];
     let mut modes = vec![
@@ -68,9 +65,8 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
         )
     };
     if result != windows::Win32::Foundation::WIN32_ERROR(0) {
-        let failures = HDR_CONSECUTIVE_FAILURES.fetch_add(1, Ordering::Relaxed) + 1;
+        let failures = record_failure(&HDR_CONSECUTIVE_FAILURES, &HDR_INFO_DISABLED);
         if failures >= MAX_CONSECUTIVE_FAILURES {
-            HDR_INFO_DISABLED.store(true, Ordering::Relaxed);
             tracing::error!("HDR disabled after {} consecutive failures", failures);
         }
         return Err(format!("QueryDisplayConfig failed: {:#?}", result));
@@ -149,8 +145,7 @@ pub(super) fn set_brightness_impl(
         LowPart: adapter_low as u32,
         HighPart: adapter_high as i32,
     };
-    let nits =
-        ((percentage.clamp(0, 100) * (max_nits.saturating_sub(min_nits))) / 100) + min_nits;
+    let nits = percentage_to_nits(percentage, min_nits, max_nits);
     set_sdr_white_level_raw(adapter_id, target_id, nits)
 }
 
@@ -169,12 +164,27 @@ pub(super) fn set_brightness_all_impl(
                 display.min_nits.unwrap_or(80),
                 display.max_nits.unwrap_or(480),
             );
-            let nits =
-                ((percentage.clamp(0, 100) * (max_nits.saturating_sub(min_nits))) / 100)
-                    + min_nits;
+            let nits = percentage_to_nits(percentage, min_nits, max_nits);
             set_sdr_white_level_raw(adapter_id, display.target_id, nits)
         })
         .collect()
+}
+
+fn percentage_to_nits(percentage: u32, min_nits: u32, max_nits: u32) -> u32 {
+    ((percentage.clamp(0, 100) * (max_nits.saturating_sub(min_nits))) / 100) + min_nits
+}
+
+fn record_failure(counter: &AtomicUsize, disabled: &AtomicBool) -> usize {
+    let failures = counter.fetch_add(1, Ordering::Relaxed) + 1;
+    if failures >= MAX_CONSECUTIVE_FAILURES {
+        disabled.store(true, Ordering::Relaxed);
+    }
+    failures
+}
+
+fn reset_failure_state(counter: &AtomicUsize, disabled: &AtomicBool) {
+    counter.store(0, Ordering::Relaxed);
+    disabled.store(false, Ordering::Relaxed);
 }
 
 fn get_display_name(path: DISPLAYCONFIG_PATH_INFO) -> String {
@@ -227,5 +237,58 @@ fn is_hdr_enabled(path: DISPLAYCONFIG_PATH_INFO) -> bool {
         } else {
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
+    use super::{percentage_to_nits, record_failure, reset_failure_state};
+    use crate::display::model::luminance;
+
+    #[test]
+    fn percentage_to_nits_maps_bounds() {
+        assert_eq!(percentage_to_nits(0, luminance::MIN_NITS, luminance::MAX_NITS), 80);
+        assert_eq!(percentage_to_nits(100, luminance::MIN_NITS, luminance::MAX_NITS), 480);
+    }
+
+    #[test]
+    fn percentage_to_nits_maps_midpoint() {
+        assert_eq!(percentage_to_nits(50, luminance::MIN_NITS, luminance::MAX_NITS), 280);
+    }
+
+    #[test]
+    fn percentage_to_nits_clamps_out_of_range_values() {
+        assert_eq!(percentage_to_nits(150, luminance::MIN_NITS, luminance::MAX_NITS), 480);
+    }
+
+    #[test]
+    fn percentage_to_nits_handles_inverted_range_without_underflow() {
+        assert_eq!(percentage_to_nits(50, 480, 80), 480);
+    }
+
+    #[test]
+    fn failure_state_disables_after_threshold() {
+        let counter = AtomicUsize::new(0);
+        let disabled = AtomicBool::new(false);
+
+        assert_eq!(record_failure(&counter, &disabled), 1);
+        assert!(!disabled.load(Ordering::Relaxed));
+        assert_eq!(record_failure(&counter, &disabled), 2);
+        assert!(!disabled.load(Ordering::Relaxed));
+        assert_eq!(record_failure(&counter, &disabled), 3);
+        assert!(disabled.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn reset_failure_state_clears_counter_and_flag() {
+        let counter = AtomicUsize::new(3);
+        let disabled = AtomicBool::new(true);
+
+        reset_failure_state(&counter, &disabled);
+
+        assert_eq!(counter.load(Ordering::Relaxed), 0);
+        assert!(!disabled.load(Ordering::Relaxed));
     }
 }

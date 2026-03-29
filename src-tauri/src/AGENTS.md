@@ -1,11 +1,11 @@
 ﻿# Rust Backend - Tauri 2 Core
 
 **Parent:** ./AGENTS.md
-**Generated:** 2026-03-29 (refreshed after refactor)
+**Generated:** 2026-03-29 (refreshed after tests and silent refresh)
 
 ## OVERVIEW
 
-Windows DisplayConfig backend for HDR SDR brightness control. The display subsystem is now split into model, FFI, service, and command layers.
+Windows DisplayConfig backend for HDR SDR brightness control. The display subsystem is split into model, FFI, service, and command layers, with unit tests covering pure service helpers.
 
 ## STRUCTURE
 
@@ -18,7 +18,7 @@ src-tauri/src/
    |- mod.rs                  # Module exports
    |- model.rs                # DisplayInfo + luminance constants
    |- ffi.rs                  # Raw DisplayConfig / MCCS calls
-   |- service.rs              # HDR enumeration + brightness logic
+   |- service.rs              # HDR enumeration + brightness logic + tests
    '- commands.rs             # Tauri command wrappers
 ```
 
@@ -29,6 +29,7 @@ src-tauri/src/
 | Shared display model | `display/model.rs` | `DisplayInfo`, luminance constants |
 | Raw GET/SET SDR white level | `display/ffi.rs` | Undocumented SET struct lives here |
 | HDR display discovery | `display/service.rs` | QueryDisplayConfig + fallback logic |
+| Failure-state helpers | `display/service.rs` | Kill switch and reset helper functions |
 | Tauri command boundary | `display/commands.rs` | Stable JS-facing commands |
 | Tray behavior | `tray.rs` | Left/right click and menu events |
 | App state / blur-to-hide | `lib.rs` | `AppState`, `on_window_event` |
@@ -39,6 +40,7 @@ src-tauri/src/
 - `service.rs` should own fallback, enumeration, kill switch, and conversions
 - `commands.rs` should stay thin and forward-only
 - `lib.rs` should not absorb display business logic again
+- Add tests in `service.rs` when logic can be validated without Windows handles
 
 ## COMMAND SURFACE
 
@@ -52,6 +54,12 @@ src-tauri/src/
 - `set_startup_info_mode`
 - `set_dragging_mode`
 - `quit`
+
+## CURRENT TEST COVERAGE
+
+- `percentage_to_nits`
+- failure-state disable threshold
+- failure-state reset behavior
 
 ## CRITICAL NOTES
 

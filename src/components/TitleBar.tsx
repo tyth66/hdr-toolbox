@@ -2,6 +2,8 @@ import type { MouseEventHandler } from "react";
 
 type TitleBarProps = {
   onMouseDown?: MouseEventHandler<HTMLElement>;
+  refreshing?: boolean;
+  onRefresh?: () => Promise<void>;
   onOpenSettings?: () => void;
   onClose: () => void;
   minimal?: boolean;
@@ -9,6 +11,8 @@ type TitleBarProps = {
 
 export function TitleBar({
   onMouseDown,
+  refreshing = false,
+  onRefresh,
   onOpenSettings,
   onClose,
   minimal = false,
@@ -22,6 +26,20 @@ export function TitleBar({
         </button>
       ) : (
         <div className="title-bar-actions">
+          <button
+            className="title-bar-btn"
+            onClick={() => {
+              onRefresh?.().catch((err) => {
+                console.error("Failed to refresh displays:", err);
+              });
+            }}
+            title={refreshing ? "Refreshing..." : "Refresh Displays"}
+            disabled={refreshing}
+          >
+            <span className="material-symbols-outlined">
+              {refreshing ? "progress_activity" : "refresh"}
+            </span>
+          </button>
           <button
             className="title-bar-btn"
             onClick={onOpenSettings}

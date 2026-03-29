@@ -1,11 +1,11 @@
 ﻿# Frontend - React/TypeScript UI Layer
 
 **Parent:** ./AGENTS.md
-**Generated:** 2026-03-29 (refreshed after refactor)
+**Generated:** 2026-03-29 (refreshed after tests and refresh UX updates)
 
 ## OVERVIEW
 
-React 18 single-window UI for HDR brightness control. The frontend is now split into composition, hooks, services, and presentational components.
+React 18 single-window UI for HDR brightness control. The frontend is split into composition, hooks, services, presentational components, and a small set of Node-based tests for pure logic.
 
 ## STRUCTURE
 
@@ -15,9 +15,10 @@ src/
 |- main.tsx                   # React mount + close-to-hide
 |- styles.css                 # Shared styling
 |- types.ts                   # DisplayInfo, LUMINANCE, HOTKEYS, SLIDER
+|- types.test.ts              # Pure conversion tests
 |- tauriApi.ts                # Compatibility re-export
 |- components/
-|  |- TitleBar.tsx
+|  |- TitleBar.tsx            # Settings + manual refresh + close
 |  |- DeviceNav.tsx
 |  |- BrightnessSlider.tsx
 |  |- StatusBar.tsx
@@ -28,7 +29,9 @@ src/
 |  |- useDisplays.ts
 |  |- useHotkeys.ts
 |  |- useWindowPosition.ts
-|  '- useStartupOverlay.ts
+|  |- useStartupOverlay.ts
+|  |- displayState.ts
+|  '- displayState.test.ts
 '- services/
    '- tauriApi.ts
 ```
@@ -39,6 +42,9 @@ src/
 |------|----------|-------|
 | App wiring | `App.tsx` | Composes hooks and components |
 | Display load/apply logic | `hooks/useDisplays.ts` | Source of truth for display state |
+| Refresh on show | `hooks/useDisplays.ts` + `App.tsx` | Tray show event refreshes state every time without startup overlay |
+| Manual refresh button | `components/TitleBar.tsx` | Refresh control next to settings |
+| Pure display state helpers | `hooks/displayState.ts` | Selection restore and display update helpers |
 | Hotkeys | `hooks/useHotkeys.ts` | Registers global shortcuts once |
 | Window drag/position | `hooks/useWindowPosition.ts` | Tray placement + saved position |
 | Startup overlay | `hooks/useStartupOverlay.ts` | Overlay timer + Rust sync |
@@ -51,20 +57,16 @@ src/
 - Keep hook responsibilities narrow and explicit
 - `types.ts` is the only place for shared frontend constants
 - `services/tauriApi.ts` is the only place for typed Rust command wrappers
+- Put testable pure logic in helper modules before embedding it in hooks
 
 ## CURRENT HOOK OWNERSHIP
 
-- `useDisplays`: display list, selected display, current percentage, apply brightness
+- `useDisplays`: display list, selected display, current percentage, apply brightness, refresh logic
 - `useHotkeys`: `Ctrl+Alt+Up/Down` registration and brightness step dispatch
 - `useWindowPosition`: show/hide, tray placement, drag guard, saved position
 - `useStartupOverlay`: startup info visibility and Rust-side blur guard sync
 
-## CURRENT COMPONENT OWNERSHIP
+## CURRENT TEST COVERAGE
 
-- `TitleBar`: top bar / settings / close actions
-- `DeviceNav`: display selector buttons
-- `BrightnessSlider`: slider UI only
-- `StatusBar`: HDR status presentation only
-- `SettingsDialog`: autostart + quit controls
-- `AboutDialog`: product copy and shortcuts
-- `StartupInfoDialog`: startup discovery overlay
+- `types.test.ts`: nits / percentage conversion helpers
+- `hooks/displayState.test.ts`: selection restore and targeted display update helpers
