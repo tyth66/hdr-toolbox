@@ -27,14 +27,8 @@ windows = { version = "0.62", features = [
     "Win32_Graphics_Gdi",
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
-    "Win32_Devices_Display",
-    # WinRT features for DisplayMonitor EDID luminance
-    "Devices_Display",
-    "Devices_Enumeration",
-    "Foundation",
-    "Foundation_Collections",
+    "Win32_Devices_Display"
 ] }
-windows-future = "0.3"
 
 [profile.release]
 panic = "abort"

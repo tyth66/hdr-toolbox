@@ -38,7 +38,13 @@ pub use tray::{setup_tray, update_tray_menu, update_tray_tooltip};
 fn update_displays_and_tooltip(app: AppHandle, state: State<AppState>, displays: Vec<DisplayInfo>) {
     // Update cached displays
     {
-        let mut cached = state.displays.lock().unwrap();
+        let mut cached = match state.displays.lock() {
+            Ok(guard) => guard,
+            Err(e) => {
+                tracing::error!("Failed to lock displays mutex (poisoned): {}", e);
+                return;
+            }
+        };
         *cached = displays;
     }
     // Update tray tooltip and rebuild menu with fresh device list
@@ -49,7 +55,13 @@ fn update_displays_and_tooltip(app: AppHandle, state: State<AppState>, displays:
 /// Get cached displays for tray menu (avoids async call in menu context).
 #[tauri::command]
 fn get_cached_displays(state: State<AppState>) -> Vec<DisplayInfo> {
-    state.displays.lock().unwrap().clone()
+    match state.displays.lock() {
+        Ok(guard) => guard.clone(),
+        Err(e) => {
+            tracing::error!("Failed to lock displays mutex (poisoned): {}", e);
+            Vec::new()
+        }
+    }
 }
 
 /// Update tray tooltip only (without rebuilding menu).
@@ -68,7 +80,13 @@ fn get_tray_rect(app: AppHandle) -> Option<tauri::Rect> {
 /// Set whether startup info overlay is active (prevents blur-to-hide).
 #[tauri::command]
 fn set_startup_info_mode(state: State<AppState>, active: bool) {
-    let mut flag = state.startup_info_active.lock().unwrap();
+    let mut flag = match state.startup_info_active.lock() {
+        Ok(guard) => guard,
+        Err(e) => {
+            tracing::error!("Failed to lock startup_info_active mutex (poisoned): {}", e);
+            return;
+        }
+    };
     *flag = active;
     tracing::info!("Startup info mode: {}", active);
 }
@@ -76,7 +94,13 @@ fn set_startup_info_mode(state: State<AppState>, active: bool) {
 /// Set whether window is being dragged (prevents blur-to-hide during drag).
 #[tauri::command]
 fn set_dragging_mode(state: State<AppState>, active: bool) {
-    let mut flag = state.is_dragging.lock().unwrap();
+    let mut flag = match state.is_dragging.lock() {
+        Ok(guard) => guard,
+        Err(e) => {
+            tracing::error!("Failed to lock is_dragging mutex (poisoned): {}", e);
+            return;
+        }
+    };
     *flag = active;
     tracing::info!("Dragging mode: {}", active);
 }
@@ -140,8 +164,12 @@ pub fn run() {
                         if let tauri::WindowEvent::Focused(false) = event {
                             // Check if startup info is showing — skip hide if so
                             if let Some(state) = app_handle.try_state::<AppState>() {
-                                let startup_active = *state.startup_info_active.lock().unwrap();
-                                let dragging = *state.is_dragging.lock().unwrap();
+                                let startup_active = state.startup_info_active.lock()
+                                    .map(|g| *g)
+                                    .unwrap_or(false);
+                                let dragging = state.is_dragging.lock()
+                                    .map(|g| *g)
+                                    .unwrap_or(false);
                                 if startup_active || dragging {
                                     tracing::info!("Window lost focus but startup/dragging active, skipping hide");
                                     return;
@@ -158,5 +186,8 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| {
+            tracing::error!("Failed to run Tauri application: {}", e);
+            std::process::exit(1);
+        });
 }
