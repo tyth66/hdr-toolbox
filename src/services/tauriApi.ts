@@ -26,8 +26,8 @@ export async function setBrightness(
 export async function setBrightnessAll(
   displays: DisplayInfo[],
   percentage: number
-): Promise<void> {
-  return invoke("set_brightness_all", { displays, percentage });
+): Promise<Array<null | string>> {
+  return invoke<Array<null | string>>("set_brightness_all", { displays, percentage });
 }
 
 export async function setHdrEnabled(

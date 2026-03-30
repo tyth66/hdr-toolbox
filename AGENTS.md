@@ -18,6 +18,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 |  |- types.ts                 # Shared frontend types and constants
 |  |- types.test.ts            # Frontend pure conversion tests
 |  |- displayContract.test.ts  # TS/Rust contract checks for DisplayInfo + luminance
+|  |- errors.test.ts           # Error-message mapping regression tests
 |  |- tauriApi.ts              # Backward-compatible re-export
 |  |- app/
 |  |  |- useAppController.ts
@@ -84,7 +85,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 | Error mapping | `src/errors.ts` | User-facing initialization, refresh, and brightness messages |
 | Cross-language contract checks | `src/displayContract.test.ts` | Detects drift between TS and Rust `DisplayInfo` / luminance constants |
 | Raw DisplayConfig FFI | `src-tauri/src/display/ffi.rs` | GET/SET SDR white level + MCCS |
-| Display service logic | `src-tauri/src/display/service.rs` | HDR-capable display enumeration, HDR toggle, fallback, kill switch |
+| Display service logic | `src-tauri/src/display/service.rs` | HDR-capable display enumeration, HDR toggle settle polling, fallback, kill switch |
 | Display command boundary | `src-tauri/src/display/commands.rs` | `#[tauri::command]` wrappers + Rust-owned display/tray state updates |
 | App state | `src-tauri/src/app/state.rs` | Full display state + tray summary state |
 | Tray management | `src-tauri/src/tray.rs` | Dynamic menu, tooltip, click handlers from tray summary |
@@ -152,6 +153,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - Rust now owns the authoritative display state and updates tray state directly from display commands
 - Tray rendering now consumes `TrayState` / `TrayDisplaySummary` instead of full `DisplayInfo`
 - HDR toggle uses `DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE`
+- HDR toggle now briefly polls display state after a write so the frontend reflects the settled HDR state
 - SET SDR white level uses undocumented device info type `0xFFFFFFEE`
 - The custom SET struct requires `final_value = 1`
 - Tray menu must be set before right-click; do not use `popup_menu()`
@@ -159,11 +161,13 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - The title bar includes a manual refresh button beside the settings button
 - Each time the window is shown from the tray, the frontend performs a **silent refresh** of display state without replaying the startup overlay
 - Global brightness hotkeys are user-configurable and use a 4% step
+- Keyboard interactions on the brightness slider now commit brightness changes, not just local preview state
 - The brightness slider supports mouse-wheel adjustment while the pointer is over the slider track with a 2% step
 - The status bar HDR toggle is now live; after toggle, the app refreshes state and disables SDR brightness controls while HDR is off
 - Tray empty-state wording now reflects "HDR-capable displays" rather than only "HDR enabled displays"
+- User-facing UI copy has been simplified to clearer product wording such as `HDR On`, `HDR Ready`, and `Launch at sign-in`
 - Non-blocking failures use an auto-dismissing notice banner; initialization failures still use a blocking full-page error state
-- `npm test` now also validates the TS/Rust `DisplayInfo` contract and shared luminance constants
+- `npm test` now also validates the TS/Rust `DisplayInfo` contract, shared luminance constants, and error-message mappings
 
 ## COMMANDS
 

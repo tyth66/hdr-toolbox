@@ -19,7 +19,7 @@ export function StartupInfoDialog({
     <div className="about-overlay" onClick={onClose}>
       <div className="about-dialog" onClick={(event) => event.stopPropagation()}>
         <h2>HDR Toolbox</h2>
-        <p>Detected {displays.length} HDR display(s):</p>
+        <p>Found {displays.length} HDR-capable display{displays.length === 1 ? "" : "s"}:</p>
         <ul style={{ textAlign: "left", margin: "8px 0", paddingLeft: "20px" }}>
           {displays.map((display) => (
             <li
@@ -30,7 +30,7 @@ export function StartupInfoDialog({
             </li>
           ))}
         </ul>
-        <p style={{ fontSize: "11px", color: "#999" }}>Click outside to close</p>
+        <p style={{ fontSize: "11px", color: "#999" }}>Click anywhere outside to dismiss</p>
       </div>
     </div>
   );

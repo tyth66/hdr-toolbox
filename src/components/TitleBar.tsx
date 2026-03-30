@@ -31,7 +31,7 @@ export function TitleBar({
             onClick={() => {
               onRefresh?.().catch(() => {});
             }}
-            title={refreshing ? "Refreshing..." : "Refresh Displays"}
+            title={refreshing ? "Refreshing display list..." : "Refresh display list"}
             disabled={refreshing}
           >
             <span className="material-symbols-outlined">

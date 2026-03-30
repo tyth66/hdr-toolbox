@@ -1,7 +1,8 @@
 use crate::{app::{AppState, TrayState}, tray};
 use super::model::DisplayInfo;
 use super::service::{
-    get_hdr_displays_impl, set_brightness_all_impl, set_brightness_impl, set_hdr_enabled_impl,
+    get_hdr_displays_after_toggle_impl, get_hdr_displays_impl, set_brightness_all_impl,
+    set_brightness_impl, set_hdr_enabled_impl,
 };
 use tauri::{AppHandle, State};
 
@@ -159,7 +160,7 @@ pub fn set_hdr_enabled(
 ) -> Result<Vec<DisplayInfo>, String> {
     set_hdr_enabled_impl(adapter_low, adapter_high, target_id, enabled)?;
 
-    match get_hdr_displays_impl() {
+    match get_hdr_displays_after_toggle_impl(adapter_low, adapter_high, target_id, enabled) {
         Ok(displays) => {
             let displays = replace_cached_displays(&state, displays);
             update_tray_state(&app);

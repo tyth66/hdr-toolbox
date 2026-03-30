@@ -51,13 +51,11 @@ export function useBrightnessController({
 
     clearSliderDebounce();
     sliderDebounceRef.current = setTimeout(async () => {
-      if (!isDraggingRef.current) {
-        return;
-      }
-
       try {
         await applyBrightness(percentage);
       } catch {
+      } finally {
+        sliderDebounceRef.current = null;
       }
     }, 50);
   }, [applyBrightness, clearSliderDebounce, hdrActive, isHdrPending, previewPercentage]);

@@ -83,7 +83,7 @@ function App() {
       <div className="mica-window">
         <TitleBar minimal onClose={hideWindow} />
         <div className="app-loading">
-          <span>Detecting HDR displays...</span>
+          <span>Looking for HDR-capable displays...</span>
         </div>
       </div>
     );
@@ -106,9 +106,9 @@ function App() {
         <TitleBar minimal onClose={hideWindow} />
         <div className="app-container">
           <div className="error-message">
-            No HDR displays found.
+            No HDR-capable displays found.
             <br />
-            Please enable HDR in Windows Settings.
+            Check your display connection or Windows display settings.
           </div>
         </div>
       </div>

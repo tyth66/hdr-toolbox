@@ -73,7 +73,7 @@ export function SettingsDialog({
         <h2>Settings</h2>
         <div className="settings-section">
           <div className="settings-row">
-            <span>Auto-start with Windows</span>
+            <span>Launch at sign-in</span>
             <button
               className={`hdr-toggle ${autostartEnabled ? "active" : ""}`}
               onClick={() => {
@@ -84,31 +84,31 @@ export function SettingsDialog({
             </button>
           </div>
           <div className="settings-row">
-            <span>Increase</span>
+            <span>Brightness up</span>
             <button
               className={`btn shortcut-btn ${recording === "increase" ? "shortcut-btn-recording" : ""}`}
               onClick={() => setRecording(recording === "increase" ? null : "increase")}
             >
-              {recording === "increase" ? "Press keys..." : formatHotkeyLabel(hotkeys.increase)}
+              {recording === "increase" ? "Press a shortcut..." : formatHotkeyLabel(hotkeys.increase)}
             </button>
           </div>
           <div className="settings-row">
-            <span>Decrease</span>
+            <span>Brightness down</span>
             <button
               className={`btn shortcut-btn ${recording === "decrease" ? "shortcut-btn-recording" : ""}`}
               onClick={() => setRecording(recording === "decrease" ? null : "decrease")}
             >
-              {recording === "decrease" ? "Press keys..." : formatHotkeyLabel(hotkeys.decrease)}
+              {recording === "decrease" ? "Press a shortcut..." : formatHotkeyLabel(hotkeys.decrease)}
             </button>
           </div>
           <div className="settings-row">
             <span>Reset shortcuts</span>
             <button className="btn" onClick={onResetHotkeys}>
-              Default
+              Reset
             </button>
           </div>
           <div className="settings-row">
-            <span>Quit HDR Toolbox</span>
+            <span>Quit app</span>
             <button
               className="btn"
               style={{ background: "rgba(239,68,68,0.2)", color: "#f87171" }}
@@ -127,7 +127,7 @@ export function SettingsDialog({
           </button>
         </p>
         <button className="btn btn-primary close-btn" onClick={onClose}>
-          Close
+          Done
         </button>
       </div>
     </div>

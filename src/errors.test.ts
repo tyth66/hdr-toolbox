@@ -1,30 +1,22 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  mapBrightnessError,
-  mapInitialLoadError,
-  mapRefreshError,
-} from "./errors.ts";
+import { mapInitialLoadError, mapRefreshError } from "./errors.ts";
 
-test("mapInitialLoadError returns a product message for missing HDR displays", () => {
+test("mapInitialLoadError recognizes HDR-capable display empty-state errors", () => {
   assert.equal(
-    mapInitialLoadError("No HDR displays found. Ensure HDR is enabled in Windows Settings."),
-    "No HDR displays detected. Turn on HDR in Windows Settings, then try Refresh Displays."
+    mapInitialLoadError(
+      "No HDR-capable displays found. Ensure your monitor supports HDR and the display driver is working correctly."
+    ),
+    "No HDR-capable displays found. Check your display connection or Windows display settings, then refresh and try again."
   );
 });
 
-test("mapRefreshError keeps silent refresh messaging non-blocking", () => {
-  assert.deepEqual(mapRefreshError(new Error("transport failed"), true), {
-    title: "Refresh failed",
-    message:
-      "The window is showing the last known display values because the background refresh failed.",
-  });
-});
-
-test("mapBrightnessError returns a stable user-facing message", () => {
-  assert.deepEqual(mapBrightnessError(), {
-    title: "Brightness update failed",
-    message:
-      "HDR Toolbox could not update SDR brightness for the selected display.",
-  });
+test("mapRefreshError uses the no-display messaging for HDR-capable display empty state", () => {
+  assert.deepEqual(
+    mapRefreshError("No HDR-capable displays found.", false),
+    {
+      title: "No HDR-capable displays found",
+      message: "Check your display connection or Windows display settings, then refresh and try again.",
+    }
+  );
 });

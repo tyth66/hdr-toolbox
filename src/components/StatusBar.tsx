@@ -13,9 +13,9 @@ export function StatusBar({
 }: StatusBarProps) {
   const toggleDisabled = !hdrSupported || hdrPending;
   const title = !hdrSupported
-    ? "HDR is not supported on the selected display"
+    ? "HDR is not available for this display"
     : hdrPending
-      ? "Updating HDR state..."
+      ? "Updating HDR setting..."
       : hdrActive
         ? "Disable HDR"
         : "Enable HDR";
@@ -25,11 +25,11 @@ export function StatusBar({
       <div className="status-left">
         <div className={`status-indicator ${hdrActive ? "hdr-active" : ""}`} />
         <span className="status-text">
-          {hdrSupported ? (hdrActive ? "HDR10 Active" : "HDR Available") : "SDR Only"}
+          {hdrSupported ? (hdrActive ? "HDR On" : "HDR Ready") : "SDR Only"}
         </span>
       </div>
       <div className="status-right">
-        <span className="status-label">HDR Status</span>
+        <span className="status-label">HDR</span>
         <button
           className={`hdr-toggle ${hdrActive ? "active" : ""}`}
           type="button"

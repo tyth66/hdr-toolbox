@@ -12,16 +12,18 @@
 - 状态栏提供可用的 HDR 开关
 - 设置中可切换开机自启
 - 拖动滑块时实时应用亮度
+- 亮度滑块支持键盘调节并会实际提交亮度变化
 - 鼠标悬停在亮度条上时可通过滚轮调节亮度
 - 标题栏在设置按钮旁提供手动刷新按钮
 - 从托盘显示窗口时，每次都会静默刷新一次显示器状态
 - 非阻断错误会通过自动消失的通知条提示
+- 界面文案已统一优化，HDR 状态、空状态和设置项表达更清晰
 
 ## 系统要求
 
 - Windows 10/11
 - 支持 HDR 的显示器
-- 已在 Windows 设置中启用 HDR
+- HDR 初始可为关闭状态，应用仍可识别支持 HDR 的显示器并按显示器开启 HDR
 
 ## 开发运行
 
@@ -80,6 +82,7 @@ src/
 |- services/
 |  '- tauriApi.ts
 |- displayContract.test.ts
+|- errors.test.ts
 |- hotkeys.test.ts
 |- types.ts
 |- types.test.ts
@@ -96,6 +99,7 @@ src/
 - `hooks/useDisplayDeviceActions.ts`：刷新、亮度应用、HDR 切换流程
 - `services/tauriApi.ts`：Rust 命令的类型化封装
 - `displayContract.test.ts`：TypeScript/Rust 源码级契约校验
+- `errors.test.ts`：用户可见错误文案映射的回归测试
 - `*.test.ts`：前端逻辑与契约测试
 
 ### 后端
@@ -120,7 +124,7 @@ src-tauri/src/
 - `app/commands.rs`：应用级命令，如托盘坐标、启动提示保护、拖动保护和退出
 - `app/window.rs`：Mica 与失焦隐藏窗口行为
 - `display/ffi.rs`：原始 Windows DisplayConfig / MCCS 调用
-- `display/service.rs`：支持 HDR 的显示器枚举、失败状态逻辑与亮度业务逻辑
+- `display/service.rs`：支持 HDR 的显示器枚举、HDR 切换后的状态轮询、失败状态逻辑与亮度业务逻辑
 - `display/commands.rs`：Tauri 命令边界，同时维护 Rust 侧显示器真实状态
 - `tray.rs`：基于 tray 摘要状态的托盘图标、提示和菜单事件
 
@@ -134,15 +138,18 @@ src-tauri/src/
 - 现在会枚举所有支持 HDR 的显示器，即使当前 HDR 处于关闭状态
 - `DisplayInfo` 同时区分 `hdr_supported` 和 `hdr_enabled`
 - HDR 开关通过 `DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE` 实现
+- HDR 开关写入后会短时间轮询显示器状态，确保前端拿到稳定的 HDR 最终状态
 - Rust 现在是显示器状态的真实来源，前端只消费命令返回结果，不再主动把显示器状态回推给 Tauri
 - tray 现在使用 Rust 侧摘要模型渲染，不再直接依赖完整 `DisplayInfo`
 - 标题栏刷新按钮会触发手动重新扫描显示器
 - 从托盘显示窗口时，每次都会执行一次静默刷新，不会重复弹出启动提示层
 - 全局快捷键可在设置中自定义，亮度步进为 `4%`
+- 通过键盘调节亮度滑块时，现在会真正提交亮度变化，而不只是更新本地预览值
 - 在亮度滑块区域滚动滚轮会按 `2%` 步进调节亮度
 - HDR 关闭时会禁用 SDR 亮度滑块
+- 当前界面文案已统一为更直接的用户表达，例如 `HDR On`、`HDR Ready` 和 `No HDR-capable displays found`
 - 非阻断失败会显示 5 秒后自动消失的通知条；初始化失败仍然是阻断式错误页面
-- `npm test` 现在还会校验 TypeScript/Rust 的 `DisplayInfo` 契约和共享亮度常量
+- `npm test` 现在还会校验 TypeScript/Rust 的 `DisplayInfo` 契约、共享亮度常量和错误文案映射
 
 ## 许可证
 

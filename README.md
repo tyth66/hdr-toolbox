@@ -12,16 +12,18 @@ A lightweight Windows system tray application for adjusting HDR monitor SDR cont
 - Live HDR toggle in the status bar
 - Auto-start toggle in settings
 - Real-time slider updates while dragging
+- Keyboard adjustment support on the brightness slider
 - Mouse-wheel brightness adjustment while hovering the slider
 - Manual refresh button in the title bar, beside the settings button
 - Silent display-state refresh every time the window is shown from the tray
 - Product-style error handling with auto-dismissing notice banners for non-blocking failures
+- Refined in-app wording for clearer HDR state, empty-state, and settings copy
 
 ## Requirements
 
 - Windows 10/11
 - HDR-capable monitor
-- HDR enabled in Windows Settings
+- HDR can be off initially; the app can detect HDR-capable displays and turn HDR on per display
 
 ## Development
 
@@ -80,6 +82,7 @@ src/
 |- services/
 |  '- tauriApi.ts
 |- displayContract.test.ts
+|- errors.test.ts
 |- hotkeys.test.ts
 |- types.ts
 |- types.test.ts
@@ -96,6 +99,7 @@ src/
 - `hooks/useDisplayDeviceActions.ts`: refresh, brightness apply, and HDR toggle flows
 - `services/tauriApi.ts`: typed Rust command wrappers
 - `displayContract.test.ts`: source-based TypeScript/Rust contract checks
+- `errors.test.ts`: user-facing error mapping regression checks
 - `*.test.ts`: frontend logic and contract tests
 
 ### Backend
@@ -121,6 +125,7 @@ src-tauri/src/
 - `app/window.rs`: Mica and blur-to-hide window behavior
 - `display/ffi.rs`: raw Windows DisplayConfig / MCCS calls
 - `display/service.rs`: HDR-capable display enumeration, failure-state logic, and brightness logic
+- `display/service.rs`: HDR-capable display enumeration, HDR state polling after toggle, failure-state logic, and brightness logic
 - `display/commands.rs`: Tauri command boundary plus Rust-owned display-state updates
 - `tray.rs`: tray icon, tooltip, and menu events backed by tray summary state
 
@@ -134,15 +139,18 @@ src-tauri/src/
 - Display enumeration now returns HDR-capable displays even if HDR is currently off
 - `DisplayInfo` tracks both `hdr_supported` and `hdr_enabled`
 - HDR toggle uses `DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE`
+- HDR toggle now polls display state briefly after a write so the frontend receives the settled HDR state
 - Rust now owns the authoritative display state; the frontend consumes command results instead of pushing display state back into Tauri
 - Tray rendering now uses a Rust-side summary model instead of depending directly on full `DisplayInfo`
 - The title bar refresh button triggers a manual display rescan
 - Showing the window from the tray performs a silent state refresh every time, without replaying the startup overlay
 - Global hotkeys are configurable in Settings and adjust brightness in `4%` steps
+- Keyboard adjustments on the brightness slider now commit actual brightness changes instead of only updating the local preview
 - Scrolling the mouse wheel over the brightness slider adjusts brightness in `2%` steps
 - SDR brightness controls are disabled while HDR is off
+- The UI now uses simplified user-facing labels such as `HDR On` / `HDR Ready` and `No HDR-capable displays found`
 - Non-blocking failures show a notice banner that auto-dismisses after 5 seconds; initialization failures remain blocking
-- `npm test` now also validates the TypeScript/Rust `DisplayInfo` contract and shared luminance constants
+- `npm test` now also validates the TypeScript/Rust `DisplayInfo` contract, shared luminance constants, and error-message mappings
 
 ## License
 

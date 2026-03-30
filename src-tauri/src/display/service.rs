@@ -1,4 +1,6 @@
 use once_cell::sync::Lazy;
+use std::thread;
+use std::time::Duration;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use windows::Win32::Devices::Display::{
     DisplayConfigGetDeviceInfo, GetDisplayConfigBufferSizes, QueryDisplayConfig,
@@ -18,6 +20,8 @@ use super::model::{luminance, DisplayInfo};
 static HDR_INFO_DISABLED: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
 static HDR_CONSECUTIVE_FAILURES: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(0));
 const MAX_CONSECUTIVE_FAILURES: usize = 3;
+const HDR_STATE_POLL_ATTEMPTS: usize = 8;
+const HDR_STATE_POLL_DELAY_MS: u64 = 150;
 
 pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
     if HDR_INFO_DISABLED.load(Ordering::Relaxed) {
@@ -46,8 +50,6 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
         return Err("No display paths found".to_string());
     }
 
-    reset_failure_state(&HDR_CONSECUTIVE_FAILURES, &HDR_INFO_DISABLED);
-
     let mut paths = vec![DISPLAYCONFIG_PATH_INFO::default(); path_count as usize];
     let mut modes = vec![
         windows::Win32::Devices::Display::DISPLAYCONFIG_MODE_INFO::default();
@@ -71,6 +73,8 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
         }
         return Err(format!("QueryDisplayConfig failed: {:#?}", result));
     }
+
+    reset_failure_state(&HDR_CONSECUTIVE_FAILURES, &HDR_INFO_DISABLED);
 
     let mut displays = Vec::new();
 
@@ -184,6 +188,37 @@ pub(super) fn set_hdr_enabled_impl(
         HighPart: adapter_high as i32,
     };
     set_advanced_color_state(adapter_id, target_id, enabled)
+}
+
+pub(super) fn get_hdr_displays_after_toggle_impl(
+    adapter_low: i32,
+    adapter_high: i32,
+    target_id: u32,
+    expected_enabled: bool,
+) -> Result<Vec<DisplayInfo>, String> {
+    let mut last_displays: Option<Vec<DisplayInfo>> = None;
+
+    for attempt in 0..HDR_STATE_POLL_ATTEMPTS {
+        let displays = get_hdr_displays_impl()?;
+        let matches_expected_state = displays.iter().any(|display| {
+            display.adapter_id_low == adapter_low
+                && display.adapter_id_high == adapter_high
+                && display.target_id == target_id
+                && display.hdr_enabled == expected_enabled
+        });
+
+        if matches_expected_state {
+            return Ok(displays);
+        }
+
+        last_displays = Some(displays);
+
+        if attempt + 1 < HDR_STATE_POLL_ATTEMPTS {
+            thread::sleep(Duration::from_millis(HDR_STATE_POLL_DELAY_MS));
+        }
+    }
+
+    Ok(last_displays.unwrap_or_default())
 }
 
 fn percentage_to_nits(percentage: u32, min_nits: u32, max_nits: u32) -> u32 {

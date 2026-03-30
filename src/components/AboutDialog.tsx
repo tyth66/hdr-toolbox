@@ -17,12 +17,12 @@ export function AboutDialog({ open, hotkeys, onClose }: AboutDialogProps) {
       <div className="about-dialog" onClick={(event) => event.stopPropagation()}>
         <h2>HDR Toolbox</h2>
         <p>
-          A lightweight tool for adjusting HDR monitor SDR brightness without
-          opening Windows Settings.
+          A lightweight tray app for adjusting SDR brightness on HDR-capable
+          displays without opening Windows Settings.
         </p>
         <div className="shortcuts">
           <div>
-            <strong>Left-click tray:</strong> Toggle slider
+            <strong>Left-click tray:</strong> Show or hide the window
           </div>
           <div>
             <strong>{formatHotkeyLabel(hotkeys.increase)}:</strong> +{HOTKEYS.STEP}%
@@ -33,7 +33,7 @@ export function AboutDialog({ open, hotkeys, onClose }: AboutDialogProps) {
         </div>
         <p style={{ fontSize: "11px", color: "#999" }}>v1.0.0 | MIT License</p>
         <button className="btn btn-primary close-btn" onClick={onClose}>
-          Close
+          Done
         </button>
       </div>
     </div>

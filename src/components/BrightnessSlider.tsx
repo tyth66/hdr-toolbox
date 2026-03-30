@@ -29,7 +29,7 @@ export function BrightnessSlider({
       </div>
 
       {disabled ? (
-        <div className="slider-helper">Available when HDR is enabled</div>
+        <div className="slider-helper">Turn HDR on to adjust SDR brightness</div>
       ) : null}
 
       <div className="slider-wrapper" onWheel={onWheelAdjust}>
