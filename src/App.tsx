@@ -8,6 +8,7 @@ import { DeviceNav } from "./components/DeviceNav";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { StartupInfoDialog } from "./components/StartupInfoDialog";
 import { StatusBar } from "./components/StatusBar";
+import { SvgIcon } from "./components/SvgIcon";
 import { TitleBar } from "./components/TitleBar";
 import { useDisplays } from "./hooks/useDisplays";
 import { useStartupOverlay } from "./hooks/useStartupOverlay";
@@ -52,7 +53,6 @@ function App() {
     handleToggleAutostart,
     handleHotkeyChange,
     handleHotkeyReset,
-    handleQuit,
   } = useAppController({
     loadDisplays,
     refreshDisplays,
@@ -137,7 +137,7 @@ function App() {
             onClick={() => setNotice(null)}
             title="Dismiss"
           >
-            <span className="material-symbols-outlined">close</span>
+            <SvgIcon name="close" />
           </button>
         </div>
       ) : null}
@@ -176,7 +176,6 @@ function App() {
         onUpdateHotkey={handleHotkeyChange}
         onResetHotkeys={handleHotkeyReset}
         onShowAbout={() => setShowAbout(true)}
-        onQuit={handleQuit}
       />
 
       <AboutDialog

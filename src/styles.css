@@ -1,6 +1,6 @@
 /* Windows 11 Mica Design System - New UI */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
   --win-blue: #0078d4;
@@ -55,20 +55,26 @@ body {
   color: var(--text-primary);
 }
 
-/* Material Symbols */
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined';
-  font-weight: normal;
-  font-style: normal;
-  font-size: 16px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
+/* Local SVG icons */
+.ui-icon {
+  width: 16px;
+  height: 16px;
   display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  font-variation-settings: 'FILL' 0;
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+.ui-icon-spin {
+  animation: ui-icon-spin 0.9s linear infinite;
+}
+
+@keyframes ui-icon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Mica Window */
@@ -137,8 +143,10 @@ body {
   background: var(--surface-active);
 }
 
-.title-bar-btn .material-symbols-outlined {
+.title-bar-btn .ui-icon {
   font-size: 14px;
+  width: 14px;
+  height: 14px;
 }
 
 .title-bar-close:hover {
@@ -204,8 +212,9 @@ body {
   color: #fff7ed;
 }
 
-.notice-dismiss .material-symbols-outlined {
-  font-size: 14px;
+.notice-dismiss .ui-icon {
+  width: 14px;
+  height: 14px;
 }
 
 /* Side Nav */
@@ -244,8 +253,9 @@ body {
   color: var(--win-blue);
 }
 
-.side-nav-btn .material-symbols-outlined {
-  font-size: 18px;
+.side-nav-btn .ui-icon {
+  width: 18px;
+  height: 18px;
 }
 
 /* Content Area */

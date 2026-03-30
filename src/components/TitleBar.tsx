@@ -1,4 +1,5 @@
 import type { MouseEventHandler } from "react";
+import { SvgIcon } from "./SvgIcon";
 
 type TitleBarProps = {
   onMouseDown?: MouseEventHandler<HTMLElement>;
@@ -34,23 +35,24 @@ export function TitleBar({
             title={refreshing ? "Refreshing display list..." : "Refresh display list"}
             disabled={refreshing}
           >
-            <span className="material-symbols-outlined">
-              {refreshing ? "progress_activity" : "refresh"}
-            </span>
+            <SvgIcon
+              name={refreshing ? "spinner" : "refresh"}
+              className={refreshing ? "ui-icon-spin" : undefined}
+            />
           </button>
           <button
             className="title-bar-btn"
             onClick={onOpenSettings}
             title="Settings"
           >
-            <span className="material-symbols-outlined">settings</span>
+            <SvgIcon name="settings" />
           </button>
           <button
             className="title-bar-btn title-bar-close"
             onClick={onClose}
             title="Close"
           >
-            <span className="material-symbols-outlined">close</span>
+            <SvgIcon name="close" />
           </button>
         </div>
       )}

@@ -5,7 +5,6 @@ import {
   mapAutostartError,
   mapHotkeyRegistrationError,
   mapHotkeyValidationError,
-  mapQuitError,
   type AppNotice,
 } from "../errors";
 import {
@@ -16,7 +15,6 @@ import {
   validateHotkeys,
 } from "../hotkeys";
 import { useHotkeys } from "../hooks/useHotkeys";
-import { quit } from "../services/tauriApi";
 import type { HotkeyConfig, HotkeyDirection } from "../types";
 
 type UseAppControllerOptions = {
@@ -92,15 +90,6 @@ export function useAppController({
     }
   }, [autostartEnabled, setNotice]);
 
-  const handleQuit = useCallback(async () => {
-    try {
-      await quit();
-    } catch (err) {
-      console.error("Failed to quit:", err);
-      setNotice(mapQuitError());
-    }
-  }, [setNotice]);
-
   const handleHotkeyChange = useCallback((direction: HotkeyDirection, value: string) => {
     const nextHotkeys = {
       ...hotkeys,
@@ -136,6 +125,5 @@ export function useAppController({
     handleToggleAutostart,
     handleHotkeyChange,
     handleHotkeyReset,
-    handleQuit,
   };
 }

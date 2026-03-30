@@ -11,7 +11,6 @@ type SettingsDialogProps = {
   onUpdateHotkey: (direction: HotkeyDirection, value: string) => boolean;
   onResetHotkeys: () => void;
   onShowAbout: () => void;
-  onQuit: () => Promise<void>;
 };
 
 export function SettingsDialog({
@@ -23,7 +22,6 @@ export function SettingsDialog({
   onUpdateHotkey,
   onResetHotkeys,
   onShowAbout,
-  onQuit,
 }: SettingsDialogProps) {
   const [recording, setRecording] = useState<HotkeyDirection | null>(null);
 
@@ -105,18 +103,6 @@ export function SettingsDialog({
             <span>Reset shortcuts</span>
             <button className="btn" onClick={onResetHotkeys}>
               Reset
-            </button>
-          </div>
-          <div className="settings-row">
-            <span>Quit app</span>
-            <button
-              className="btn"
-              style={{ background: "rgba(239,68,68,0.2)", color: "#f87171" }}
-              onClick={() => {
-                onQuit().catch(() => {});
-              }}
-            >
-              Quit
             </button>
           </div>
         </div>

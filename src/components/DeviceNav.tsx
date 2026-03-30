@@ -1,4 +1,5 @@
 import type { DisplayInfo } from "../types";
+import { SvgIcon } from "./SvgIcon";
 
 type DeviceNavProps = {
   displays: DisplayInfo[];
@@ -20,7 +21,7 @@ export function DeviceNav({
           onClick={() => onSelect(idx)}
           title={display.name}
         >
-          <span className="material-symbols-outlined">monitor</span>
+          <SvgIcon name="monitor" />
         </button>
       ))}
     </nav>

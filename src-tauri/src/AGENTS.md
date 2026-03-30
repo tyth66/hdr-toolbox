@@ -1,7 +1,7 @@
 ﻿# Rust Backend - Tauri 2 Core
 
 **Parent:** ./AGENTS.md
-**Generated:** 2026-03-30 (refreshed after architecture refactor)
+**Generated:** 2026-03-30 (refreshed)
 
 ## OVERVIEW
 
