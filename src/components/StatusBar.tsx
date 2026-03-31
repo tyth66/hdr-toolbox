@@ -25,7 +25,7 @@ export function StatusBar({
       <div className="status-left">
         <div className={`status-indicator ${hdrActive ? "hdr-active" : ""}`} />
         <span className="status-text">
-          {hdrSupported ? (hdrActive ? "HDR On" : "HDR Ready") : "SDR Only"}
+          {hdrSupported ? (hdrActive ? "HDR On" : "HDR OFF") : "SDR Only"}
         </span>
       </div>
       <div className="status-right">

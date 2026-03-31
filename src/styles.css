@@ -61,7 +61,6 @@ body {
   height: 16px;
   display: inline-block;
   flex-shrink: 0;
-  color: currentColor;
 }
 
 .ui-icon-spin {
@@ -109,7 +108,7 @@ body {
 .title-bar-title {
   font-size: 10px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.8);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -147,6 +146,7 @@ body {
   font-size: 14px;
   width: 14px;
   height: 14px;
+  color: inherit;
 }
 
 .title-bar-close:hover {
@@ -215,6 +215,7 @@ body {
 .notice-dismiss .ui-icon {
   width: 14px;
   height: 14px;
+  color: inherit;
 }
 
 /* Side Nav */
@@ -256,6 +257,7 @@ body {
 .side-nav-btn .ui-icon {
   width: 18px;
   height: 18px;
+  color: inherit;
 }
 
 /* Content Area */

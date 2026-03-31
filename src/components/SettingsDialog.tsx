@@ -71,7 +71,7 @@ export function SettingsDialog({
         <h2>Settings</h2>
         <div className="settings-section">
           <div className="settings-row">
-            <span>Launch at sign-in</span>
+            <span>Auto-start</span>
             <button
               className={`hdr-toggle ${autostartEnabled ? "active" : ""}`}
               onClick={() => {
@@ -82,7 +82,7 @@ export function SettingsDialog({
             </button>
           </div>
           <div className="settings-row">
-            <span>Brightness up</span>
+            <span>Brightness +</span>
             <button
               className={`btn shortcut-btn ${recording === "increase" ? "shortcut-btn-recording" : ""}`}
               onClick={() => setRecording(recording === "increase" ? null : "increase")}
@@ -91,7 +91,7 @@ export function SettingsDialog({
             </button>
           </div>
           <div className="settings-row">
-            <span>Brightness down</span>
+            <span>Brightness -</span>
             <button
               className={`btn shortcut-btn ${recording === "decrease" ? "shortcut-btn-recording" : ""}`}
               onClick={() => setRecording(recording === "decrease" ? null : "decrease")}
