@@ -1,6 +1,6 @@
 ﻿# HDR Toolbox - Knowledge Base
 
-**Generated:** 2026-03-30 (refreshed)
+**Generated:** 2026-04-01 (refreshed)
 **Type:** Rust + Tauri 2 (Windows desktop app)
 
 ## OVERVIEW
@@ -20,10 +20,10 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 |  |- hooks/                   # Stateful logic (display, hotkeys, window)
 |  |- services/tauriApi.ts     # Typed Tauri invoke wrappers
 |  '- types.ts                 # Shared constants
-|- src-tauri/src/
+ |- src-tauri/src/
 |  |- lib.rs                   # Tauri builder + module wiring
 |  |- app/                     # State, commands, window
-|  |- display/                 # FFI, model, service, commands
+|  |- display/                 # FFI, model, service, commands, error
 |  '- tray.rs                  # System tray
 |- package.json
 |- vite.config.ts
@@ -68,6 +68,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 
 - `display/model.rs`: DisplayInfo + luminance constants (80-480 nits)
 - `display/ffi.rs`: raw Windows DisplayConfig / MCCS FFI
+- `display/error.rs`: structured error types (DisplayErrorCode, DisplayError)
 - `display/service.rs`: HDR discovery, toggle, brightness logic, tests
 - `display/commands.rs`: Tauri command surface + state updates
 - `app/state.rs`: AppState + TrayState + TrayDisplaySummary
@@ -75,12 +76,12 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - `tray.rs`: tray icon, menu, events from summary state
 - `lib.rs`: Tauri builder and module wiring
 
-**Key rules:** `Result<T, String>` for commands; no `anyhow`/`thiserror`; FFI details stay in `display/ffi.rs`
+**Key rules:** Commands return `DisplayError` with structured error codes; no `anyhow`/`thiserror`; FFI details stay in `display/ffi.rs`
 
 ## CONVENTIONS
 
 ### Rust
-- `Result<T, String>` for Tauri commands; no `anyhow`/`thiserror`
+- Commands return `DisplayError` with structured error codes; no `anyhow`/`thiserror`
 - Use `display::model::luminance::*` instead of hardcoded luminance values
 - Keep undocumented DisplayConfig details inside `display/ffi.rs`
 - Keep pure service logic testable without touching Windows APIs
@@ -95,13 +96,19 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - `tray-icon` + `image-png` features
 - JS-side global shortcut registration and autostart
 - Rust-side blur-to-hide for frameless window reliability
+- `tauri-plugin-single-instance` for single-instance enforcement
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
 - `DO NOT REMOVE!!` comment in `src-tauri/src/main.rs` — process constraints belong in issue tracker, not code
 - Multiple `AGENTS.md` in subdirs — avoid future proliferation; update existing instead
-- No `rustfmt.toml`/`.clippy.toml`/`.editorconfig` — relies on cargo defaults
 - No ESLint/Prettier — minimal JS tooling
+
+## TOOLING
+
+- `rustfmt.toml` — Rust formatting (src-tauri/)
+- `clippy.toml` — Clippy lint configuration (src-tauri/)
+- CI should run `cargo clippy` and `cargo test`
 
 ## CRITICAL NOTES
 
@@ -113,11 +120,14 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - Tray rendering uses `TrayState`/`TrayDisplaySummary` not full `DisplayInfo`
 - SET SDR white level uses undocumented device info type `0xFFFFFFEE`
 - HDR toggle uses `DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE` + brief polling
+- **Per-display failure tracking**: failures are tracked per-display (via `DisplayKey`), not globally. A display is skipped after 3 consecutive failures, but recovers on next successful query.
 - Tray menu must be set before right-click; do not use `popup_menu()`
 - Each tray-show triggers silent display-state refresh (no startup overlay replay)
 - Hotkeys: 4% step; mouse wheel on slider: 2% step
 - SDR brightness controls disabled while HDR is off
 - Non-blocking failures: auto-dismissing notice banner; init failures: blocking
+- **Single instance**: `tauri-plugin-single-instance` prevents multiple app instances; second instance focuses existing window
+- **Structured errors**: Commands return `{ code: DisplayErrorCode, message: string }` for precise frontend error handling
 
 ## COMMANDS
 

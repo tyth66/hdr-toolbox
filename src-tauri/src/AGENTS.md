@@ -1,7 +1,7 @@
 ﻿# Rust Backend - Tauri 2 Core
 
 **Parent:** ./AGENTS.md
-**Generated:** 2026-03-30 (refreshed)
+**Generated:** 2026-03-31 (refreshed)
 
 ## OVERVIEW
 
@@ -43,11 +43,21 @@ src-tauri/src/
 ## MODULE RULES
 
 - `ffi.rs` should contain unsafe Windows interaction, not app policy
-- `service.rs` should own fallback, enumeration, kill switch, and conversions
+- `service.rs` should own enumeration, brightness logic, and per-display failure tracking
 - `commands.rs` should stay at the command boundary and own state synchronization, not low-level Windows details
 - `lib.rs` should not absorb display business logic again
 - `tray.rs` should depend on tray summary state, not full `DisplayInfo`
 - Add tests in `service.rs` when logic can be validated without Windows handles
+
+## FAILURE TRACKING
+
+Per-display failure tracking replaces the previous global kill switch:
+
+- `PerDisplayFailureTracker` uses `HashMap<DisplayKey, usize>` to track failures per display
+- A display is skipped after 3 consecutive failures for THAT display only
+- Other displays remain unaffected
+- Successful queries reset the failure count for that display
+- Key: `(adapter_id_low, adapter_id_high, target_id)` uniquely identifies a display
 
 ## COMMAND SURFACE
 
@@ -62,20 +72,22 @@ src-tauri/src/
 
 ## CURRENT TEST COVERAGE
 
-- `percentage_to_nits`
+- `percentage_to_nits` bounds, midpoint, clamping, inverted range
 - advanced color supported/enabled bit parsing
-- failure-state disable threshold
-- failure-state reset behavior
+- `PerDisplayFailureTracker` disable threshold
+- `PerDisplayFailureTracker` reset on success
+- `PerDisplayFailureTracker` tracks displays independently
+- `TrayState` keeps only tray-relevant display fields
 
 ## CRITICAL NOTES
 
-- SDR white level control still uses undocumented type `0xFFFFFFEE`
+- SDR white level control uses undocumented type `0xFFFFFFEE` (defined as `DISPLAYCONFIG_DEVICE_INFO_SET_SDR_WHITE_LEVEL` in `ffi.rs`)
 - The custom SET struct must include `final_value = 1`
 - MCCS values are informational only
 - `DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO` bit 0 (`0x1`) is treated as HDR-capable, bit 1 (`0x2`) as currently enabled
-- `DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE` is now used to toggle HDR
-- Enumeration now keeps HDR-capable displays even when HDR is off, so HDR toggling can target them
-- Rust commands now update authoritative display state and tray summary state directly
-- Tray rendering is now based on `TrayState` summaries rather than the full display model
+- `DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE` is used to toggle HDR
+- Enumeration keeps HDR-capable displays even when HDR is off
+- Rust commands update authoritative display state and tray summary state directly
+- Tray rendering is based on `TrayState` summaries rather than the full display model
 - Physical monitor handles are explicitly released after MCCS queries
-- Failure kill switch still disables HDR enumeration after repeated failures
+- **Per-display failure tracking**: each display tracks its own failure count; other displays unaffected by one display's failures

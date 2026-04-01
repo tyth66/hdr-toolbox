@@ -1,7 +1,7 @@
 ﻿# Frontend - React/TypeScript UI Layer
 
 **Parent:** ./AGENTS.md
-**Generated:** 2026-03-30 (refreshed)
+**Generated:** 2026-03-31 (refreshed)
 
 ## OVERVIEW
 
