@@ -34,3 +34,77 @@ impl DisplayInfo {
         value.saturating_mul(80) / 1000
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::luminance::{MAX_NITS, MIN_NITS, DEFAULT_NITS};
+    use super::DisplayInfo;
+
+    #[test]
+    fn nits_to_api_value_maps_min_nits() {
+        assert_eq!(DisplayInfo::nits_to_api_value(MIN_NITS), 1000);
+    }
+
+    #[test]
+    fn nits_to_api_value_maps_max_nits() {
+        assert_eq!(DisplayInfo::nits_to_api_value(MAX_NITS), 6000);
+    }
+
+    #[test]
+    fn nits_to_api_value_maps_midpoint() {
+        assert_eq!(DisplayInfo::nits_to_api_value(280), 3500);
+    }
+
+    #[test]
+    fn nits_to_api_value_clamps_zero() {
+        assert_eq!(DisplayInfo::nits_to_api_value(0), 0);
+    }
+
+    #[test]
+    fn nits_to_api_value_does_not_clamp_above_max() {
+        // The function uses saturating_mul but does not clamp to MAX_NITS
+        // 1000 * 1000 / 80 = 12500
+        assert_eq!(DisplayInfo::nits_to_api_value(1000), 12500);
+    }
+
+    #[test]
+    fn api_value_to_nits_maps_min_nits() {
+        assert_eq!(DisplayInfo::api_value_to_nits(1000), MIN_NITS);
+    }
+
+    #[test]
+    fn api_value_to_nits_maps_max_nits() {
+        assert_eq!(DisplayInfo::api_value_to_nits(6000), MAX_NITS);
+    }
+
+    #[test]
+    fn api_value_to_nits_maps_midpoint() {
+        assert_eq!(DisplayInfo::api_value_to_nits(3500), 280);
+    }
+
+    #[test]
+    fn api_value_to_nits_clamps_zero() {
+        assert_eq!(DisplayInfo::api_value_to_nits(0), 0);
+    }
+
+    #[test]
+    fn api_value_to_nits_clamps_below_min() {
+        assert_eq!(DisplayInfo::api_value_to_nits(500), 40);
+    }
+
+    #[test]
+    fn roundtrip_nits_to_api_and_back() {
+        for nits in [MIN_NITS, 160, 240, 280, 320, 400, MAX_NITS] {
+            let api = DisplayInfo::nits_to_api_value(nits);
+            let back = DisplayInfo::api_value_to_nits(api);
+            assert_eq!(back, nits, "Round-trip failed for {} nits", nits);
+        }
+    }
+
+    #[test]
+    fn luminance_constants_are_aligned_with_service() {
+        assert_eq!(MIN_NITS, 80);
+        assert_eq!(MAX_NITS, 480);
+        assert_eq!(DEFAULT_NITS, 280);
+    }
+}
