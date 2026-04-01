@@ -1,6 +1,6 @@
 ﻿# HDR Toolbox - Knowledge Base
 
-**Generated:** 2026-04-01 (refreshed)
+**Generated:** 2026-04-01
 **Type:** Rust + Tauri 2 (Windows desktop app)
 
 ## OVERVIEW
@@ -101,8 +101,12 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 ## ANTI-PATTERNS (THIS PROJECT)
 
 - `DO NOT REMOVE!!` comment in `src-tauri/src/main.rs` — process constraints belong in issue tracker, not code
-- Multiple `AGENTS.md` in subdirs — avoid future proliferation; update existing instead
 - No ESLint/Prettier — minimal JS tooling
+
+## SUBMODULES
+
+- `src/AGENTS.md` — Frontend architecture, hooks, component rules
+- `src-tauri/src/AGENTS.md` — Rust backend, display subsystem, FFI details
 
 ## TOOLING
 

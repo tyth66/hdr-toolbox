@@ -1,157 +1,128 @@
-﻿# HDR Toolbox
+<!-- HDR Toolbox -->
 
-A lightweight Windows system tray application for adjusting HDR monitor SDR content brightness, built with **Rust + Tauri 2 + React**.
+<div align="center">
 
-## Features
+# HDR Toolbox
 
-- System tray control
-- Left-click tray icon to show or hide the slider window
-- Right-click tray icon to open the dynamic device menu
-- Customizable global hotkeys for brightness up/down
-- Per-display HDR-capable display control with current HDR state awareness
-- Live HDR toggle in the status bar
-- Auto-start toggle in settings
-- Real-time slider updates while dragging
-- Keyboard adjustment support on the brightness slider
-- Mouse-wheel brightness adjustment while hovering the slider
-- Manual refresh button in the title bar, beside the settings button
-- Silent display-state refresh every time the window is shown from the tray
-- Product-style error handling with auto-dismissing notice banners for non-blocking failures
-- Refined in-app wording for clearer HDR state, empty-state, and settings copy
+**A lightweight Windows system tray app for adjusting HDR monitor SDR brightness**
 
-## Requirements
+[![Windows](https://img.shields.io/badge/Windows-10%2F11-blue?style=flat-square&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-1.70+-orange?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![Tauri](https://img.shields.io/badge/Tauri-2.0-4K8C6D?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app)
 
-- Windows 10/11
-- HDR-capable monitor
-- HDR can be off initially; the app can detect HDR-capable displays and turn HDR on per display
+**[中文版 →](README_zh.md)**
 
-## Development
+---
 
-```bash
-npm install
-npm run tauri dev
+## ✨ Features
+
+| Feature | Description |
+|---------|-------------|
+| 🎚️ **Brightness Slider** | Real-time SDR white level adjustment (80-480 nits) |
+| 🌗 **HDR Toggle** | One-click HDR mode on/off |
+| ⌨️ **Global Hotkeys** | Customizable shortcuts (default `Win+Alt+↑/↓`) |
+| 🖱️ **Mouse Wheel** | Fine-tune with 2% steps on slider |
+| 🖥️ **Multi-Display** | Independent control per monitor |
+| ⚡ **Silent Refresh** | Auto-sync state when waking from tray |
+| 🔄 **Manual Refresh** | Re-detect displays via title bar |
+| 🚀 **Auto-start** | Launch on system boot (optional) |
+| 📍 **Tray Control** | Left-click show/hide, right-click menu |
+
+---
+
+## 📋 Requirements
+
+- **OS:** Windows 10 or Windows 11
+- **Display:** HDR-capable monitor
+- **Note:** HDR can be off initially — the app detects HDR displays and enables HDR per-display
+
+---
+
+## 🚀 Quick Start
+
+### Download
+
+Get the latest release from **[Releases](https://github.com/your-repo/hdr-toolbox/releases)**:
+
+```
+hdr-toolbox.exe
 ```
 
-## Build
+### Build from Source
 
 ```bash
-npm run build
+# Clone the repository
+git clone https://github.com/your-repo/hdr-toolbox.git
+cd hdr-toolbox
+
+# Install dependencies
+npm install
+
+# Run in development mode
+npm run tauri dev
+
+# Build for production
 npm run tauri build
 ```
 
-## Test
+> **Output:** `src-tauri/target/release/hdr-toolbox.exe`
 
-```bash
-npm test
+---
+
+## 📖 Usage
+
+```
+1. Launch the app → icon appears in system tray
+2. Left-click tray icon → show/hide brightness window
+3. Right-click tray icon → open device menu
+4. Drag slider or use wheel/keyboard to adjust brightness
+5. Click HDR toggle in status bar to enable/disable HDR
 ```
 
-This runs:
+### ⌨️ Hotkeys
 
-- frontend Node-based tests for pure TypeScript logic
-- Rust unit tests for display service helpers
+| Shortcut | Action |
+|----------|--------|
+| `Win+Alt+↑` | Brightness +4% |
+| `Win+Alt+↓` | Brightness -4% |
+| `Win+Alt+H` | Toggle HDR |
 
-Output binary:
+> Customize hotkeys in **Settings**
 
-```text
-src-tauri/target/release/hdr-toolbox.exe
-```
+---
 
-## Architecture
+## ⚙️ Configuration
 
-### Frontend
+| Setting | Description |
+|---------|-------------|
+| **Auto-start** | Enable/disable in Settings |
+| **Brightness Range** | Fixed at **80-480 nits** |
 
-```text
-src/
-|- App.tsx
-|- app/
-|  |- useAppController.ts
-|  '- useNoticeController.ts
-|- brightness/
-|  '- useBrightnessController.ts
-|- hotkeys.ts
-|- components/
-|- hooks/
-|  |- useDisplaySelection.ts
-|  |- useDisplayDeviceActions.ts
-|  |- useDisplays.ts
-|  |- useHotkeys.ts
-|  |- useWindowPosition.ts
-|  |- useStartupOverlay.ts
-|  |- displayState.ts
-|  '- displayState.test.ts
-|- services/
-|  '- tauriApi.ts
-|- displayContract.test.ts
-|- errors.test.ts
-|- hotkeys.test.ts
-|- types.ts
-|- types.test.ts
-'- errors.ts
-```
+> ℹ️ This app controls **SDR White Level** (Windows display adapter), not monitor OSD backlight brightness.
 
-- `App.tsx`: thin composition layer
-- `app/`: app-level controllers for initialization, dialogs, autostart, and notices
-- `brightness/`: slider interaction controller
-- `hotkeys.ts`: shortcut normalization, persistence, and user-facing labels
-- `components/`: presentational UI
-- `hooks/useDisplays.ts`: public display-state hook facade
-- `hooks/useDisplaySelection.ts`: selected-display and derived percentage state
-- `hooks/useDisplayDeviceActions.ts`: refresh, brightness apply, and HDR toggle flows
-- `services/tauriApi.ts`: typed Rust command wrappers
-- `displayContract.test.ts`: source-based TypeScript/Rust contract checks
-- `errors.test.ts`: user-facing error mapping regression checks
-- `*.test.ts`: frontend logic and contract tests
+---
 
-### Backend
+## ❓ FAQ
 
-```text
-src-tauri/src/
-|- lib.rs
-|- app/
-|  |- mod.rs
-|  |- state.rs
-|  |- commands.rs
-|  '- window.rs
-|- tray.rs
-'- display/
-   |- model.rs
-   |- ffi.rs
-   |- service.rs
-   '- commands.rs
-```
+| Question | Answer |
+|----------|--------|
+| **HDR toggle is grayed out** | Ensure monitor is connected and supports HDR. Click the refresh button. |
+| **Adjustments have no effect** | Some monitors may not support this control path. |
+| **How to exit** | Right-click tray icon → **Quit** |
 
-- `app/state.rs`: shared `AppState` plus tray summary state
-- `app/commands.rs`: app-level commands such as tray rect, startup overlay guard, dragging guard, and quit
-- `app/window.rs`: Mica and blur-to-hide window behavior
-- `display/ffi.rs`: raw Windows DisplayConfig / MCCS calls
-- `display/service.rs`: HDR-capable display enumeration, HDR state polling after toggle, failure-state logic, and brightness logic
-- `display/commands.rs`: Tauri command boundary plus Rust-owned display-state updates
-- `tray.rs`: tray icon, tooltip, and menu events backed by tray summary state
+---
 
-## Important Notes
+## 🛠️ Tech Stack
 
-- SDR white level range is fixed to **80-480 nits**
-- The app controls **SDR White Level**, not monitor OSD backlight brightness
-- MCCS brightness is queried only as informational metadata
-- The SDR white level SET path relies on undocumented Windows device info type `0xFFFFFFEE`
-- The custom SET struct requires `final_value = 1`
-- Display enumeration returns HDR-capable displays even if HDR is currently off
-- `DisplayInfo` tracks both `hdr_supported` and `hdr_enabled`
-- HDR toggle uses `DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE`
-- HDR toggle polls display state briefly after a write so the frontend receives the settled HDR state
-- Rust owns the authoritative display state; the frontend consumes command results instead of pushing display state back into Tauri
-- Tray rendering uses a Rust-side summary model instead of depending directly on full `DisplayInfo`
-- **Per-display failure tracking**: failures are tracked per-display (adapter/target ID), not globally. A display is skipped after 3 consecutive failures, but recovers on next successful query.
-- The title bar refresh button triggers a manual display rescan
-- Showing the window from the tray performs a silent state refresh every time, without replaying the startup overlay
-- Global hotkeys are configurable in Settings and adjust brightness in `4%` steps
-- Keyboard adjustments on the brightness slider commit actual brightness changes instead of only updating the local preview
-- Scrolling the mouse wheel over the brightness slider adjusts brightness in `2%` steps
-- SDR brightness controls are disabled while HDR is off
-- The UI uses simplified user-facing labels such as `HDR On` / `HDR Ready` and `No HDR-capable displays found`
-- Non-blocking failures show a notice banner that auto-dismisses after 5 seconds; initialization failures remain blocking
-- `npm test` validates the TypeScript/Rust `DisplayInfo` contract, shared luminance constants, and error-message mappings
+| Layer | Technology |
+|-------|------------|
+| Frontend | React 18 · TypeScript · Vite |
+| Backend | Rust · Tauri 2 |
+| System API | Windows DisplayConfig API |
 
-## License
+---
 
-MIT
+## 📄 License
+
+MIT License · see [LICENSE](LICENSE) for details
