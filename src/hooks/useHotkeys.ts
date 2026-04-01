@@ -27,10 +27,8 @@ export function useHotkeys({
         Math.min(SLIDER.MAX, (currentPercentageRef.current ?? 0) + delta)
       );
 
-      try {
-        await applyBrightness(nextPercentage);
-      } catch {
-      }
+      // applyBrightness already handles errors internally via setNotice
+      await applyBrightness(nextPercentage);
     };
 
     const setupHotkeys = async () => {
