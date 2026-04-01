@@ -13,6 +13,8 @@
 
 **[English →](README.md)**
 
+</div>
+
 ---
 
 ## ✨ 功能特点
