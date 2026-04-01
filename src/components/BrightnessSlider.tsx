@@ -1,4 +1,4 @@
-import type { WheelEventHandler } from "react";
+import { memo, type WheelEventHandler } from "react";
 import { SLIDER } from "../types";
 
 type BrightnessSliderProps = {
@@ -10,7 +10,7 @@ type BrightnessSliderProps = {
   onWheelAdjust: WheelEventHandler<HTMLDivElement>;
 };
 
-export function BrightnessSlider({
+export const BrightnessSlider = memo(function BrightnessSlider({
   value,
   disabled = false,
   onChange,
@@ -47,6 +47,10 @@ export function BrightnessSlider({
           onTouchEnd={(event) => onCommit(parseInt(event.currentTarget.value, 10))}
           className={`brightness-slider ${disabled ? "disabled" : ""}`}
           disabled={disabled}
+          aria-label="SDR Brightness"
+          aria-valuemin={SLIDER.MIN}
+          aria-valuemax={SLIDER.MAX}
+          aria-valuenow={value}
         />
       </div>
 
@@ -56,4 +60,4 @@ export function BrightnessSlider({
       </div>
     </div>
   );
-}
+});

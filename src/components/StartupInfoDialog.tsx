@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { DisplayInfo } from "../types";
 
 type StartupInfoDialogProps = {
@@ -6,7 +7,7 @@ type StartupInfoDialogProps = {
   onClose: () => void;
 };
 
-export function StartupInfoDialog({
+export const StartupInfoDialog = memo(function StartupInfoDialog({
   open,
   displays,
   onClose,
@@ -16,9 +17,15 @@ export function StartupInfoDialog({
   }
 
   return (
-    <div className="about-overlay" onClick={onClose}>
-      <div className="about-dialog" onClick={(event) => event.stopPropagation()}>
-        <h2>HDR Toolbox</h2>
+    <div className="about-overlay" onClick={onClose} role="presentation">
+      <div
+        className="about-dialog"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="startup-dialog-title"
+      >
+        <h2 id="startup-dialog-title">HDR Toolbox</h2>
         <p>Found {displays.length} HDR-capable display{displays.length === 1 ? "" : "s"}:</p>
         <ul style={{ textAlign: "left", margin: "8px 0", paddingLeft: "20px" }}>
           {displays.map((display) => (
@@ -34,4 +41,4 @@ export function StartupInfoDialog({
       </div>
     </div>
   );
-}
+});

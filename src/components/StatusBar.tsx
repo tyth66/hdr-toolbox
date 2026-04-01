@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 type StatusBarProps = {
   hdrSupported: boolean;
   hdrActive: boolean;
@@ -5,7 +7,7 @@ type StatusBarProps = {
   onToggleHdr?: () => Promise<void>;
 };
 
-export function StatusBar({
+export const StatusBar = memo(function StatusBar({
   hdrSupported,
   hdrActive,
   hdrPending = false,
@@ -36,7 +38,7 @@ export function StatusBar({
           disabled={toggleDisabled}
           title={title}
           onClick={() => {
-            onToggleHdr?.().catch(() => {});
+            onToggleHdr?.();
           }}
         >
           <span className="toggle-thumb" />
@@ -44,4 +46,4 @@ export function StatusBar({
       </div>
     </div>
   );
-}
+});

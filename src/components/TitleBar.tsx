@@ -1,4 +1,4 @@
-import type { MouseEventHandler } from "react";
+import { memo, type MouseEventHandler } from "react";
 import { SvgIcon } from "./SvgIcon";
 
 type TitleBarProps = {
@@ -10,7 +10,7 @@ type TitleBarProps = {
   minimal?: boolean;
 };
 
-export function TitleBar({
+export const TitleBar = memo(function TitleBar({
   onMouseDown,
   refreshing = false,
   onRefresh,
@@ -30,10 +30,11 @@ export function TitleBar({
           <button
             className="title-bar-btn"
             onClick={() => {
-              onRefresh?.().catch(() => {});
+              onRefresh?.();
             }}
             title={refreshing ? "Refreshing display list..." : "Refresh display list"}
             disabled={refreshing}
+            aria-label="Refresh display list"
           >
             <SvgIcon
               name={refreshing ? "spinner" : "refresh"}
@@ -44,6 +45,7 @@ export function TitleBar({
             className="title-bar-btn"
             onClick={onOpenSettings}
             title="Settings"
+            aria-label="Open settings"
           >
             <SvgIcon name="settings" />
           </button>
@@ -51,6 +53,7 @@ export function TitleBar({
             className="title-bar-btn title-bar-close"
             onClick={onClose}
             title="Close"
+            aria-label="Close window"
           >
             <SvgIcon name="close" />
           </button>
@@ -58,4 +61,4 @@ export function TitleBar({
       )}
     </header>
   );
-}
+});

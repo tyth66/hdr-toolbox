@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { formatHotkeyFromEvent, formatHotkeyLabel } from "../hotkeys";
 import type { HotkeyConfig, HotkeyDirection } from "../types";
 
@@ -13,7 +13,7 @@ type SettingsDialogProps = {
   onShowAbout: () => void;
 };
 
-export function SettingsDialog({
+export const SettingsDialog = memo(function SettingsDialog({
   open,
   autostartEnabled,
   hotkeys,
@@ -66,16 +66,22 @@ export function SettingsDialog({
   }
 
   return (
-    <div className="about-overlay" onClick={onClose}>
-      <div className="about-dialog" onClick={(event) => event.stopPropagation()}>
-        <h2>Settings</h2>
+    <div className="about-overlay" onClick={onClose} role="presentation">
+      <div
+        className="about-dialog"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-dialog-title"
+      >
+        <h2 id="settings-dialog-title">Settings</h2>
         <div className="settings-section">
           <div className="settings-row">
             <span>Auto-start</span>
             <button
               className={`hdr-toggle ${autostartEnabled ? "active" : ""}`}
               onClick={() => {
-                onToggleAutostart().catch(() => {});
+                onToggleAutostart();
               }}
             >
               <span className="toggle-thumb" />
@@ -118,4 +124,4 @@ export function SettingsDialog({
       </div>
     </div>
   );
-}
+});

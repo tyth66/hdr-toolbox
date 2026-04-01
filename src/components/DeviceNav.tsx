@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { DisplayInfo } from "../types";
 import { SvgIcon } from "./SvgIcon";
 
@@ -7,7 +8,7 @@ type DeviceNavProps = {
   onSelect: (index: number) => void;
 };
 
-export function DeviceNav({
+export const DeviceNav = memo(function DeviceNav({
   displays,
   selectedIndex,
   onSelect,
@@ -20,10 +21,11 @@ export function DeviceNav({
           className={`side-nav-btn ${selectedIndex === idx ? "active" : ""}`}
           onClick={() => onSelect(idx)}
           title={display.name}
+          aria-label={`Select display ${display.name}`}
         >
           <SvgIcon name="monitor" />
         </button>
       ))}
     </nav>
   );
-}
+});

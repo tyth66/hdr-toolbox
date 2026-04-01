@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { formatHotkeyLabel } from "../hotkeys";
 import { HOTKEYS, type HotkeyConfig } from "../types";
 
@@ -7,15 +8,21 @@ type AboutDialogProps = {
   onClose: () => void;
 };
 
-export function AboutDialog({ open, hotkeys, onClose }: AboutDialogProps) {
+export const AboutDialog = memo(function AboutDialog({ open, hotkeys, onClose }: AboutDialogProps) {
   if (!open) {
     return null;
   }
 
   return (
-    <div className="about-overlay" onClick={onClose}>
-      <div className="about-dialog" onClick={(event) => event.stopPropagation()}>
-        <h2>HDR Toolbox</h2>
+    <div className="about-overlay" onClick={onClose} role="presentation">
+      <div
+        className="about-dialog"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="about-dialog-title"
+      >
+        <h2 id="about-dialog-title">HDR Toolbox</h2>
         <p>
           A lightweight tray app for adjusting SDR brightness on HDR-capable
           displays without opening Windows Settings.
@@ -38,4 +45,4 @@ export function AboutDialog({ open, hotkeys, onClose }: AboutDialogProps) {
       </div>
     </div>
   );
-}
+});
