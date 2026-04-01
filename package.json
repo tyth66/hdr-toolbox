@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "test": "npm run test:frontend && npm run test:rust",
-    "test:frontend": "node --test --experimental-strip-types",
+    "test:frontend": "node --import tsx --test",
     "test:rust": "cd src-tauri && cargo test",
     "preview": "vite preview",
     "tauri": "tauri"
@@ -24,6 +24,7 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.3",
     "vite": "^6.0.7"
   }
