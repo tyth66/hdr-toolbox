@@ -13,6 +13,10 @@ use windows::Win32::Graphics::Gdi::{HMONITOR, MONITOR_DEFAULTTONEAREST, MonitorF
 
 use super::model::DisplayInfo;
 
+/// Undocumented Windows DisplayConfig device info type for setting SDR white level.
+/// This is a private Microsoft interface type not documented in the official API.
+const DISPLAYCONFIG_DEVICE_INFO_SET_SDR_WHITE_LEVEL: i32 = 0xFFFFFFEE_u32 as i32;
+
 pub(super) fn get_brightness_range_from_physical_monitor(
     hmonitor: HMONITOR,
 ) -> Option<(u32, u32, u32)> {
@@ -62,7 +66,7 @@ pub(super) fn get_brightness_range_from_physical_monitor(
     }
 }
 
-pub(super) fn get_hmonitor_for_display(adapter_id: LUID, target_id: u32) -> Option<HMONITOR> {
+pub(super) fn get_hmonitor_for_display(_adapter_id: LUID, _target_id: u32) -> Option<HMONITOR> {
     let mut path_count: u32 = 0;
     let mut mode_count: u32 = 0;
 
@@ -97,21 +101,19 @@ pub(super) fn get_hmonitor_for_display(adapter_id: LUID, target_id: u32) -> Opti
             return get_primary_hmonitor();
         }
 
-        for path in &paths {
-            if path.targetInfo.adapterId == adapter_id && path.targetInfo.id == target_id {
-                tracing::debug!("Found matching display path for adapter LUID");
-                return get_primary_hmonitor();
-            }
-        }
-
-        tracing::warn!("No matching display path for adapter LUID, using primary");
+        // Note: There is no direct Windows API to obtain HMONITOR from adapter LUID + target ID.
+        // QueryDisplayConfig returns paths with adapter/target IDs, but HMONITOR must be
+        // obtained via MonitorFromWindow with an HWND. For multi-monitor setups where we need
+        // the specific monitor for a given adapter/target, we fall back to the primary monitor.
+        // This is a known limitation of the Windows DisplayConfig API.
+        tracing::debug!("QueryDisplayConfig found {} paths, using primary monitor for brightness range", path_count);
         get_primary_hmonitor()
     }
 }
 
 fn get_primary_hmonitor() -> Option<HMONITOR> {
     let hmonitor = unsafe { MonitorFromWindow(HWND::default(), MONITOR_DEFAULTTONEAREST) };
-    if hmonitor.0 == std::ptr::null_mut() {
+    if hmonitor.0.is_null() {
         None
     } else {
         Some(hmonitor)
@@ -130,10 +132,7 @@ pub(super) fn get_sdr_white_level_raw(adapter_id: LUID, target_id: u32) -> Resul
     };
 
     unsafe {
-        let result = DisplayConfigGetDeviceInfo(
-            &mut sdr_info.header as *mut _
-                as *mut windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER,
-        );
+        let result = DisplayConfigGetDeviceInfo(&mut sdr_info.header);
         if result == 0 {
             Ok(DisplayInfo::api_value_to_nits(sdr_info.SDRWhiteLevel))
         } else {
@@ -157,13 +156,13 @@ pub(super) fn set_sdr_white_level_raw(
     target_id: u32,
     nits: u32,
 ) -> Result<(), String> {
-    let nits = ((nits.clamp(80, 480) + 3) / 4) * 4;
+    let nits = nits.clamp(80, 480).div_ceil(4) * 4;
     let api_value = DisplayInfo::nits_to_api_value(nits);
 
-    let mut set_params = DISPLAYCONFIG_SET_SDR_WHITE_LEVEL {
+    let set_params = DISPLAYCONFIG_SET_SDR_WHITE_LEVEL {
         header: windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER {
             r#type: windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_TYPE(
-                0xFFFFFFEE_u32 as i32,
+                DISPLAYCONFIG_DEVICE_INFO_SET_SDR_WHITE_LEVEL,
             ),
             size: std::mem::size_of::<DISPLAYCONFIG_SET_SDR_WHITE_LEVEL>() as u32,
             adapterId: adapter_id,
@@ -174,10 +173,7 @@ pub(super) fn set_sdr_white_level_raw(
     };
 
     unsafe {
-        let result = DisplayConfigSetDeviceInfo(
-            &mut set_params.header as *mut _
-                as *mut windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER,
-        );
+        let result = DisplayConfigSetDeviceInfo(&set_params.header);
         if result == 0 {
             Ok(())
         } else {
@@ -194,7 +190,7 @@ pub(super) fn set_advanced_color_state(
     target_id: u32,
     enabled: bool,
 ) -> Result<(), String> {
-    let mut set_params = DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE {
+    let set_params = DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE {
         header: windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER {
             r#type: DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE,
             size: std::mem::size_of::<DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE>() as u32,
@@ -207,10 +203,7 @@ pub(super) fn set_advanced_color_state(
     };
 
     unsafe {
-        let result = DisplayConfigSetDeviceInfo(
-            &mut set_params.header as *mut _
-                as *mut windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER,
-        );
+        let result = DisplayConfigSetDeviceInfo(&set_params.header);
         if result == 0 {
             Ok(())
         } else {
