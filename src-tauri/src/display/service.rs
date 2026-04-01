@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use std::thread;
 use std::time::Duration;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use windows::Win32::Devices::Display::{
     DisplayConfigGetDeviceInfo, GetDisplayConfigBufferSizes, QueryDisplayConfig,
     DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO, DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME,
@@ -17,17 +17,91 @@ use super::ffi::{
 };
 use super::model::{luminance, DisplayInfo};
 
-static HDR_INFO_DISABLED: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
-static HDR_CONSECUTIVE_FAILURES: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(0));
 const MAX_CONSECUTIVE_FAILURES: usize = 3;
 const HDR_STATE_POLL_ATTEMPTS: usize = 8;
 const HDR_STATE_POLL_DELAY_MS: u64 = 150;
 
-pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
-    if HDR_INFO_DISABLED.load(Ordering::Relaxed) {
-        return Err("HDR info is disabled due to repeated failures. Restart the app to retry.".to_string());
+/// Advanced color info bits from DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO
+const ADVANCED_COLOR_SUPPORTED_BIT: u32 = 0x1;
+const ADVANCED_COLOR_ENABLED_BIT: u32 = 0x2;
+
+/// Key for identifying a display across API calls.
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+struct DisplayKey {
+    adapter_id_low: i32,
+    adapter_id_high: i32,
+    target_id: u32,
+}
+
+impl DisplayKey {
+    fn from_path(path: &DISPLAYCONFIG_PATH_INFO) -> Self {
+        Self {
+            adapter_id_low: path.targetInfo.adapterId.LowPart as i32,
+            adapter_id_high: path.targetInfo.adapterId.HighPart,
+            target_id: path.targetInfo.id,
+        }
     }
 
+    #[allow(dead_code)]
+    fn from_display(display: &DisplayInfo) -> Self {
+        Self {
+            adapter_id_low: display.adapter_id_low,
+            adapter_id_high: display.adapter_id_high,
+            target_id: display.target_id,
+        }
+    }
+}
+
+/// Per-display failure tracking.
+/// Instead of one global kill switch, each display tracks its own failure count.
+/// A display is skipped only after MAX_CONSECUTIVE_FAILURES failures for THAT display.
+struct PerDisplayFailureTracker {
+    failures: HashMap<DisplayKey, usize>,
+}
+
+impl PerDisplayFailureTracker {
+    fn new() -> Self {
+        Self {
+            failures: HashMap::new(),
+        }
+    }
+
+    /// Record a failure for a specific display.
+    /// Returns true if the display should be skipped (too many failures).
+    fn record_failure(&mut self, key: &DisplayKey) -> bool {
+        let count = self.failures.entry(key.clone()).or_insert(0);
+        *count += 1;
+        tracing::warn!(
+            "Display {:?} failure #{}. HDR will be disabled for this display after {} total failures.",
+            key,
+            *count,
+            MAX_CONSECUTIVE_FAILURES
+        );
+        *count >= MAX_CONSECUTIVE_FAILURES
+    }
+
+    /// Reset failure count for a display (on successful operation).
+    fn reset(&mut self, key: &DisplayKey) {
+        if self.failures.remove(key).is_some() {
+            tracing::info!("Display {:?} recovered from previous failures.", key);
+        }
+    }
+
+    /// Check if a display should be skipped due to too many failures.
+    fn is_disabled(&self, key: &DisplayKey) -> bool {
+        self.failures
+            .get(key)
+            .map(|&count| count >= MAX_CONSECUTIVE_FAILURES)
+            .unwrap_or(false)
+    }
+}
+
+/// Global failure tracker instance.
+/// Uses Lazy to avoid static initialization order issues.
+static FAILURE_TRACKER: Lazy<std::sync::Mutex<PerDisplayFailureTracker>> =
+    Lazy::new(|| std::sync::Mutex::new(PerDisplayFailureTracker::new()));
+
+pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
     let mut path_count: u32 = 0;
     let mut mode_count: u32 = 0;
 
@@ -35,18 +109,10 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
         GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut path_count, &mut mode_count)
     };
     if result != windows::Win32::Foundation::WIN32_ERROR(0) {
-        let failures = record_failure(&HDR_CONSECUTIVE_FAILURES, &HDR_INFO_DISABLED);
-        if failures >= MAX_CONSECUTIVE_FAILURES {
-            tracing::error!("HDR disabled after {} consecutive failures", failures);
-        }
         return Err(format!("GetDisplayConfigBufferSizes failed: {:#?}", result));
     }
 
     if path_count == 0 {
-        let failures = record_failure(&HDR_CONSECUTIVE_FAILURES, &HDR_INFO_DISABLED);
-        if failures >= MAX_CONSECUTIVE_FAILURES {
-            tracing::error!("HDR disabled after {} consecutive failures", failures);
-        }
         return Err("No display paths found".to_string());
     }
 
@@ -67,19 +133,38 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
         )
     };
     if result != windows::Win32::Foundation::WIN32_ERROR(0) {
-        let failures = record_failure(&HDR_CONSECUTIVE_FAILURES, &HDR_INFO_DISABLED);
-        if failures >= MAX_CONSECUTIVE_FAILURES {
-            tracing::error!("HDR disabled after {} consecutive failures", failures);
-        }
         return Err(format!("QueryDisplayConfig failed: {:#?}", result));
     }
 
-    reset_failure_state(&HDR_CONSECUTIVE_FAILURES, &HDR_INFO_DISABLED);
-
     let mut displays = Vec::new();
+    let mut tracker = match FAILURE_TRACKER.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            // Mutex was poisoned due to a previous panic. Log error and recover the inner value.
+            // This means failure tracking state may be stale but the app can continue functioning.
+            tracing::error!(
+                "[CRITICAL] Failure tracker mutex was poisoned (previous panic in critical section): {}",
+                poisoned
+            );
+            // Recover by using the inner value even though the mutex was poisoned
+            poisoned.into_inner()
+        }
+    };
 
+    #[allow(clippy::needless_range_loop)]
     for i in 0..path_count as usize {
         let path = paths[i];
+        let key = DisplayKey::from_path(&path);
+
+        // Check if this specific display has too many failures
+        if tracker.is_disabled(&key) {
+            tracing::warn!(
+                "Skipping display {:?} - too many consecutive failures. Refresh to retry.",
+                key
+            );
+            continue;
+        }
+
         let display_name = get_display_name(path);
         let advanced_color_info = get_advanced_color_info(path);
         let hdr_supported = advanced_color_info.is_supported();
@@ -90,14 +175,29 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
         }
 
         let nits = match get_sdr_white_level_raw(path.targetInfo.adapterId, path.targetInfo.id) {
-            Ok(n) => n,
+            Ok(n) => {
+                // Success - reset failure count for this display
+                tracker.reset(&key);
+                n
+            }
             Err(e) => {
-                tracing::warn!(
-                    "Failed to read SDR white level for '{}': {}; using fallback {} nits",
-                    display_name,
-                    e,
-                    luminance::DEFAULT_NITS
-                );
+                // Record failure for this specific display
+                let disabled = tracker.record_failure(&key);
+                if disabled {
+                    tracing::error!(
+                        "Display '{}' ({:?}) disabled after {} consecutive failures",
+                        display_name,
+                        key,
+                        MAX_CONSECUTIVE_FAILURES
+                    );
+                } else {
+                    tracing::warn!(
+                        "Failed to read SDR white level for '{}': {}; using fallback {} nits",
+                        display_name,
+                        e,
+                        luminance::DEFAULT_NITS
+                    );
+                }
                 luminance::DEFAULT_NITS
             }
         };
@@ -150,7 +250,7 @@ pub(super) fn set_brightness_impl(
 ) -> Result<(), String> {
     let adapter_id = LUID {
         LowPart: adapter_low as u32,
-        HighPart: adapter_high as i32,
+        HighPart: adapter_high,
     };
     let nits = percentage_to_nits(percentage, min_nits, max_nits);
     set_sdr_white_level_raw(adapter_id, target_id, nits)
@@ -165,7 +265,7 @@ pub(super) fn set_brightness_all_impl(
         .map(|display| {
             let adapter_id = LUID {
                 LowPart: display.adapter_id_low as u32,
-                HighPart: display.adapter_id_high as i32,
+                HighPart: display.adapter_id_high,
             };
             let (min_nits, max_nits) = (
                 display.min_nits.unwrap_or(80),
@@ -185,7 +285,7 @@ pub(super) fn set_hdr_enabled_impl(
 ) -> Result<(), String> {
     let adapter_id = LUID {
         LowPart: adapter_low as u32,
-        HighPart: adapter_high as i32,
+        HighPart: adapter_high,
     };
     set_advanced_color_state(adapter_id, target_id, enabled)
 }
@@ -229,19 +329,6 @@ pub(super) fn percentage_to_nits_public(percentage: u32, min_nits: u32, max_nits
     percentage_to_nits(percentage, min_nits, max_nits)
 }
 
-fn record_failure(counter: &AtomicUsize, disabled: &AtomicBool) -> usize {
-    let failures = counter.fetch_add(1, Ordering::Relaxed) + 1;
-    if failures >= MAX_CONSECUTIVE_FAILURES {
-        disabled.store(true, Ordering::Relaxed);
-    }
-    failures
-}
-
-fn reset_failure_state(counter: &AtomicUsize, disabled: &AtomicBool) {
-    counter.store(0, Ordering::Relaxed);
-    disabled.store(false, Ordering::Relaxed);
-}
-
 fn get_display_name(path: DISPLAYCONFIG_PATH_INFO) -> String {
     let mut target_name = DISPLAYCONFIG_TARGET_DEVICE_NAME {
         header: windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER {
@@ -280,11 +367,11 @@ struct AdvancedColorState {
 
 impl AdvancedColorState {
     fn is_supported(self) -> bool {
-        (self.value & 0x1) != 0
+        (self.value & ADVANCED_COLOR_SUPPORTED_BIT) != 0
     }
 
     fn is_enabled(self) -> bool {
-        (self.value & 0x2) != 0
+        (self.value & ADVANCED_COLOR_ENABLED_BIT) != 0
     }
 }
 
@@ -314,9 +401,10 @@ fn get_advanced_color_info(path: DISPLAYCONFIG_PATH_INFO) -> AdvancedColorState 
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-
-    use super::{percentage_to_nits, record_failure, reset_failure_state, AdvancedColorState};
+    use super::{
+        percentage_to_nits, PerDisplayFailureTracker, DisplayKey, MAX_CONSECUTIVE_FAILURES,
+        AdvancedColorState, HDR_STATE_POLL_ATTEMPTS, HDR_STATE_POLL_DELAY_MS,
+    };
     use crate::display::model::luminance;
 
     #[test]
@@ -341,27 +429,73 @@ mod tests {
     }
 
     #[test]
-    fn failure_state_disables_after_threshold() {
-        let counter = AtomicUsize::new(0);
-        let disabled = AtomicBool::new(false);
+    fn per_display_failure_tracker_disables_after_threshold() {
+        let mut tracker = PerDisplayFailureTracker::new();
+        let key = DisplayKey {
+            adapter_id_low: 1,
+            adapter_id_high: 2,
+            target_id: 3,
+        };
 
-        assert_eq!(record_failure(&counter, &disabled), 1);
-        assert!(!disabled.load(Ordering::Relaxed));
-        assert_eq!(record_failure(&counter, &disabled), 2);
-        assert!(!disabled.load(Ordering::Relaxed));
-        assert_eq!(record_failure(&counter, &disabled), 3);
-        assert!(disabled.load(Ordering::Relaxed));
+        // First two failures should not disable
+        assert!(!tracker.record_failure(&key));
+        assert!(!tracker.is_disabled(&key));
+        assert!(!tracker.record_failure(&key));
+        assert!(!tracker.is_disabled(&key));
+
+        // Third failure should disable
+        assert!(tracker.record_failure(&key));
+        assert!(tracker.is_disabled(&key));
     }
 
     #[test]
-    fn reset_failure_state_clears_counter_and_flag() {
-        let counter = AtomicUsize::new(3);
-        let disabled = AtomicBool::new(true);
+    fn per_display_failure_tracker_resets_on_success() {
+        let mut tracker = PerDisplayFailureTracker::new();
+        let key = DisplayKey {
+            adapter_id_low: 1,
+            adapter_id_high: 2,
+            target_id: 3,
+        };
 
-        reset_failure_state(&counter, &disabled);
+        // Record some failures
+        assert!(!tracker.record_failure(&key));
+        assert!(!tracker.record_failure(&key));
 
-        assert_eq!(counter.load(Ordering::Relaxed), 0);
-        assert!(!disabled.load(Ordering::Relaxed));
+        // Reset
+        tracker.reset(&key);
+
+        // Should not be disabled
+        assert!(!tracker.is_disabled(&key));
+
+        // New failures should start from scratch
+        assert!(!tracker.record_failure(&key)); // count: 0 -> 1, 1 >= 3 = false
+        assert!(!tracker.record_failure(&key)); // count: 1 -> 2, 2 >= 3 = false
+        assert!(tracker.record_failure(&key));  // count: 2 -> 3, 3 >= 3 = true
+        assert!(tracker.is_disabled(&key));
+    }
+
+    #[test]
+    fn per_display_failure_tracker_tracks_displays_independently() {
+        let mut tracker = PerDisplayFailureTracker::new();
+        let key1 = DisplayKey {
+            adapter_id_low: 1,
+            adapter_id_high: 2,
+            target_id: 3,
+        };
+        let key2 = DisplayKey {
+            adapter_id_low: 4,
+            adapter_id_high: 5,
+            target_id: 6,
+        };
+
+        // Fail display 1 three times
+        for _ in 0..MAX_CONSECUTIVE_FAILURES {
+            tracker.record_failure(&key1);
+        }
+
+        // Display 1 should be disabled, display 2 should not
+        assert!(tracker.is_disabled(&key1));
+        assert!(!tracker.is_disabled(&key2));
     }
 
     #[test]
@@ -376,5 +510,83 @@ mod tests {
         assert!(supported_and_enabled.is_enabled());
         assert!(!unsupported.is_supported());
         assert!(!unsupported.is_enabled());
+    }
+
+    #[test]
+    fn advanced_color_state_edge_cases() {
+        // Only enabled bit set (bit 1 = 0x2)
+        let enabled_only = AdvancedColorState { value: 0x2 };
+        assert!(!enabled_only.is_supported());
+        assert!(enabled_only.is_enabled());
+
+        // Additional bits set should not affect core bits
+        let with_extra_bits = AdvancedColorState { value: 0xF };
+        assert!(with_extra_bits.is_supported());
+        assert!(with_extra_bits.is_enabled());
+    }
+
+    #[test]
+    fn display_key_equality_and_hash() {
+        let key1 = DisplayKey {
+            adapter_id_low: 1,
+            adapter_id_high: 2,
+            target_id: 3,
+        };
+        let key2 = DisplayKey {
+            adapter_id_low: 1,
+            adapter_id_high: 2,
+            target_id: 3,
+        };
+        let key3 = DisplayKey {
+            adapter_id_low: 4,
+            adapter_id_high: 5,
+            target_id: 6,
+        };
+
+        // Same values should be equal
+        assert_eq!(key1, key2);
+
+        // Different values should not be equal
+        assert_ne!(key1, key3);
+
+        // Hash should be consistent
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(key1.clone());
+        set.insert(key2.clone()); // Duplicate, should not increase size
+        set.insert(key3.clone());
+        assert_eq!(set.len(), 2); // key1 and key2 are same, so 2 unique
+    }
+
+    #[test]
+    fn display_key_from_display_roundtrip() {
+        use crate::display::DisplayInfo;
+
+        let display_info = DisplayInfo {
+            name: "Test Display".to_string(),
+            nits: 280,
+            min_percentage: 0,
+            max_percentage: 100,
+            hdr_supported: true,
+            hdr_enabled: true,
+            adapter_id_low: 123,
+            adapter_id_high: 456,
+            target_id: 789,
+            min_nits: Some(80),
+            max_nits: Some(480),
+        };
+
+        let key = DisplayKey::from_display(&display_info);
+        assert_eq!(key.adapter_id_low, 123);
+        assert_eq!(key.adapter_id_high, 456);
+        assert_eq!(key.target_id, 789);
+    }
+
+    #[test]
+    fn hdr_polling_constants_are_correct() {
+        assert_eq!(HDR_STATE_POLL_ATTEMPTS, 8);
+        assert_eq!(HDR_STATE_POLL_DELAY_MS, 150);
+        // Total max polling time: 8 * 150ms = 1200ms
+        assert_eq!(HDR_STATE_POLL_ATTEMPTS as u64 * HDR_STATE_POLL_DELAY_MS, 1200);
     }
 }
