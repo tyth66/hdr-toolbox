@@ -1,0 +1,9 @@
+# Clippy configuration for HDR Toolbox
+
+# Allow lints we can't fix or are stylistic choices
+avoid-breaking-exported-api = false
+
+# Allow warnings in tests
+too-many-arguments-threshold = 8
+type-complexity-threshold = 1000
+cognitive-complexity-threshold = 60

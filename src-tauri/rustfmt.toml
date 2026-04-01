@@ -1,0 +1,22 @@
+version = "two"
+edition = "2021"
+
+# Basic formatting
+max_width = 100
+tab_spaces = 4
+newline_style = "Unix"
+hard_tabs = false
+
+# Style options
+fn_args_layout = "Tall"
+brace_style = "SameLineContent"
+control_brace_style = "AlwaysSameLine"
+
+# Import options
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate"
+
+# Other options
+format_code_in_doc_comments = true
+wrap_comments = true
+comment_width = 80
