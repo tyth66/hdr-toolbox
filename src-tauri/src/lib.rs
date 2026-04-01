@@ -6,7 +6,7 @@ mod tray;
 
 use tauri::Manager;
 
-pub use display::{get_hdr_displays, set_brightness, set_brightness_all, set_hdr_enabled};
+pub use display::{get_hdr_displays, set_brightness, set_brightness_all, set_hdr_enabled, DisplayError};
 pub use tray::{setup_tray, update_tray_menu, update_tray_tooltip};
 
 pub fn run() {
@@ -27,6 +27,14 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--autostart"]),
         ))
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // A second instance was started - focus the existing window
+            tracing::info!("Second instance detected, focusing existing window");
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .invoke_handler(tauri::generate_handler![
             get_hdr_displays,
             set_brightness,

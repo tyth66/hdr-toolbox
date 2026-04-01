@@ -43,7 +43,7 @@ fn build_full_menu(
     // Build device items
     for (i, d) in displays.iter().enumerate() {
         let label = format!("{} ({} nits)", d.name, d.nits);
-        match MenuItem::with_id(app, &format!("display-{}", i), &label, true, None::<&str>) {
+        match MenuItem::with_id(app, format!("display-{}", i), &label, true, None::<&str>) {
             Ok(item) => owned_items.push(item),
             Err(e) => {
                 tracing::error!("Failed to create menu item for display {}: {}", i, e);
