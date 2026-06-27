@@ -10,7 +10,7 @@ pub mod luminance {
 }
 
 /// SDR white level in nits (not the internal API value)
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DisplayInfo {
     pub name: String,
     pub nits: u32,
@@ -37,7 +37,7 @@ impl DisplayInfo {
 
 #[cfg(test)]
 mod tests {
-    use super::luminance::{MAX_NITS, MIN_NITS, DEFAULT_NITS};
+    use super::luminance::{DEFAULT_NITS, MAX_NITS, MIN_NITS};
     use super::DisplayInfo;
 
     #[test]

@@ -1,5 +1,19 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { DisplayInfo } from "../types";
+import type { StructuredDisplayError } from "../errors";
+
+export type BrightnessAllFailure = {
+  adapter_id_low: number;
+  adapter_id_high: number;
+  target_id: number;
+  name: string;
+  error: StructuredDisplayError;
+};
+
+export type BrightnessAllOutcome = {
+  displays: DisplayInfo[];
+  failures: BrightnessAllFailure[];
+};
 
 export async function getHdrDisplays(): Promise<DisplayInfo[]> {
   return invoke<DisplayInfo[]>("get_hdr_displays");
@@ -26,8 +40,8 @@ export async function setBrightness(
 export async function setBrightnessAll(
   displays: DisplayInfo[],
   percentage: number
-): Promise<Array<null | string>> {
-  return invoke<Array<null | string>>("set_brightness_all", { displays, percentage });
+): Promise<BrightnessAllOutcome> {
+  return invoke<BrightnessAllOutcome>("set_brightness_all", { displays, percentage });
 }
 
 export async function setHdrEnabled(

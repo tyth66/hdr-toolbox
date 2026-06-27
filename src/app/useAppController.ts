@@ -15,6 +15,10 @@ import {
   validateHotkeys,
 } from "../hotkeys";
 import { useHotkeys } from "../hooks/useHotkeys";
+import {
+  loadSyncBrightnessEnabled,
+  saveSyncBrightnessEnabled,
+} from "../syncBrightness";
 import type { HotkeyConfig, HotkeyDirection } from "../types";
 
 type UseAppControllerOptions = {
@@ -39,6 +43,9 @@ export function useAppController({
   const [showSettings, setShowSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [autostartEnabled, setAutostartEnabled] = useState(false);
+  const [syncBrightnessEnabled, setSyncBrightnessEnabled] = useState(() =>
+    loadSyncBrightnessEnabled()
+  );
   const [hotkeys, setHotkeys] = useState<HotkeyConfig>(() => loadHotkeys());
 
   const handleHotkeyRegistrationError = useCallback(() => {
@@ -115,14 +122,23 @@ export function useAppController({
     setNotice(null);
   }, [setNotice]);
 
+  const handleToggleSyncBrightness = useCallback(() => {
+    const nextValue = !syncBrightnessEnabled;
+    setSyncBrightnessEnabled(nextValue);
+    saveSyncBrightnessEnabled(nextValue);
+    setNotice(null);
+  }, [setNotice, syncBrightnessEnabled]);
+
   return {
     showSettings,
     setShowSettings,
     showAbout,
     setShowAbout,
     autostartEnabled,
+    syncBrightnessEnabled,
     hotkeys,
     handleToggleAutostart,
+    handleToggleSyncBrightness,
     handleHotkeyChange,
     handleHotkeyReset,
   };

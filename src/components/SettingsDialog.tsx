@@ -5,9 +5,11 @@ import type { HotkeyConfig, HotkeyDirection } from "../types";
 type SettingsDialogProps = {
   open: boolean;
   autostartEnabled: boolean;
+  syncBrightnessEnabled: boolean;
   hotkeys: HotkeyConfig;
   onClose: () => void;
   onToggleAutostart: () => Promise<void>;
+  onToggleSyncBrightness: () => void;
   onUpdateHotkey: (direction: HotkeyDirection, value: string) => boolean;
   onResetHotkeys: () => void;
   onShowAbout: () => void;
@@ -16,9 +18,11 @@ type SettingsDialogProps = {
 export const SettingsDialog = memo(function SettingsDialog({
   open,
   autostartEnabled,
+  syncBrightnessEnabled,
   hotkeys,
   onClose,
   onToggleAutostart,
+  onToggleSyncBrightness,
   onUpdateHotkey,
   onResetHotkeys,
   onShowAbout,
@@ -83,6 +87,16 @@ export const SettingsDialog = memo(function SettingsDialog({
               onClick={() => {
                 onToggleAutostart();
               }}
+            >
+              <span className="toggle-thumb" />
+            </button>
+          </div>
+          <div className="settings-row">
+            <span>Sync all displays</span>
+            <button
+              className={`hdr-toggle ${syncBrightnessEnabled ? "active" : ""}`}
+              onClick={onToggleSyncBrightness}
+              title="Apply brightness changes to every detected HDR-capable display"
             >
               <span className="toggle-thumb" />
             </button>

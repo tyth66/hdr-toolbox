@@ -37,12 +37,26 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Run test suite
-        run: npm test
+      - name: Run frontend typecheck
+        run: npm run typecheck
+
+      - name: Run frontend tests
+        run: npm run test:frontend
+
+      - name: Check Rust formatting
+        working-directory: src-tauri
+        run: cargo fmt --check
 
       - name: Run cargo check
         working-directory: src-tauri
         run: cargo check
+
+      - name: Run cargo clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run Rust tests
+        run: npm run test:rust
 
       - name: Build frontend
         run: npm run build

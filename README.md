@@ -23,9 +23,9 @@
 |---------|-------------|
 | 🎚️ **Brightness Slider** | Real-time SDR white level adjustment (80-480 nits) |
 | 🌗 **HDR Toggle** | One-click HDR mode on/off |
-| ⌨️ **Global Hotkeys** | Customizable shortcuts (default `Win+Alt+↑/↓`) |
+| ⌨️ **Global Hotkeys** | Customizable shortcuts (default `Ctrl+Alt+↑/↓`) |
 | 🖱️ **Mouse Wheel** | Fine-tune with 2% steps on slider |
-| 🖥️ **Multi-Display** | Independent control per monitor |
+| 🖥️ **Multi-Display** | Independent control per monitor, with optional synced brightness |
 | ⚡ **Silent Refresh** | Auto-sync state when waking from tray |
 | 🔄 **Manual Refresh** | Re-detect displays via title bar |
 | 🚀 **Auto-start** | Launch on system boot (optional) |
@@ -86,9 +86,8 @@ npm run tauri build
 
 | Shortcut | Action |
 |----------|--------|
-| `Win+Alt+↑` | Brightness +4% |
-| `Win+Alt+↓` | Brightness -4% |
-| `Win+Alt+H` | Toggle HDR |
+| `Ctrl+Alt+↑` | Brightness +4% |
+| `Ctrl+Alt+↓` | Brightness -4% |
 
 > Customize hotkeys in **Settings**
 
@@ -99,6 +98,7 @@ npm run tauri build
 | Setting | Description |
 |---------|-------------|
 | **Auto-start** | Enable/disable in Settings |
+| **Sync all displays** | Apply brightness changes to every detected HDR-capable display |
 | **Brightness Range** | Fixed at **80-480 nits** |
 
 > ℹ️ This app controls **SDR White Level** (Windows display adapter), not monitor OSD backlight brightness.

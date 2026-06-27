@@ -6,7 +6,7 @@
 use serde::Serialize;
 
 /// Structured error codes for display operations.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DisplayErrorCode {
     /// No HDR-capable displays found
@@ -30,7 +30,7 @@ pub enum DisplayErrorCode {
 }
 
 /// A structured error with code and message.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct DisplayError {
     pub code: DisplayErrorCode,
     pub message: String,
@@ -52,10 +52,7 @@ impl DisplayError {
     }
 
     pub fn no_display_paths() -> Self {
-        Self::new(
-            DisplayErrorCode::NoDisplayPaths,
-            "No display paths found.",
-        )
+        Self::new(DisplayErrorCode::NoDisplayPaths, "No display paths found.")
     }
 
     pub fn api_failed(detail: impl Into<String>) -> Self {

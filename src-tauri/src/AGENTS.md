@@ -12,7 +12,7 @@ Windows DisplayConfig backend for HDR SDR brightness control. Display subsystem 
 | Task | Location | Notes |
 |------|----------|-------|
 | Display model | `display/model.rs` | `DisplayInfo`, luminance constants |
-| FFI boundary | `display/ffi.rs` | Raw DisplayConfig / MCCS calls |
+| FFI boundary | `display/ffi.rs` | Raw DisplayConfig calls |
 | HDR discovery | `display/service.rs` | QueryDisplayConfig + failure tracking |
 | Commands | `display/commands.rs` | Stable JS-facing commands |
 | App state | `app/state.rs` | `AppState`, `TrayState`, `TrayDisplaySummary` |
@@ -40,7 +40,6 @@ Windows DisplayConfig backend for HDR SDR brightness control. Display subsystem 
 ## CRITICAL NOTES
 
 - SDR white level: undocumented type `0xFFFFFFEE` with `final_value = 1`
-- MCCS values: informational only
+- SDR White Level is the brightness control path; MCCS brightness range is not used for enumeration
 - Bit 0 (`0x1`): HDR-capable; Bit 1 (`0x2`): HDR enabled
 - Enumeration returns HDR-capable displays even when HDR is off
-- Physical monitor handles released after MCCS queries

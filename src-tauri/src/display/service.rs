@@ -2,28 +2,17 @@ use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::thread;
 use std::time::Duration;
-use windows::Win32::Devices::Display::{
-    DisplayConfigGetDeviceInfo, GetDisplayConfigBufferSizes, QueryDisplayConfig,
-    DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO, DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME,
-    DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO, DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_0,
-    DISPLAYCONFIG_PATH_INFO, DISPLAYCONFIG_TARGET_DEVICE_NAME, QDC_ONLY_ACTIVE_PATHS,
-};
 use windows::Win32::Foundation::LUID;
-use windows::Win32::Graphics::Gdi::DISPLAYCONFIG_COLOR_ENCODING;
 
 use super::ffi::{
-    get_brightness_range_from_physical_monitor, get_hmonitor_for_display, get_sdr_white_level_raw,
-    set_advanced_color_state, set_sdr_white_level_raw,
+    get_advanced_color_info, get_display_name, get_sdr_white_level_raw, query_active_display_paths,
+    set_advanced_color_state, set_sdr_white_level_raw, DisplayPath,
 };
 use super::model::{luminance, DisplayInfo};
 
 const MAX_CONSECUTIVE_FAILURES: usize = 3;
 const HDR_STATE_POLL_ATTEMPTS: usize = 8;
 const HDR_STATE_POLL_DELAY_MS: u64 = 150;
-
-/// Advanced color info bits from DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO
-const ADVANCED_COLOR_SUPPORTED_BIT: u32 = 0x1;
-const ADVANCED_COLOR_ENABLED_BIT: u32 = 0x2;
 
 /// Key for identifying a display across API calls.
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -34,11 +23,11 @@ struct DisplayKey {
 }
 
 impl DisplayKey {
-    fn from_path(path: &DISPLAYCONFIG_PATH_INFO) -> Self {
+    fn from_path(path: &DisplayPath) -> Self {
         Self {
-            adapter_id_low: path.targetInfo.adapterId.LowPart as i32,
-            adapter_id_high: path.targetInfo.adapterId.HighPart,
-            target_id: path.targetInfo.id,
+            adapter_id_low: path.adapter_id_low,
+            adapter_id_high: path.adapter_id_high,
+            target_id: path.target_id,
         }
     }
 
@@ -102,39 +91,7 @@ static FAILURE_TRACKER: Lazy<std::sync::Mutex<PerDisplayFailureTracker>> =
     Lazy::new(|| std::sync::Mutex::new(PerDisplayFailureTracker::new()));
 
 pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
-    let mut path_count: u32 = 0;
-    let mut mode_count: u32 = 0;
-
-    let result = unsafe {
-        GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut path_count, &mut mode_count)
-    };
-    if result != windows::Win32::Foundation::WIN32_ERROR(0) {
-        return Err(format!("GetDisplayConfigBufferSizes failed: {:#?}", result));
-    }
-
-    if path_count == 0 {
-        return Err("No display paths found".to_string());
-    }
-
-    let mut paths = vec![DISPLAYCONFIG_PATH_INFO::default(); path_count as usize];
-    let mut modes = vec![
-        windows::Win32::Devices::Display::DISPLAYCONFIG_MODE_INFO::default();
-        mode_count as usize
-    ];
-
-    let result = unsafe {
-        QueryDisplayConfig(
-            QDC_ONLY_ACTIVE_PATHS,
-            &mut path_count,
-            paths.as_mut_ptr(),
-            &mut mode_count,
-            modes.as_mut_ptr(),
-            None,
-        )
-    };
-    if result != windows::Win32::Foundation::WIN32_ERROR(0) {
-        return Err(format!("QueryDisplayConfig failed: {:#?}", result));
-    }
+    let paths = query_active_display_paths()?;
 
     let mut displays = Vec::new();
     let mut tracker = match FAILURE_TRACKER.lock() {
@@ -151,9 +108,7 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
         }
     };
 
-    #[allow(clippy::needless_range_loop)]
-    for i in 0..path_count as usize {
-        let path = paths[i];
+    for path in paths {
         let key = DisplayKey::from_path(&path);
 
         // Check if this specific display has too many failures
@@ -174,7 +129,7 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
             continue;
         }
 
-        let nits = match get_sdr_white_level_raw(path.targetInfo.adapterId, path.targetInfo.id) {
+        let nits = match get_sdr_white_level_raw(path.adapter_id, path.target_id) {
             Ok(n) => {
                 // Success - reset failure count for this display
                 tracker.reset(&key);
@@ -202,13 +157,6 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
             }
         };
 
-        let brightness_range = get_hmonitor_for_display(path.targetInfo.adapterId, path.targetInfo.id)
-            .and_then(get_brightness_range_from_physical_monitor);
-
-        let (min_percentage, max_percentage) = brightness_range
-            .map(|(min, _current, max)| (min, max))
-            .unwrap_or((0, 100));
-
         let min_nits = Some(luminance::MIN_NITS);
         let max_nits = Some(luminance::MAX_NITS);
         tracing::info!(
@@ -221,13 +169,13 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
         displays.push(DisplayInfo {
             name: display_name,
             nits,
-            min_percentage,
-            max_percentage,
+            min_percentage: 0,
+            max_percentage: 100,
             hdr_supported,
             hdr_enabled,
-            adapter_id_low: path.targetInfo.adapterId.LowPart as i32,
-            adapter_id_high: path.targetInfo.adapterId.HighPart as i32,
-            target_id: path.targetInfo.id,
+            adapter_id_low: path.adapter_id_low,
+            adapter_id_high: path.adapter_id_high,
+            target_id: path.target_id,
             min_nits,
             max_nits,
         });
@@ -329,98 +277,40 @@ pub(super) fn percentage_to_nits_public(percentage: u32, min_nits: u32, max_nits
     percentage_to_nits(percentage, min_nits, max_nits)
 }
 
-fn get_display_name(path: DISPLAYCONFIG_PATH_INFO) -> String {
-    let mut target_name = DISPLAYCONFIG_TARGET_DEVICE_NAME {
-        header: windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER {
-            r#type: DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME,
-            size: std::mem::size_of::<DISPLAYCONFIG_TARGET_DEVICE_NAME>() as u32,
-            adapterId: path.targetInfo.adapterId,
-            id: path.targetInfo.id,
-        },
-        ..Default::default()
-    };
-
-    unsafe {
-        if DisplayConfigGetDeviceInfo(&mut target_name.header as *mut _ as *mut _) == 0 {
-            let name_wide = target_name.monitorFriendlyDeviceName;
-            let name = String::from_utf16_lossy(
-                &name_wide[..name_wide
-                    .iter()
-                    .position(|&c| c == 0)
-                    .unwrap_or(name_wide.len())],
-            );
-            if name.is_empty() {
-                "Unknown Display".to_string()
-            } else {
-                name
-            }
-        } else {
-            "Unknown Display".to_string()
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-struct AdvancedColorState {
-    value: u32,
-}
-
-impl AdvancedColorState {
-    fn is_supported(self) -> bool {
-        (self.value & ADVANCED_COLOR_SUPPORTED_BIT) != 0
-    }
-
-    fn is_enabled(self) -> bool {
-        (self.value & ADVANCED_COLOR_ENABLED_BIT) != 0
-    }
-}
-
-fn get_advanced_color_info(path: DISPLAYCONFIG_PATH_INFO) -> AdvancedColorState {
-    let mut advanced_color = DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO {
-        header: windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER {
-            r#type: DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO,
-            size: std::mem::size_of::<DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO>() as u32,
-            adapterId: path.targetInfo.adapterId,
-            id: path.targetInfo.id,
-        },
-        Anonymous: DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_0 { value: 0 },
-        colorEncoding: DISPLAYCONFIG_COLOR_ENCODING::default(),
-        bitsPerColorChannel: 0,
-    };
-
-    unsafe {
-        if DisplayConfigGetDeviceInfo(&mut advanced_color.header as *mut _ as *mut _) == 0 {
-            AdvancedColorState {
-                value: advanced_color.Anonymous.value,
-            }
-        } else {
-            AdvancedColorState::default()
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
-        percentage_to_nits, PerDisplayFailureTracker, DisplayKey, MAX_CONSECUTIVE_FAILURES,
-        AdvancedColorState, HDR_STATE_POLL_ATTEMPTS, HDR_STATE_POLL_DELAY_MS,
+        percentage_to_nits, DisplayKey, PerDisplayFailureTracker, HDR_STATE_POLL_ATTEMPTS,
+        HDR_STATE_POLL_DELAY_MS, MAX_CONSECUTIVE_FAILURES,
     };
     use crate::display::model::luminance;
 
     #[test]
     fn percentage_to_nits_maps_bounds() {
-        assert_eq!(percentage_to_nits(0, luminance::MIN_NITS, luminance::MAX_NITS), 80);
-        assert_eq!(percentage_to_nits(100, luminance::MIN_NITS, luminance::MAX_NITS), 480);
+        assert_eq!(
+            percentage_to_nits(0, luminance::MIN_NITS, luminance::MAX_NITS),
+            80
+        );
+        assert_eq!(
+            percentage_to_nits(100, luminance::MIN_NITS, luminance::MAX_NITS),
+            480
+        );
     }
 
     #[test]
     fn percentage_to_nits_maps_midpoint() {
-        assert_eq!(percentage_to_nits(50, luminance::MIN_NITS, luminance::MAX_NITS), 280);
+        assert_eq!(
+            percentage_to_nits(50, luminance::MIN_NITS, luminance::MAX_NITS),
+            280
+        );
     }
 
     #[test]
     fn percentage_to_nits_clamps_out_of_range_values() {
-        assert_eq!(percentage_to_nits(150, luminance::MIN_NITS, luminance::MAX_NITS), 480);
+        assert_eq!(
+            percentage_to_nits(150, luminance::MIN_NITS, luminance::MAX_NITS),
+            480
+        );
     }
 
     #[test]
@@ -470,7 +360,7 @@ mod tests {
         // New failures should start from scratch
         assert!(!tracker.record_failure(&key)); // count: 0 -> 1, 1 >= 3 = false
         assert!(!tracker.record_failure(&key)); // count: 1 -> 2, 2 >= 3 = false
-        assert!(tracker.record_failure(&key));  // count: 2 -> 3, 3 >= 3 = true
+        assert!(tracker.record_failure(&key)); // count: 2 -> 3, 3 >= 3 = true
         assert!(tracker.is_disabled(&key));
     }
 
@@ -496,33 +386,6 @@ mod tests {
         // Display 1 should be disabled, display 2 should not
         assert!(tracker.is_disabled(&key1));
         assert!(!tracker.is_disabled(&key2));
-    }
-
-    #[test]
-    fn advanced_color_state_reads_supported_and_enabled_bits() {
-        let supported_only = AdvancedColorState { value: 0x1 };
-        let supported_and_enabled = AdvancedColorState { value: 0x3 };
-        let unsupported = AdvancedColorState { value: 0x0 };
-
-        assert!(supported_only.is_supported());
-        assert!(!supported_only.is_enabled());
-        assert!(supported_and_enabled.is_supported());
-        assert!(supported_and_enabled.is_enabled());
-        assert!(!unsupported.is_supported());
-        assert!(!unsupported.is_enabled());
-    }
-
-    #[test]
-    fn advanced_color_state_edge_cases() {
-        // Only enabled bit set (bit 1 = 0x2)
-        let enabled_only = AdvancedColorState { value: 0x2 };
-        assert!(!enabled_only.is_supported());
-        assert!(enabled_only.is_enabled());
-
-        // Additional bits set should not affect core bits
-        let with_extra_bits = AdvancedColorState { value: 0xF };
-        assert!(with_extra_bits.is_supported());
-        assert!(with_extra_bits.is_enabled());
     }
 
     #[test]
@@ -587,6 +450,9 @@ mod tests {
         assert_eq!(HDR_STATE_POLL_ATTEMPTS, 8);
         assert_eq!(HDR_STATE_POLL_DELAY_MS, 150);
         // Total max polling time: 8 * 150ms = 1200ms
-        assert_eq!(HDR_STATE_POLL_ATTEMPTS as u64 * HDR_STATE_POLL_DELAY_MS, 1200);
+        assert_eq!(
+            HDR_STATE_POLL_ATTEMPTS as u64 * HDR_STATE_POLL_DELAY_MS,
+            1200
+        );
     }
 }

@@ -1,8 +1,10 @@
 import { useCallback, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { mapBrightnessError, mapHdrToggleError, mapInitialLoadError, mapRefreshError, type AppNotice } from "../errors";
-import { getHdrDisplays, setBrightness, setHdrEnabled } from "../services/tauriApi";
+import { getHdrDisplays, setBrightness, setBrightnessAll, setHdrEnabled } from "../services/tauriApi";
+import { loadSyncBrightnessEnabled } from "../syncBrightness";
 import { SLIDER, type DisplayInfo } from "../types";
 import { findMatchingDisplayIndex } from "./displayState";
+import { buildSyncBrightnessOutcomeUpdate } from "./syncBrightnessOutcome";
 
 type UseDisplayDeviceActionsOptions = {
   displaysRef: MutableRefObject<DisplayInfo[]>;
@@ -51,6 +53,21 @@ export function useDisplayDeviceActions({
           Math.min(SLIDER.MAX, percentage)
         );
 
+        if (loadSyncBrightnessEnabled()) {
+          const outcome = await setBrightnessAll(
+            displaysRef.current,
+            clampedPercentage
+          );
+          const update = buildSyncBrightnessOutcomeUpdate(display, outcome);
+
+          syncDisplayState(update.displays);
+          if (update.selectedIndex >= 0) {
+            selectDisplay(update.selectedIndex, update.displays);
+          }
+          setNotice(update.notice);
+          return;
+        }
+
         const updatedDisplays = await setBrightness(
           display.adapter_id_low,
           display.adapter_id_high,
@@ -73,6 +90,7 @@ export function useDisplayDeviceActions({
       currentPercentageRef,
       displaysRef,
       selectedIndexRef,
+      selectDisplay,
       setCurrentPercentage,
       setNotice,
       syncDisplayState,

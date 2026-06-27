@@ -19,8 +19,11 @@ pub fn configure_main_window(app: &mut App) {
             window.on_window_event(move |event| {
                 if let WindowEvent::Focused(false) = event {
                     if let Some(state) = app_handle.try_state::<AppState>() {
-                        let startup_active =
-                            state.startup_info_active.lock().map(|g| *g).unwrap_or(false);
+                        let startup_active = state
+                            .startup_info_active
+                            .lock()
+                            .map(|g| *g)
+                            .unwrap_or(false);
                         let dragging = state.is_dragging.lock().map(|g| *g).unwrap_or(false);
 
                         if startup_active || dragging {

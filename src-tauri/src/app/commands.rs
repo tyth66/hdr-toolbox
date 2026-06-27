@@ -13,10 +13,7 @@ pub fn set_startup_info_mode(state: State<AppState>, active: bool) {
     let mut flag = match state.startup_info_active.lock() {
         Ok(guard) => guard,
         Err(e) => {
-            tracing::error!(
-                "Failed to lock startup_info_active mutex (poisoned): {}",
-                e
-            );
+            tracing::error!("Failed to lock startup_info_active mutex (poisoned): {}", e);
             return;
         }
     };

@@ -1,15 +1,14 @@
-use windows::Win32::Devices::Display::GetMonitorBrightness;
 use windows::Win32::Devices::Display::{
-    DestroyPhysicalMonitors, DisplayConfigGetDeviceInfo, DisplayConfigSetDeviceInfo,
-    GetDisplayConfigBufferSizes, GetNumberOfPhysicalMonitorsFromHMONITOR,
-    GetPhysicalMonitorsFromHMONITOR, QueryDisplayConfig,
-    DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE,
-    DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL, DISPLAYCONFIG_PATH_INFO,
-    DISPLAYCONFIG_SDR_WHITE_LEVEL, DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE, PHYSICAL_MONITOR,
-    QDC_ONLY_ACTIVE_PATHS,
+    DisplayConfigGetDeviceInfo, DisplayConfigSetDeviceInfo, GetDisplayConfigBufferSizes,
+    QueryDisplayConfig, DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO,
+    DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL, DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME,
+    DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE, DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO,
+    DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_0, DISPLAYCONFIG_PATH_INFO,
+    DISPLAYCONFIG_SDR_WHITE_LEVEL, DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE,
+    DISPLAYCONFIG_TARGET_DEVICE_NAME, QDC_ONLY_ACTIVE_PATHS,
 };
-use windows::Win32::Foundation::{HWND, LUID};
-use windows::Win32::Graphics::Gdi::{HMONITOR, MONITOR_DEFAULTTONEAREST, MonitorFromWindow};
+use windows::Win32::Foundation::LUID;
+use windows::Win32::Graphics::Gdi::DISPLAYCONFIG_COLOR_ENCODING;
 
 use super::model::DisplayInfo;
 
@@ -17,106 +16,138 @@ use super::model::DisplayInfo;
 /// This is a private Microsoft interface type not documented in the official API.
 const DISPLAYCONFIG_DEVICE_INFO_SET_SDR_WHITE_LEVEL: i32 = 0xFFFFFFEE_u32 as i32;
 
-pub(super) fn get_brightness_range_from_physical_monitor(
-    hmonitor: HMONITOR,
-) -> Option<(u32, u32, u32)> {
-    unsafe {
-        let mut count: u32 = 0;
-        if GetNumberOfPhysicalMonitorsFromHMONITOR(hmonitor, &mut count).is_err() || count == 0 {
-            tracing::warn!("GetNumberOfPhysicalMonitorsFromHMONITOR failed or returned 0");
-            return None;
+/// Advanced color info bits from DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO.
+const ADVANCED_COLOR_SUPPORTED_BIT: u32 = 0x1;
+const ADVANCED_COLOR_ENABLED_BIT: u32 = 0x2;
+
+#[derive(Clone, Copy, Debug)]
+pub(super) struct DisplayPath {
+    pub adapter_id: LUID,
+    pub adapter_id_low: i32,
+    pub adapter_id_high: i32,
+    pub target_id: u32,
+}
+
+impl DisplayPath {
+    fn from_path(path: &DISPLAYCONFIG_PATH_INFO) -> Self {
+        Self {
+            adapter_id: path.targetInfo.adapterId,
+            adapter_id_low: path.targetInfo.adapterId.LowPart as i32,
+            adapter_id_high: path.targetInfo.adapterId.HighPart,
+            target_id: path.targetInfo.id,
         }
-
-        let mut monitors: Vec<PHYSICAL_MONITOR> = vec![std::mem::zeroed(); count as usize];
-        if GetPhysicalMonitorsFromHMONITOR(hmonitor, &mut monitors).is_err() {
-            tracing::warn!("GetPhysicalMonitorsFromHMONITOR failed");
-            return None;
-        }
-
-        let monitor = &monitors[0];
-        let mut min_brightness: u32 = 0;
-        let mut current_brightness: u32 = 0;
-        let mut max_brightness: u32 = 0;
-
-        let result = GetMonitorBrightness(
-            monitor.hPhysicalMonitor,
-            &mut min_brightness,
-            &mut current_brightness,
-            &mut max_brightness,
-        );
-
-        let brightness = if result == 0 {
-            tracing::warn!("GetMonitorBrightness failed");
-            None
-        } else {
-            tracing::info!(
-                "Monitor brightness range: min={}, current={}, max={}",
-                min_brightness,
-                current_brightness,
-                max_brightness
-            );
-            Some((min_brightness, current_brightness, max_brightness))
-        };
-
-        if let Err(e) = DestroyPhysicalMonitors(&monitors) {
-            tracing::warn!("DestroyPhysicalMonitors failed: {}", e);
-        }
-
-        brightness
     }
 }
 
-pub(super) fn get_hmonitor_for_display(_adapter_id: LUID, _target_id: u32) -> Option<HMONITOR> {
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct AdvancedColorState {
+    value: u32,
+}
+
+impl AdvancedColorState {
+    pub(super) fn is_supported(self) -> bool {
+        (self.value & ADVANCED_COLOR_SUPPORTED_BIT) != 0
+    }
+
+    pub(super) fn is_enabled(self) -> bool {
+        (self.value & ADVANCED_COLOR_ENABLED_BIT) != 0
+    }
+}
+
+pub(super) fn query_active_display_paths() -> Result<Vec<DisplayPath>, String> {
     let mut path_count: u32 = 0;
     let mut mode_count: u32 = 0;
 
-    unsafe {
-        if GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut path_count, &mut mode_count)
-            != windows::Win32::Foundation::WIN32_ERROR(0)
-        {
-            tracing::warn!("GetDisplayConfigBufferSizes failed, using primary monitor");
-            return get_primary_hmonitor();
-        }
+    let result = unsafe {
+        GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut path_count, &mut mode_count)
+    };
+    if result != windows::Win32::Foundation::WIN32_ERROR(0) {
+        return Err(format!("GetDisplayConfigBufferSizes failed: {:#?}", result));
+    }
 
-        if path_count == 0 {
-            return get_primary_hmonitor();
-        }
+    if path_count == 0 {
+        return Err("No display paths found".to_string());
+    }
 
-        let mut paths = vec![DISPLAYCONFIG_PATH_INFO::default(); path_count as usize];
-        let mut modes = vec![
-            windows::Win32::Devices::Display::DISPLAYCONFIG_MODE_INFO::default();
-            mode_count as usize
-        ];
+    let mut paths = vec![DISPLAYCONFIG_PATH_INFO::default(); path_count as usize];
+    let mut modes = vec![
+        windows::Win32::Devices::Display::DISPLAYCONFIG_MODE_INFO::default();
+        mode_count as usize
+    ];
 
-        if QueryDisplayConfig(
+    let result = unsafe {
+        QueryDisplayConfig(
             QDC_ONLY_ACTIVE_PATHS,
             &mut path_count,
             paths.as_mut_ptr(),
             &mut mode_count,
             modes.as_mut_ptr(),
             None,
-        ) != windows::Win32::Foundation::WIN32_ERROR(0)
-        {
-            tracing::warn!("QueryDisplayConfig failed, using primary monitor");
-            return get_primary_hmonitor();
-        }
+        )
+    };
+    if result != windows::Win32::Foundation::WIN32_ERROR(0) {
+        return Err(format!("QueryDisplayConfig failed: {:#?}", result));
+    }
 
-        // Note: There is no direct Windows API to obtain HMONITOR from adapter LUID + target ID.
-        // QueryDisplayConfig returns paths with adapter/target IDs, but HMONITOR must be
-        // obtained via MonitorFromWindow with an HWND. For multi-monitor setups where we need
-        // the specific monitor for a given adapter/target, we fall back to the primary monitor.
-        // This is a known limitation of the Windows DisplayConfig API.
-        tracing::debug!("QueryDisplayConfig found {} paths, using primary monitor for brightness range", path_count);
-        get_primary_hmonitor()
+    Ok(paths
+        .iter()
+        .take(path_count as usize)
+        .map(DisplayPath::from_path)
+        .collect())
+}
+
+pub(super) fn get_display_name(path: DisplayPath) -> String {
+    let mut target_name = DISPLAYCONFIG_TARGET_DEVICE_NAME {
+        header: windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER {
+            r#type: DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME,
+            size: std::mem::size_of::<DISPLAYCONFIG_TARGET_DEVICE_NAME>() as u32,
+            adapterId: path.adapter_id,
+            id: path.target_id,
+        },
+        ..Default::default()
+    };
+
+    unsafe {
+        if DisplayConfigGetDeviceInfo(&mut target_name.header as *mut _ as *mut _) == 0 {
+            let name_wide = target_name.monitorFriendlyDeviceName;
+            let name = String::from_utf16_lossy(
+                &name_wide[..name_wide
+                    .iter()
+                    .position(|&c| c == 0)
+                    .unwrap_or(name_wide.len())],
+            );
+            if name.is_empty() {
+                "Unknown Display".to_string()
+            } else {
+                name
+            }
+        } else {
+            "Unknown Display".to_string()
+        }
     }
 }
 
-fn get_primary_hmonitor() -> Option<HMONITOR> {
-    let hmonitor = unsafe { MonitorFromWindow(HWND::default(), MONITOR_DEFAULTTONEAREST) };
-    if hmonitor.0.is_null() {
-        None
-    } else {
-        Some(hmonitor)
+pub(super) fn get_advanced_color_info(path: DisplayPath) -> AdvancedColorState {
+    let mut advanced_color = DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO {
+        header: windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER {
+            r#type: DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO,
+            size: std::mem::size_of::<DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO>() as u32,
+            adapterId: path.adapter_id,
+            id: path.target_id,
+        },
+        Anonymous: DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_0 { value: 0 },
+        colorEncoding: DISPLAYCONFIG_COLOR_ENCODING::default(),
+        bitsPerColorChannel: 0,
+    };
+
+    unsafe {
+        if DisplayConfigGetDeviceInfo(&mut advanced_color.header as *mut _ as *mut _) == 0 {
+            AdvancedColorState {
+                value: advanced_color.Anonymous.value,
+            }
+        } else {
+            AdvancedColorState::default()
+        }
     }
 }
 
@@ -212,5 +243,35 @@ pub(super) fn set_advanced_color_state(
                 result
             ))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AdvancedColorState;
+
+    #[test]
+    fn advanced_color_state_reads_supported_and_enabled_bits() {
+        let supported_only = AdvancedColorState { value: 0x1 };
+        let supported_and_enabled = AdvancedColorState { value: 0x3 };
+        let unsupported = AdvancedColorState { value: 0x0 };
+
+        assert!(supported_only.is_supported());
+        assert!(!supported_only.is_enabled());
+        assert!(supported_and_enabled.is_supported());
+        assert!(supported_and_enabled.is_enabled());
+        assert!(!unsupported.is_supported());
+        assert!(!unsupported.is_enabled());
+    }
+
+    #[test]
+    fn advanced_color_state_edge_cases() {
+        let enabled_only = AdvancedColorState { value: 0x2 };
+        assert!(!enabled_only.is_supported());
+        assert!(enabled_only.is_enabled());
+
+        let with_extra_bits = AdvancedColorState { value: 0xF };
+        assert!(with_extra_bits.is_supported());
+        assert!(with_extra_bits.is_enabled());
     }
 }

@@ -18,13 +18,19 @@ fn build_full_menu(
 ) -> Result<Menu<tauri::Wry>, tauri::Error> {
     if displays.is_empty() {
         // Still include Quit button so the menu is interactive even without HDR displays
-        let no_display = MenuItem::with_id(app, "no-display", "No HDR-capable displays", false, None::<&str>)
-            .map_err(|e| {
-                tracing::error!("Failed to create no-display menu item: {}", e);
-                e
-            })?;
-        let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)
-            .map_err(|e| {
+        let no_display = MenuItem::with_id(
+            app,
+            "no-display",
+            "No HDR-capable displays",
+            false,
+            None::<&str>,
+        )
+        .map_err(|e| {
+            tracing::error!("Failed to create no-display menu item: {}", e);
+            e
+        })?;
+        let quit_item =
+            MenuItem::with_id(app, "quit", "Quit", true, None::<&str>).map_err(|e| {
                 tracing::error!("Failed to create quit menu item: {}", e);
                 e
             })?;
@@ -39,7 +45,7 @@ fn build_full_menu(
     // Build menu items - store them in a Vec to extend their lifetime
     // All items must be kept alive for the Menu to own them
     let mut owned_items: Vec<MenuItem<tauri::Wry>> = Vec::new();
-    
+
     // Build device items
     for (i, d) in displays.iter().enumerate() {
         let label = format!("{} ({} nits)", d.name, d.nits);
@@ -57,12 +63,11 @@ fn build_full_menu(
         tracing::error!("Failed to create separator: {}", e);
         e
     })?;
-    
-    let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)
-        .map_err(|e| {
-            tracing::error!("Failed to create quit menu item: {}", e);
-            e
-        })?;
+
+    let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>).map_err(|e| {
+        tracing::error!("Failed to create quit menu item: {}", e);
+        e
+    })?;
 
     // Build menu using MenuBuilder to properly own all items
     let mut menu_builder = MenuBuilder::new(app);
@@ -70,7 +75,7 @@ fn build_full_menu(
         menu_builder = menu_builder.item(item);
     }
     menu_builder = menu_builder.item(&separator).item(&quit_item);
-    
+
     menu_builder.build()
 }
 
@@ -210,12 +215,11 @@ pub fn get_tray_rect(app: &AppHandle) -> Option<tauri::Rect> {
 /// Setup the system tray.
 pub fn setup_tray(app: &AppHandle) -> Result<TrayIcon, tauri::Error> {
     let icon_bytes = include_bytes!("../icons/fluent@1x.png");
-    let icon = Image::from_bytes(icon_bytes)
-        .map_err(|e| {
-            tracing::error!("Failed to load tray icon: {}", e);
-            e
-        })?;
-    
+    let icon = Image::from_bytes(icon_bytes).map_err(|e| {
+        tracing::error!("Failed to load tray icon: {}", e);
+        e
+    })?;
+
     let tray = TrayIconBuilder::with_id(TRAY_ID)
         .tooltip("HDR Toolbox")
         .icon(icon)

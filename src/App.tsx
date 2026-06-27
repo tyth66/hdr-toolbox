@@ -49,8 +49,10 @@ function App() {
     showAbout,
     setShowAbout,
     autostartEnabled,
+    syncBrightnessEnabled,
     hotkeys,
     handleToggleAutostart,
+    handleToggleSyncBrightness,
     handleHotkeyChange,
     handleHotkeyReset,
   } = useAppController({
@@ -170,9 +172,11 @@ function App() {
       <SettingsDialog
         open={showSettings}
         autostartEnabled={autostartEnabled}
+        syncBrightnessEnabled={syncBrightnessEnabled}
         hotkeys={hotkeys}
         onClose={() => setShowSettings(false)}
         onToggleAutostart={handleToggleAutostart}
+        onToggleSyncBrightness={handleToggleSyncBrightness}
         onUpdateHotkey={handleHotkeyChange}
         onResetHotkeys={handleHotkeyReset}
         onShowAbout={() => setShowAbout(true)}

@@ -41,6 +41,8 @@ React 18 single-window UI for HDR brightness control. Frontend is split into com
 
 - `types.test.ts`: nits/percentage conversion
 - `displayContract.test.ts`: TS/Rust contract checks
+- `architectureContract.test.ts`: frontend/Rust boundary checks
 - `hooks/displayState.test.ts`: selection/update helpers
+- `hooks/syncBrightnessOutcome.test.ts`: synced brightness outcome handling
 - `errors.test.ts`: error mapping
 - `hotkeys.test.ts`: hotkey formatting/validation

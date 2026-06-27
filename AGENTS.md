@@ -47,7 +47,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 | Startup overlay | `src/hooks/useStartupOverlay.ts` | 4s info + Rust sync |
 | Error mapping | `src/errors.ts` | User-facing error messages |
 | Contract checks | `src/displayContract.test.ts` | TS/Rust DisplayInfo drift detection |
-| DisplayConfig FFI | `src-tauri/src/display/ffi.rs` | GET/SET SDR white level + MCCS |
+| DisplayConfig FFI | `src-tauri/src/display/ffi.rs` | DisplayConfig enumeration, HDR state, and SDR white level |
 | Display service | `src-tauri/src/display/service.rs` | HDR enumeration, toggle polling, fallback |
 | Display commands | `src-tauri/src/display/commands.rs` | Tauri command boundary + state updates |
 | App state | `src-tauri/src/app/state.rs` | AppState + TrayState |
@@ -67,7 +67,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 ## RUST ARCHITECTURE
 
 - `display/model.rs`: DisplayInfo + luminance constants (80-480 nits)
-- `display/ffi.rs`: raw Windows DisplayConfig / MCCS FFI
+- `display/ffi.rs`: raw Windows DisplayConfig FFI
 - `display/error.rs`: structured error types (DisplayErrorCode, DisplayError)
 - `display/service.rs`: HDR discovery, toggle, brightness logic, tests
 - `display/commands.rs`: Tauri command surface + state updates
@@ -117,7 +117,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 ## CRITICAL NOTES
 
 - SDR white level range: **80-480 nits** (fixed)
-- MCCS brightness is informational only; SDR White Level is the actual control path
+- SDR White Level is the brightness control path; MCCS brightness range is not used for display enumeration
 - `DisplayInfo` distinguishes `hdr_supported` from `hdr_enabled`
 - Display enumeration returns HDR-capable displays even when HDR is off
 - Rust owns authoritative display state; frontend consumes command results
