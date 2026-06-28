@@ -4,14 +4,11 @@ use tauri::{App, Manager, WindowEvent};
 #[cfg(target_os = "windows")]
 use window_vibrancy::apply_acrylic;
 
-#[cfg(target_os = "windows")]
-const ACRYLIC_TINT: (u8, u8, u8, u8) = (32, 32, 32, 185);
-
 pub fn configure_main_window(app: &mut App) {
     #[cfg(target_os = "windows")]
     {
         if let Some(window) = app.get_webview_window("main") {
-            if let Err(e) = apply_acrylic(&window, Some(ACRYLIC_TINT)) {
+            if let Err(e) = apply_acrylic(&window, None) {
                 tracing::warn!("Failed to apply Acrylic backdrop: {}", e);
             } else {
                 tracing::info!("Acrylic backdrop applied successfully");

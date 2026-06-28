@@ -24,6 +24,7 @@
   --color-notice-title: #f8fafc;
   --color-notice-text: #fde68a;
   --color-notice-dismiss-hover: #fff7ed;
+  --dialog-overlay-bg: rgba(0, 0, 0, 0.34);
 
   --space-1: 4px;
   --space-2: 8px;
@@ -79,6 +80,7 @@
     --color-notice-title: #78350f;
     --color-notice-text: #92400e;
     --color-notice-dismiss-hover: #451a03;
+    --dialog-overlay-bg: rgba(255, 255, 255, 0.22);
   }
 }
 
@@ -102,6 +104,7 @@
   --color-notice-title: #f8fafc;
   --color-notice-text: #fde68a;
   --color-notice-dismiss-hover: #fff7ed;
+  --dialog-overlay-bg: rgba(0, 0, 0, 0.34);
 
   --win-bg: transparent;
   --mica-bg: var(--color-window);
@@ -136,6 +139,7 @@
   --color-notice-title: #78350f;
   --color-notice-text: #92400e;
   --color-notice-dismiss-hover: #451a03;
+  --dialog-overlay-bg: rgba(255, 255, 255, 0.22);
 
   --win-bg: transparent;
   --mica-bg: var(--color-window);
@@ -745,7 +749,7 @@ input {
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.34);
+  background: var(--dialog-overlay-bg);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;

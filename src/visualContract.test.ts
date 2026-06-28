@@ -38,17 +38,24 @@ test("native Acrylic backdrop remains visible through transparent app layers", (
 
   assert.equal(tauriConfig.app?.windows?.[0]?.transparent, true);
   assert.match(windowConfig, /apply_acrylic/);
-  assert.match(windowConfig, /ACRYLIC_TINT:\s*\(u8,\s*u8,\s*u8,\s*u8\)\s*=\s*\(32,\s*32,\s*32,\s*185\)/);
+  assert.match(windowConfig, /apply_acrylic\(&window,\s*None\)/);
+  assert.doesNotMatch(windowConfig, /ACRYLIC_TINT/);
   assert.doesNotMatch(windowConfig, /apply_mica/);
   assert.match(app, /<FluentProvider className="fluent-root"/);
   assert.match(visualQa, /<FluentProvider className="fluent-root"/);
   const fluentRootRule = extractCssRule(styles, ".fluent-root");
   const micaWindowRule = extractCssRule(styles, ".mica-window");
   const sideNavRule = extractCssRule(styles, ".side-nav");
+  const dialogOverlayRule = extractCssRule(styles, ".dialog-overlay");
   assert.match(fluentRootRule, /background:\s*transparent/);
   assert.match(styles, /--acrylic-window-tint:\s*rgba\(20,\s*20,\s*20,\s*0\.34\)/);
+  assert.match(styles, /\.app-theme-light\s*\{[\s\S]*--acrylic-window-tint:\s*rgba\(250,\s*250,\s*250,\s*0\.44\)/);
+  assert.match(styles, /--dialog-overlay-bg:\s*rgba\(0,\s*0,\s*0,\s*0\.34\)/);
+  assert.match(styles, /\.app-theme-light\s*\{[\s\S]*--dialog-overlay-bg:\s*rgba\(255,\s*255,\s*255,\s*0\.22\)/);
   assert.match(micaWindowRule, /background:\s*var\(--acrylic-window-tint\)/);
   assert.doesNotMatch(micaWindowRule, /background:\s*var\(--color-window\)/);
+  assert.match(dialogOverlayRule, /background:\s*var\(--dialog-overlay-bg\)/);
+  assert.doesNotMatch(dialogOverlayRule, /background:\s*rgba\(0,\s*0,\s*0,\s*0\.34\)/);
   assert.match(styles, /--color-surface:\s*rgba\(255,\s*255,\s*255,\s*0\.055\)/);
   assert.match(sideNavRule, /background:\s*rgba\(0,\s*0,\s*0,\s*0\.08\)/);
 });
