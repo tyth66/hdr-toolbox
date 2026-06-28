@@ -73,6 +73,15 @@ npm run tauri build
 
 ---
 
+## 🔁 CI/CD
+
+- Every branch push and pull request runs the Windows CI workflow.
+- CI validates TypeScript, frontend tests, Rust formatting, `cargo check`, clippy, Rust tests, and the Vite frontend build.
+- After CI succeeds for a branch push, the release workflow automatically builds the Windows Tauri release bundle and uploads it as a workflow artifact.
+- Pushing a `v*` tag still builds the release bundle and publishes GitHub Release assets.
+
+---
+
 ## 📖 Usage
 
 ```

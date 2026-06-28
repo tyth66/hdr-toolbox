@@ -73,6 +73,15 @@ npm run tauri build
 
 ---
 
+## 🔁 CI/CD
+
+- 每次分支代码 push 和 pull request 都会运行 Windows CI。
+- CI 会验证 TypeScript、前端测试、Rust 格式、`cargo check`、clippy、Rust 测试和 Vite 前端构建。
+- 分支 push 的 CI 通过后，Release workflow 会自动构建 Windows Tauri 发布包，并上传为 workflow artifact。
+- 推送 `v*` tag 时仍会构建发布包，并发布到 GitHub Releases。
+
+---
+
 ## 📖 使用方法
 
 ```
