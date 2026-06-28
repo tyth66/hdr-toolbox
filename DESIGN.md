@@ -3,7 +3,7 @@
 ## Status
 
 - Status: Active
-- Last refreshed: 2026-06-28
+- Last refreshed: 2026-06-29
 - Product: HDR Toolbox, a fixed-size Windows tray utility for HDR display SDR white-level control.
 - Primary surfaces:
   - 300 x 200 tray flyout
@@ -48,6 +48,7 @@ Use a neutral Acrylic shell, Fluent UI v9 controls, Windows system accent color,
 | Area | Files |
 | --- | --- |
 | Composition | `src/App.tsx` |
+| App render surfaces | `src/components/AppSurfaces.tsx` |
 | Shell CSS/tokens | `src/styles.css` |
 | Fluent theme | `src/theme.ts` |
 | Accent hook | `src/hooks/useAccentColor.ts` |
@@ -57,7 +58,7 @@ Use a neutral Acrylic shell, Fluent UI v9 controls, Windows system accent color,
 | Contract tests | `src/visualContract.test.ts`, `src/theme.test.ts`, `src/themePreference.test.ts` |
 | Acrylic native layer | `src-tauri/src/app/window.rs`, `src-tauri/tauri.conf.json` |
 | Accent native command | `src-tauri/src/display/accent.rs` |
-| Primary components | `src/components/TitleBar.tsx`, `DeviceNav.tsx`, `BrightnessSlider.tsx`, `StatusBar.tsx`, `SettingsDialog.tsx` |
+| Primary components | `src/components/AppSurfaces.tsx`, `TitleBar.tsx`, `DeviceNav.tsx`, `BrightnessSlider.tsx`, `StatusBar.tsx`, `SettingsDialog.tsx` |
 
 ## Visual Rules
 
@@ -115,6 +116,7 @@ Use a neutral Acrylic shell, Fluent UI v9 controls, Windows system accent color,
 ## Architecture Rules
 
 - Keep `App.tsx` as composition.
+- Keep loading, error, empty, and main shell JSX in `src/components/AppSurfaces.tsx`.
 - Presentational UI stays in `src/components`.
 - Stateful behavior stays in hooks.
 - No raw Tauri `invoke()` outside `src/services/tauriApi.ts`.

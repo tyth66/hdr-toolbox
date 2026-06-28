@@ -82,7 +82,7 @@ test("display navigation icon hover and selected state use system accent", () =>
 });
 
 test("main brightness surface shows the selected display name", () => {
-  const app = readRepoFile("src/App.tsx");
+  const appSurfaces = readRepoFile("src/components/AppSurfaces.tsx");
   const brightnessSlider = readRepoFile("src/components/BrightnessSlider.tsx");
   const styles = readRepoFile("src/styles.css");
   const contentRule = extractCssRule(styles, ".content");
@@ -93,7 +93,7 @@ test("main brightness surface shows the selected display name", () => {
   assert.match(brightnessSlider, /className="display-name"/);
   assert.match(brightnessSlider, /title=\{displayName\}/);
   assert.match(brightnessSlider, /className="brightness-slider-control"/);
-  assert.match(app, /displayName=\{displays\[selectedIndex\]\?\.name \?\? "Unknown display"\}/);
+  assert.match(appSurfaces, /displayName=\{selectedDisplay\?\.name \?\? "Unknown display"\}/);
   assert.match(styles, /\.content\s*\{[\s\S]*min-width:\s*0/);
   assert.match(styles, /\.slider-section\s*\{[\s\S]*min-width:\s*0/);
   assert.match(styles, /\.display-name\s*\{[\s\S]*max-width:\s*100%/);
@@ -185,12 +185,14 @@ test("theme preference can override system color scheme", () => {
 
 test("settings and notice actions use Fluent UI Button instead of raw buttons", () => {
   const app = readRepoFile("src/App.tsx");
+  const appSurfaces = readRepoFile("src/components/AppSurfaces.tsx");
   const settingsDialog = readRepoFile("src/components/SettingsDialog.tsx");
   const visualQa = readRepoFile("src/visualQa.tsx");
 
-  assert.match(app, /import \{[\s\S]*Button,[\s\S]*FluentProvider,/);
-  assert.match(app, /<Button[\s\S]*className="notice-dismiss"/);
-  assert.doesNotMatch(app, /<button[\s\S]*className="notice-dismiss"/);
+  assert.match(app, /import \{[\s\S]*FluentProvider,[\s\S]*webDarkTheme,/);
+  assert.match(appSurfaces, /import \{[\s\S]*Button[\s\S]*\} from "@fluentui\/react-components"/);
+  assert.match(appSurfaces, /<Button[\s\S]*className="notice-dismiss"/);
+  assert.doesNotMatch(appSurfaces, /<button[\s\S]*className="notice-dismiss"/);
 
   assert.match(settingsDialog, /<Button[\s\S]*className=\{`theme-option/);
   assert.match(settingsDialog, /<Button[\s\S]*className=\{`btn shortcut-btn/);
@@ -204,7 +206,7 @@ test("secondary states use a shared dialog and state shell", () => {
   const aboutDialog = readRepoFile("src/components/AboutDialog.tsx");
   const settingsDialog = readRepoFile("src/components/SettingsDialog.tsx");
   const startupDialog = readRepoFile("src/components/StartupInfoDialog.tsx");
-  const app = readRepoFile("src/App.tsx");
+  const appSurfaces = readRepoFile("src/components/AppSurfaces.tsx");
   const styles = readRepoFile("src/styles.css");
 
   for (const dialog of [aboutDialog, settingsDialog, startupDialog]) {
@@ -213,9 +215,9 @@ test("secondary states use a shared dialog and state shell", () => {
   }
 
   assert.doesNotMatch(startupDialog, /style=\{\{/);
-  assert.match(app, /className="app-state app-state-loading"/);
-  assert.match(app, /className="app-state app-state-error"/);
-  assert.match(app, /className="app-state app-state-empty"/);
+  assert.match(appSurfaces, /className="app-state app-state-loading"/);
+  assert.match(appSurfaces, /className="app-state app-state-error"/);
+  assert.match(appSurfaces, /className="app-state app-state-empty"/);
   assert.match(styles, /\.dialog-overlay\s*\{/);
   assert.match(styles, /\.dialog-shell\s*\{/);
   assert.match(styles, /\.app-state\s*\{/);

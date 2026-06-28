@@ -1,9 +1,7 @@
-import { useState } from "react";
-import {
-  type AppNotice,
-} from "../errors";
+import { useDisplayCommandClient } from "./useDisplayCommandClient";
 import { useDisplayDeviceActions } from "./useDisplayDeviceActions";
-import { useDisplaySelection } from "./useDisplaySelection";
+import { useDisplayFeedbackState } from "./useDisplayFeedbackState";
+import { useDisplayStateStore } from "./useDisplayStateStore";
 
 type UseDisplaysOptions = {
   showWindow: () => Promise<void>;
@@ -14,25 +12,9 @@ export function useDisplays({
   showWindow,
   startStartupOverlay,
 }: UseDisplaysOptions) {
-  const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isHdrPending, setIsHdrPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<AppNotice | null>(null);
-
-  const {
-    displays,
-    displaysRef,
-    selectedIndex,
-    selectedIndexRef,
-    currentPercentage,
-    currentPercentageRef,
-    hdrActive,
-    syncDisplayState,
-    selectDisplay,
-    previewPercentage,
-    setCurrentPercentage,
-  } = useDisplaySelection();
+  const displayState = useDisplayStateStore();
+  const displayFeedback = useDisplayFeedbackState();
+  const displayCommands = useDisplayCommandClient();
 
   const {
     applyBrightness,
@@ -40,40 +22,36 @@ export function useDisplays({
     loadDisplays,
     toggleHdr,
   } = useDisplayDeviceActions({
-    displaysRef,
-    selectedIndexRef,
-    currentPercentageRef,
-    selectDisplay,
-    syncDisplayState,
-    setCurrentPercentage,
-    setLoading,
-    setIsRefreshing,
-    setIsHdrPending,
-    setError,
-    setNotice,
+    displaysRef: displayState.displaysRef,
+    selectedIndexRef: displayState.selectedIndexRef,
+    selectDisplay: displayState.selectDisplay,
+    syncDisplayState: displayState.syncDisplayState,
+    previewPercentage: displayState.previewPercentage,
+    commands: displayCommands,
+    feedback: displayFeedback.feedback,
     showWindow,
     startStartupOverlay,
   });
 
   return {
-    displays,
-    displaysRef,
-    selectedIndex,
-    selectedIndexRef,
-    currentPercentage,
-    currentPercentageRef,
-    hdrActive,
-    isHdrPending,
-    loading,
-    isRefreshing,
-    error,
-    notice,
-    setNotice,
+    displays: displayState.displays,
+    displaysRef: displayState.displaysRef,
+    selectedIndex: displayState.selectedIndex,
+    selectedIndexRef: displayState.selectedIndexRef,
+    currentPercentage: displayState.currentPercentage,
+    currentPercentageRef: displayState.currentPercentageRef,
+    hdrActive: displayState.hdrActive,
+    isHdrPending: displayFeedback.isHdrPending,
+    loading: displayFeedback.loading,
+    isRefreshing: displayFeedback.isRefreshing,
+    error: displayFeedback.error,
+    notice: displayFeedback.notice,
+    setNotice: displayFeedback.setNotice,
     loadDisplays,
     refreshDisplays,
     toggleHdr,
-    selectDisplay,
-    previewPercentage,
+    selectDisplay: displayState.selectDisplay,
+    previewPercentage: displayState.previewPercentage,
     applyBrightness,
   };
 }

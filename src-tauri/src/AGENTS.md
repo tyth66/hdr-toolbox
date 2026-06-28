@@ -5,7 +5,7 @@
 
 ## OVERVIEW
 
-Windows DisplayConfig backend for HDR SDR brightness control. Display subsystem splits into model, FFI, service, and command layers with unit tests for pure service helpers.
+Windows DisplayConfig backend for HDR SDR brightness control. Display subsystem splits into model, FFI, service, session, and command layers with unit tests for pure service/session helpers.
 
 ## WHERE TO LOOK
 
@@ -14,7 +14,8 @@ Windows DisplayConfig backend for HDR SDR brightness control. Display subsystem 
 | Display model | `display/model.rs` | `DisplayInfo`, luminance constants |
 | FFI boundary | `display/ffi.rs` | Raw DisplayConfig calls |
 | HDR discovery | `display/service.rs` | QueryDisplayConfig + failure tracking |
-| Commands | `display/commands.rs` | Stable JS-facing commands |
+| Display session | `display/session.rs` | AppState cache updates + TrayState synchronization |
+| Commands | `display/commands.rs` | Stable, thin JS-facing commands |
 | App state | `app/state.rs` | `AppState`, `TrayState`, `TrayDisplaySummary` |
 | Window | `app/window.rs` | Mica + blur-to-hide |
 | Tray | `tray.rs` | Left/right click from summary state |
@@ -22,8 +23,10 @@ Windows DisplayConfig backend for HDR SDR brightness control. Display subsystem 
 ## MODULE RULES
 
 - `ffi.rs`: unsafe Windows interaction only, no app policy
+- `ffi.rs` and `service.rs`: return structured `DisplayError`, not stringly typed errors
 - `service.rs`: enumeration, brightness, per-display failure tracking
-- `commands.rs`: command boundary + state sync, not low-level details
+- `session.rs`: display cache writes, tray summary writes, tray refresh calls
+- `commands.rs`: command boundary only; no direct cache/tray synchronization and no string error classification
 - `tray.rs`: depends on tray summary state, not full `DisplayInfo`
 
 ## FAILURE TRACKING

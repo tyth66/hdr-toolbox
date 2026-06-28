@@ -9,6 +9,7 @@ use super::ffi::{
     set_advanced_color_state, set_sdr_white_level_raw, DisplayPath,
 };
 use super::model::{luminance, DisplayInfo};
+use super::DisplayError;
 
 const MAX_CONSECUTIVE_FAILURES: usize = 3;
 const HDR_STATE_POLL_ATTEMPTS: usize = 8;
@@ -90,7 +91,7 @@ impl PerDisplayFailureTracker {
 static FAILURE_TRACKER: Lazy<std::sync::Mutex<PerDisplayFailureTracker>> =
     Lazy::new(|| std::sync::Mutex::new(PerDisplayFailureTracker::new()));
 
-pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
+pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, DisplayError> {
     let paths = query_active_display_paths()?;
 
     let mut displays = Vec::new();
@@ -182,7 +183,7 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, String> {
     }
 
     if displays.is_empty() {
-        Err("No HDR-capable displays found. Ensure your monitor supports HDR and the display driver is working correctly.".to_string())
+        Err(DisplayError::no_hdr_displays())
     } else {
         Ok(displays)
     }
@@ -195,7 +196,7 @@ pub(super) fn set_brightness_impl(
     percentage: u32,
     min_nits: u32,
     max_nits: u32,
-) -> Result<(), String> {
+) -> Result<(), DisplayError> {
     let adapter_id = LUID {
         LowPart: adapter_low as u32,
         HighPart: adapter_high,
@@ -207,7 +208,7 @@ pub(super) fn set_brightness_impl(
 pub(super) fn set_brightness_all_impl(
     displays: Vec<DisplayInfo>,
     percentage: u32,
-) -> Vec<Result<(), String>> {
+) -> Vec<Result<(), DisplayError>> {
     displays
         .into_iter()
         .map(|display| {
@@ -230,7 +231,7 @@ pub(super) fn set_hdr_enabled_impl(
     adapter_high: i32,
     target_id: u32,
     enabled: bool,
-) -> Result<(), String> {
+) -> Result<(), DisplayError> {
     let adapter_id = LUID {
         LowPart: adapter_low as u32,
         HighPart: adapter_high,
@@ -243,7 +244,7 @@ pub(super) fn get_hdr_displays_after_toggle_impl(
     adapter_high: i32,
     target_id: u32,
     expected_enabled: bool,
-) -> Result<Vec<DisplayInfo>, String> {
+) -> Result<Vec<DisplayInfo>, DisplayError> {
     let mut last_displays: Option<Vec<DisplayInfo>> = None;
 
     for attempt in 0..HDR_STATE_POLL_ATTEMPTS {

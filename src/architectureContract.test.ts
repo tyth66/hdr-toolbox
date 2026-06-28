@@ -48,6 +48,24 @@ test("frontend Tauri invoke calls stay inside services/tauriApi.ts", () => {
   assert.deepEqual(violations, []);
 });
 
+test("display device actions use the display command client instead of Tauri services", () => {
+  const actionsSource = readFile(
+    path.resolve(srcDir, "hooks", "useDisplayDeviceActions.ts")
+  );
+
+  assert.equal(actionsSource.includes("../services/tauriApi"), false);
+  assert.match(actionsSource, /DisplayCommandClient/);
+});
+
+test("useDisplays composes explicit display state, feedback, and command boundaries", () => {
+  const useDisplaysSource = readFile(path.resolve(srcDir, "hooks", "useDisplays.ts"));
+
+  assert.match(useDisplaysSource, /useDisplayStateStore/);
+  assert.match(useDisplaysSource, /useDisplayFeedbackState/);
+  assert.match(useDisplaysSource, /useDisplayCommandClient/);
+  assert.equal(useDisplaysSource.includes("useDisplaySelection"), false);
+});
+
 test("DisplayConfig API calls stay inside display/ffi.rs", () => {
   const allowedPath = "src-tauri/src/display/ffi.rs";
   const displayConfigPattern =
@@ -58,6 +76,70 @@ test("DisplayConfig API calls stay inside display/ffi.rs", () => {
     .map(relativePath);
 
   assert.deepEqual(violations, []);
+});
+
+test("display command boundary delegates cache and tray synchronization", () => {
+  const commandsSource = readFile(
+    path.resolve(tauriSrcDir, "display", "commands.rs")
+  );
+  const directStateSyncPatterns = [
+    /\bTrayState::from_displays\b/,
+    /\btray::update_tray_(tooltip|menu)\b/,
+    /\brefresh_tray\b/,
+    /\bstate\.displays\.lock\(/,
+    /\bstate\.tray_state\.lock\(/,
+  ];
+
+  const violations = directStateSyncPatterns
+    .filter((pattern) => pattern.test(commandsSource))
+    .map((pattern) => pattern.source);
+
+  assert.deepEqual(violations, []);
+});
+
+test("sync brightness uses Rust-owned display state instead of frontend snapshots", () => {
+  const tauriApiSource = readFile(path.resolve(srcDir, "services", "tauriApi.ts"));
+  const commandClientSource = readFile(
+    path.resolve(srcDir, "hooks", "useDisplayCommandClient.ts")
+  );
+  const deviceActionsSource = readFile(
+    path.resolve(srcDir, "hooks", "useDisplayDeviceActions.ts")
+  );
+  const commandsSource = readFile(
+    path.resolve(tauriSrcDir, "display", "commands.rs")
+  );
+
+  assert.equal(/export async function setBrightnessAll\(\s*displays/.test(tauriApiSource), false);
+  assert.equal(tauriApiSource.includes('"set_brightness_all", { displays,'), false);
+  assert.equal(/setBrightnessAll:\s*\(\s*displays/.test(commandClientSource), false);
+  assert.equal(deviceActionsSource.includes("commands.setBrightnessAll(\n            displaysRef.current"), false);
+  const setBrightnessAllSignature = commandsSource.match(
+    /pub fn set_brightness_all\(([\s\S]*?)\)\s*->/
+  );
+  assert.ok(setBrightnessAllSignature?.[1], "Could not locate set_brightness_all signature");
+  assert.equal(setBrightnessAllSignature[1].includes("Vec<DisplayInfo>"), false);
+});
+
+test("display service and ffi return structured display errors instead of String errors", () => {
+  const checkedFiles = [
+    path.resolve(tauriSrcDir, "display", "service.rs"),
+    path.resolve(tauriSrcDir, "display", "ffi.rs"),
+  ];
+
+  const violations = checkedFiles
+    .filter((filePath) => /Result<[^>]*,\s*String>|Vec<Result<[^>]*,\s*String>>/.test(readFile(filePath)))
+    .map(relativePath);
+
+  assert.deepEqual(violations, []);
+});
+
+test("display command boundary does not classify errors with string matching", () => {
+  const commandsSource = readFile(
+    path.resolve(tauriSrcDir, "display", "commands.rs")
+  );
+
+  assert.equal(commandsSource.includes("map_string_to_display_error"), false);
+  assert.equal(commandsSource.includes(".to_lowercase()"), false);
 });
 
 test("Tauri global API injection remains disabled", () => {

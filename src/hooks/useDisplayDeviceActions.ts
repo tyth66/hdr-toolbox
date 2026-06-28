@@ -1,23 +1,19 @@
-import { useCallback, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import { mapBrightnessError, mapHdrToggleError, mapInitialLoadError, mapRefreshError, type AppNotice } from "../errors";
-import { getHdrDisplays, setBrightness, setBrightnessAll, setHdrEnabled } from "../services/tauriApi";
+import { useCallback, useRef, type MutableRefObject } from "react";
 import { loadSyncBrightnessEnabled } from "../syncBrightness";
 import { SLIDER, type DisplayInfo } from "../types";
+import type { DisplayCommandClient } from "./useDisplayCommandClient";
+import type { DisplayFeedbackController } from "./useDisplayFeedbackState";
 import { findMatchingDisplayIndex } from "./displayState";
 import { buildSyncBrightnessOutcomeUpdate } from "./syncBrightnessOutcome";
 
 type UseDisplayDeviceActionsOptions = {
   displaysRef: MutableRefObject<DisplayInfo[]>;
   selectedIndexRef: MutableRefObject<number>;
-  currentPercentageRef: MutableRefObject<number>;
   selectDisplay: (idx: number, source?: DisplayInfo[]) => void;
   syncDisplayState: (updatedDisplays: DisplayInfo[]) => void;
-  setCurrentPercentage: Dispatch<SetStateAction<number>>;
-  setLoading: Dispatch<SetStateAction<boolean>>;
-  setIsRefreshing: Dispatch<SetStateAction<boolean>>;
-  setIsHdrPending: Dispatch<SetStateAction<boolean>>;
-  setError: Dispatch<SetStateAction<string | null>>;
-  setNotice: Dispatch<SetStateAction<AppNotice | null>>;
+  previewPercentage: (percentage: number) => void;
+  commands: DisplayCommandClient;
+  feedback: DisplayFeedbackController;
   showWindow: () => Promise<void>;
   startStartupOverlay: () => Promise<void>;
 };
@@ -25,15 +21,11 @@ type UseDisplayDeviceActionsOptions = {
 export function useDisplayDeviceActions({
   displaysRef,
   selectedIndexRef,
-  currentPercentageRef,
   selectDisplay,
   syncDisplayState,
-  setCurrentPercentage,
-  setLoading,
-  setIsRefreshing,
-  setIsHdrPending,
-  setError,
-  setNotice,
+  previewPercentage,
+  commands,
+  feedback,
   showWindow,
   startStartupOverlay,
 }: UseDisplayDeviceActionsOptions) {
@@ -54,111 +46,91 @@ export function useDisplayDeviceActions({
         );
 
         if (loadSyncBrightnessEnabled()) {
-          const outcome = await setBrightnessAll(
-            displaysRef.current,
-            clampedPercentage
-          );
+          const outcome = await commands.setBrightnessAll(clampedPercentage);
           const update = buildSyncBrightnessOutcomeUpdate(display, outcome);
 
           syncDisplayState(update.displays);
           if (update.selectedIndex >= 0) {
             selectDisplay(update.selectedIndex, update.displays);
           }
-          setNotice(update.notice);
+          feedback.setNotice(update.notice);
           return;
         }
 
-        const updatedDisplays = await setBrightness(
-          display.adapter_id_low,
-          display.adapter_id_high,
-          display.target_id,
-          clampedPercentage,
-          display.min_nits ?? 80,
-          display.max_nits ?? 480
+        const updatedDisplays = await commands.setBrightness(
+          display,
+          clampedPercentage
         );
 
-        setCurrentPercentage(clampedPercentage);
-        currentPercentageRef.current = clampedPercentage;
+        previewPercentage(clampedPercentage);
         syncDisplayState(updatedDisplays);
-        setNotice(null);
+        feedback.clearNotice();
       } catch (err) {
-        setNotice(mapBrightnessError());
+        feedback.reportBrightnessError();
         throw err;
       }
     },
     [
-      currentPercentageRef,
+      commands,
       displaysRef,
-      selectedIndexRef,
+      feedback,
+      previewPercentage,
       selectDisplay,
-      setCurrentPercentage,
-      setNotice,
+      selectedIndexRef,
       syncDisplayState,
     ]
   );
 
-  const refreshDisplays = useCallback(async (options?: {
-    initial?: boolean;
-    silent?: boolean;
-  }) => {
-    const { initial = false, silent = false } = options ?? {};
-    const previousDisplay = displaysRef.current[selectedIndexRef.current];
+  const refreshDisplays = useCallback(
+    async (options?: { initial?: boolean; silent?: boolean }) => {
+      const { initial = false, silent = false } = options ?? {};
+      const previousDisplay = displaysRef.current[selectedIndexRef.current];
 
-    if (refreshInFlightRef.current) {
-      return;
-    }
-
-    try {
-      refreshInFlightRef.current = true;
-      if (initial) {
-        setLoading(true);
-        setError(null);
-        setNotice(null);
-      } else {
-        setIsRefreshing(true);
+      if (refreshInFlightRef.current) {
+        return;
       }
 
-      const result = await getHdrDisplays();
-      syncDisplayState(result);
+      try {
+        refreshInFlightRef.current = true;
+        feedback.beginRefresh({ initial, silent });
 
-      if (result.length > 0) {
-        const matchedIndex = findMatchingDisplayIndex(result, previousDisplay);
-        selectDisplay(matchedIndex >= 0 ? matchedIndex : 0, result);
+        const result = await commands.getDisplays();
+        syncDisplayState(result);
 
-        if (initial) {
-          await startStartupOverlay();
-          await showWindow();
+        if (result.length > 0) {
+          const matchedIndex = findMatchingDisplayIndex(result, previousDisplay);
+          selectDisplay(matchedIndex >= 0 ? matchedIndex : 0, result);
+
+          if (initial) {
+            await startStartupOverlay();
+            await showWindow();
+          }
+
+          feedback.clearNotice();
         }
-
-        setNotice(null);
+      } catch (err) {
+        if (initial) {
+          feedback.reportInitialLoadError(err);
+          syncDisplayState([]);
+        } else {
+          feedback.reportRefreshError(err, silent);
+        }
+      } finally {
+        refreshInFlightRef.current = false;
+        feedback.finishRefresh({ initial, silent });
       }
-    } catch (err) {
-      if (initial) {
-        setError(mapInitialLoadError(err));
-        syncDisplayState([]);
-      } else {
-        setNotice(mapRefreshError(err, silent));
-      }
-    } finally {
-      refreshInFlightRef.current = false;
-      if (initial) {
-        setLoading(false);
-      } else {
-        setIsRefreshing(false);
-      }
-    }
-  }, [
-    displaysRef,
-    selectDisplay,
-    selectedIndexRef,
-    setError,
-    setIsRefreshing,
-    setLoading,
-    setNotice,
-    showWindow,
-    startStartupOverlay,
-    syncDisplayState,
-  ]);
+    },
+    [
+      commands,
+      displaysRef,
+      feedback,
+      selectDisplay,
+      selectedIndexRef,
+      showWindow,
+      startStartupOverlay,
+      syncDisplayState,
+    ]
+  );
 
   const loadDisplays = useCallback(async () => {
     await refreshDisplays({ initial: true });
@@ -171,32 +143,27 @@ export function useDisplayDeviceActions({
     }
 
     try {
-      setIsHdrPending(true);
-      const result = await setHdrEnabled(
-        display.adapter_id_low,
-        display.adapter_id_high,
-        display.target_id,
-        !display.hdr_enabled
-      );
+      feedback.setHdrPending(true);
+      const result = await commands.setHdrEnabled(display, !display.hdr_enabled);
 
       syncDisplayState(result);
       if (result.length > 0) {
         const matchedIndex = findMatchingDisplayIndex(result, display);
         selectDisplay(matchedIndex >= 0 ? matchedIndex : 0, result);
       }
-      setNotice(null);
+      feedback.clearNotice();
     } catch (err) {
-      setNotice(mapHdrToggleError());
+      feedback.reportHdrToggleError();
       throw err;
     } finally {
-      setIsHdrPending(false);
+      feedback.setHdrPending(false);
     }
   }, [
+    commands,
     displaysRef,
+    feedback,
     selectDisplay,
     selectedIndexRef,
-    setIsHdrPending,
-    setNotice,
     syncDisplayState,
   ]);
 
