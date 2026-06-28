@@ -1,13 +1,13 @@
 use crate::display::DisplayInfo;
 use std::sync::Mutex;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TrayDisplaySummary {
     pub name: String,
     pub nits: u32,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TrayState {
     pub displays: Vec<TrayDisplaySummary>,
 }

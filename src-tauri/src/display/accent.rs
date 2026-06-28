@@ -1,11 +1,11 @@
+use windows::core::PCWSTR;
+use windows::Win32::Foundation::WIN32_ERROR;
 /// Read the user's Windows 11 system accent color from the DWM registry key.
 ///
 /// Returns a CSS-compatible hex string (e.g. "#0078d4") or "#0078d4" as fallback.
 use windows::Win32::System::Registry::{
     RegGetValueW, HKEY_CURRENT_USER, REG_DWORD, REG_VALUE_TYPE, RRF_RT_REG_DWORD,
 };
-use windows::Win32::Foundation::WIN32_ERROR;
-use windows::core::PCWSTR;
 
 const FALLBACK_ACCENT_COLOR: &str = "#0078d4";
 const DWM_KEY: &str = r"SOFTWARE\Microsoft\Windows\DWM";
@@ -75,10 +75,7 @@ mod tests {
     #[test]
     fn converts_blue_hex_to_rgb_string() {
         // Windows default accent blue = #0078d4. Registry stores as 0x00D47800 (ABGR).
-        assert_eq!(
-            get_system_accent_color_for_value(0x00D47800),
-            "#0078D4"
-        );
+        assert_eq!(get_system_accent_color_for_value(0x00D47800), "#0078D4");
     }
 
     #[test]

@@ -4,6 +4,7 @@
 //! allowing precise error handling based on error codes.
 
 use serde::Serialize;
+use std::fmt;
 
 /// Structured error codes for display operations.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -104,3 +105,11 @@ impl DisplayError {
         )
     }
 }
+
+impl fmt::Display for DisplayError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for DisplayError {}

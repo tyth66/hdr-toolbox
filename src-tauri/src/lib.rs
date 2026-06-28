@@ -7,8 +7,8 @@ mod tray;
 use tauri::Manager;
 
 pub use display::{
-    get_system_accent_color,
-    get_hdr_displays, set_brightness, set_brightness_all, set_hdr_enabled, DisplayError,
+    get_hdr_displays, get_system_accent_color, set_brightness, set_brightness_all, set_hdr_enabled,
+    DisplayError,
 };
 pub use tray::{setup_tray, update_tray_menu, update_tray_tooltip};
 

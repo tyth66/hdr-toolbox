@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { DisplayInfo } from "../types";
 import { getSelectedDisplaySnapshot } from "./displayState";
 
-export function useDisplaySelection() {
+export function useDisplayStateStore() {
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [currentPercentage, setCurrentPercentage] = useState(50);
@@ -58,7 +58,5 @@ export function useDisplaySelection() {
     syncDisplayState,
     selectDisplay,
     previewPercentage,
-    setCurrentPercentage,
-    setHdrActive,
   };
 }

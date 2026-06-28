@@ -1,0 +1,50 @@
+import { useMemo } from "react";
+import {
+  getHdrDisplays,
+  setBrightness as setDisplayBrightness,
+  setBrightnessAll,
+  setHdrEnabled,
+  type BrightnessAllOutcome,
+} from "../services/tauriApi";
+import type { DisplayInfo } from "../types";
+
+export type DisplayCommandClient = {
+  getDisplays: () => Promise<DisplayInfo[]>;
+  setBrightness: (
+    display: DisplayInfo,
+    percentage: number
+  ) => Promise<DisplayInfo[]>;
+  setBrightnessAll: (
+    percentage: number
+  ) => Promise<BrightnessAllOutcome>;
+  setHdrEnabled: (
+    display: DisplayInfo,
+    enabled: boolean
+  ) => Promise<DisplayInfo[]>;
+};
+
+export function useDisplayCommandClient(): DisplayCommandClient {
+  return useMemo(
+    () => ({
+      getDisplays: getHdrDisplays,
+      setBrightness: (display, percentage) =>
+        setDisplayBrightness(
+          display.adapter_id_low,
+          display.adapter_id_high,
+          display.target_id,
+          percentage,
+          display.min_nits ?? 80,
+          display.max_nits ?? 480
+        ),
+      setBrightnessAll,
+      setHdrEnabled: (display, enabled) =>
+        setHdrEnabled(
+          display.adapter_id_low,
+          display.adapter_id_high,
+          display.target_id,
+          enabled
+        ),
+    }),
+    []
+  );
+}

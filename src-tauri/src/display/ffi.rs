@@ -10,7 +10,7 @@ use windows::Win32::Devices::Display::{
 use windows::Win32::Foundation::LUID;
 use windows::Win32::Graphics::Gdi::DISPLAYCONFIG_COLOR_ENCODING;
 
-use super::model::DisplayInfo;
+use super::{error::DisplayError, model::DisplayInfo};
 
 /// Undocumented Windows DisplayConfig device info type for setting SDR white level.
 /// This is a private Microsoft interface type not documented in the official API.
@@ -54,7 +54,7 @@ impl AdvancedColorState {
     }
 }
 
-pub(super) fn query_active_display_paths() -> Result<Vec<DisplayPath>, String> {
+pub(super) fn query_active_display_paths() -> Result<Vec<DisplayPath>, DisplayError> {
     let mut path_count: u32 = 0;
     let mut mode_count: u32 = 0;
 
@@ -62,11 +62,14 @@ pub(super) fn query_active_display_paths() -> Result<Vec<DisplayPath>, String> {
         GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut path_count, &mut mode_count)
     };
     if result != windows::Win32::Foundation::WIN32_ERROR(0) {
-        return Err(format!("GetDisplayConfigBufferSizes failed: {:#?}", result));
+        return Err(DisplayError::api_failed(format!(
+            "GetDisplayConfigBufferSizes failed: {:#?}",
+            result
+        )));
     }
 
     if path_count == 0 {
-        return Err("No display paths found".to_string());
+        return Err(DisplayError::no_display_paths());
     }
 
     let mut paths = vec![DISPLAYCONFIG_PATH_INFO::default(); path_count as usize];
@@ -86,7 +89,10 @@ pub(super) fn query_active_display_paths() -> Result<Vec<DisplayPath>, String> {
         )
     };
     if result != windows::Win32::Foundation::WIN32_ERROR(0) {
-        return Err(format!("QueryDisplayConfig failed: {:#?}", result));
+        return Err(DisplayError::api_failed(format!(
+            "QueryDisplayConfig failed: {:#?}",
+            result
+        )));
     }
 
     Ok(paths
@@ -151,7 +157,10 @@ pub(super) fn get_advanced_color_info(path: DisplayPath) -> AdvancedColorState {
     }
 }
 
-pub(super) fn get_sdr_white_level_raw(adapter_id: LUID, target_id: u32) -> Result<u32, String> {
+pub(super) fn get_sdr_white_level_raw(
+    adapter_id: LUID,
+    target_id: u32,
+) -> Result<u32, DisplayError> {
     let mut sdr_info = DISPLAYCONFIG_SDR_WHITE_LEVEL {
         header: windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER {
             r#type: DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL,
@@ -167,10 +176,10 @@ pub(super) fn get_sdr_white_level_raw(adapter_id: LUID, target_id: u32) -> Resul
         if result == 0 {
             Ok(DisplayInfo::api_value_to_nits(sdr_info.SDRWhiteLevel))
         } else {
-            Err(format!(
+            Err(DisplayError::sdr_white_level_failed(format!(
                 "DisplayConfigGetDeviceInfo(GET_SDR_WHITE_LEVEL) failed: {}",
                 result
-            ))
+            )))
         }
     }
 }
@@ -186,7 +195,7 @@ pub(super) fn set_sdr_white_level_raw(
     adapter_id: LUID,
     target_id: u32,
     nits: u32,
-) -> Result<(), String> {
+) -> Result<(), DisplayError> {
     let nits = nits.clamp(80, 480).div_ceil(4) * 4;
     let api_value = DisplayInfo::nits_to_api_value(nits);
 
@@ -208,10 +217,10 @@ pub(super) fn set_sdr_white_level_raw(
         if result == 0 {
             Ok(())
         } else {
-            Err(format!(
+            Err(DisplayError::sdr_white_level_failed(format!(
                 "DisplayConfigSetDeviceInfo(SET_SDR_WHITE_LEVEL) failed: {}",
                 result
-            ))
+            )))
         }
     }
 }
@@ -220,7 +229,7 @@ pub(super) fn set_advanced_color_state(
     adapter_id: LUID,
     target_id: u32,
     enabled: bool,
-) -> Result<(), String> {
+) -> Result<(), DisplayError> {
     let set_params = DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE {
         header: windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER {
             r#type: DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE,
@@ -238,10 +247,10 @@ pub(super) fn set_advanced_color_state(
         if result == 0 {
             Ok(())
         } else {
-            Err(format!(
+            Err(DisplayError::hdr_toggle_failed(format!(
                 "DisplayConfigSetDeviceInfo(SET_ADVANCED_COLOR_STATE) failed: {}",
                 result
-            ))
+            )))
         }
     }
 }
