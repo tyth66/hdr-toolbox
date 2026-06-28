@@ -1,6 +1,6 @@
 ﻿# HDR Toolbox - Knowledge Base
 
-**Generated:** 2026-04-01
+**Generated:** 2026-06-28
 **Type:** Rust + Tauri 2 (Windows desktop app)
 
 ## OVERVIEW
@@ -19,12 +19,16 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 |  |- components/             # Presentational UI
 |  |- hooks/                   # Stateful logic (display, hotkeys, window)
 |  |- services/tauriApi.ts     # Typed Tauri invoke wrappers
+|  |- theme.ts                 # Fluent theme generation from system accent
+|  |- visualQa.tsx             # Static browser visual QA harness
 |  '- types.ts                 # Shared constants
  |- src-tauri/src/
 |  |- lib.rs                   # Tauri builder + module wiring
 |  |- app/                     # State, commands, window
-|  |- display/                 # FFI, model, service, commands, error
+|  |- display/                 # FFI, model, service, commands, error, accent
 |  '- tray.rs                  # System tray
+|- DESIGN.md                   # Current UI/design source of truth
+|- visual-qa.html              # Browser QA entrypoint
 |- package.json
 |- vite.config.ts
 '- tsconfig.json
@@ -43,6 +47,9 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 | Display actions | `src/hooks/useDisplayDeviceActions.ts` | Refresh, brightness, HDR toggle |
 | Display state helpers | `src/hooks/displayState.ts` | Pure selection/update helpers |
 | Hotkeys | `src/hooks/useHotkeys.ts` + `src/hotkeys.ts` | User-configurable accelerators |
+| Theme preference | `src/themePreference.ts` + `src/hooks/useSystemColorScheme.ts` | System/Light/Dark persisted preference |
+| System accent | `src/hooks/useAccentColor.ts` + `src/theme.ts` | Reads Windows accent and applies CSS/Fluent tokens |
+| Visual QA | `visual-qa.html` + `src/visualQa.tsx` | Static WebView-state harness for browser QA |
 | Window position | `src/hooks/useWindowPosition.ts` | Saved position + tray placement |
 | Startup overlay | `src/hooks/useStartupOverlay.ts` | 4s info + Rust sync |
 | Error mapping | `src/errors.ts` | User-facing error messages |
@@ -50,29 +57,33 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 | DisplayConfig FFI | `src-tauri/src/display/ffi.rs` | DisplayConfig enumeration, HDR state, and SDR white level |
 | Display service | `src-tauri/src/display/service.rs` | HDR enumeration, toggle polling, fallback |
 | Display commands | `src-tauri/src/display/commands.rs` | Tauri command boundary + state updates |
+| System accent command | `src-tauri/src/display/accent.rs` | Reads Windows DWM accent color from registry |
 | App state | `src-tauri/src/app/state.rs` | AppState + TrayState |
 | Tray management | `src-tauri/src/tray.rs` | Dynamic menu, tooltip, click handlers |
-| Blur-to-hide | `src-tauri/src/app/window.rs` | Mica + `on_window_event(Focused(false))` |
+| Blur-to-hide | `src-tauri/src/app/window.rs` | Acrylic + `on_window_event(Focused(false))` |
 
 ## FRONTEND ARCHITECTURE
 
 - `components/`: presentational UI only
 - `hooks/`: stateful logic and side effects
 - `services/`: typed Tauri bridge
+- `theme.ts`: Fluent UI v9 brand ramp and effective theme helpers
+- `visualQa.tsx`: static QA-only rendering of production components
 - `types.ts`: shared constants and conversion helpers
 - `*.test.ts`: Node test runner coverage for pure frontend logic
 
-**Key rules:** No raw `invoke()` outside `services/tauriApi.ts`; keep `App.tsx` as composition; error copy in `errors.ts`.
+**Key rules:** No raw `invoke()` outside `services/tauriApi.ts`; keep `App.tsx` as composition; error copy in `errors.ts`; keep visual QA using a non-blue test accent so accent regressions are visible.
 
 ## RUST ARCHITECTURE
 
 - `display/model.rs`: DisplayInfo + luminance constants (80-480 nits)
 - `display/ffi.rs`: raw Windows DisplayConfig FFI
 - `display/error.rs`: structured error types (DisplayErrorCode, DisplayError)
+- `display/accent.rs`: DWM registry accent-color command
 - `display/service.rs`: HDR discovery, toggle, brightness logic, tests
 - `display/commands.rs`: Tauri command surface + state updates
 - `app/state.rs`: AppState + TrayState + TrayDisplaySummary
-- `app/window.rs`: blur-to-hide + Mica backdrop
+- `app/window.rs`: blur-to-hide + Acrylic backdrop
 - `tray.rs`: tray icon, menu, events from summary state
 - `lib.rs`: Tauri builder and module wiring
 
@@ -90,12 +101,16 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - React hooks only; no router
 - Keep `App.tsx` as composition, not business logic dumping ground
 - No raw `invoke()` outside `services/tauriApi.ts`
+- Use Fluent UI v9 for Slider, Switch, Button, and Provider
+- System accent must flow through Rust registry read -> `useAccentColor()` -> CSS vars + Fluent theme
+- Window display must refresh accent before showing the window, not after showing it
 - Exclude `*.test.ts` from production TypeScript build
 
 ### Tauri 2
 - `tray-icon` + `image-png` features
 - JS-side global shortcut registration and autostart
 - Rust-side blur-to-hide for frameless window reliability
+- Transparent WebView with Windows Acrylic backdrop via `window-vibrancy`
 - `tauri-plugin-single-instance` for single-instance enforcement
 
 ## ANTI-PATTERNS (THIS PROJECT)
@@ -132,6 +147,9 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - Non-blocking failures: auto-dismissing notice banner; init failures: blocking
 - **Single instance**: `tauri-plugin-single-instance` prevents multiple app instances; second instance focuses existing window
 - **Structured errors**: Commands return `{ code: DisplayErrorCode, message: string }` for precise frontend error handling
+- **System accent**: Windows accent color is read from `HKCU\SOFTWARE\Microsoft\Windows\DWM\AccentColor`; the window refreshes it before every show.
+- **UI baseline**: Acrylic transparent shell + Fluent UI v9 controls + system accent hover/active/focus states + 4-8px control radius.
+- **Visual QA**: use `agent-browser` against `visual-qa.html`; the harness intentionally uses a non-blue accent (`#c38aa0`) to expose default-blue regressions.
 
 ## COMMANDS
 

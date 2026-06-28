@@ -20,6 +20,8 @@ export interface DisplayInfo {
 
 export type HotkeyDirection = "increase" | "decrease";
 
+export type ThemePreference = "system" | "light" | "dark";
+
 export interface HotkeyConfig {
   increase: string;
   decrease: string;

@@ -1,5 +1,7 @@
 import { memo, type MouseEventHandler } from "react";
+import { Button } from "@fluentui/react-components";
 import { SvgIcon } from "./SvgIcon";
+import { ArrowSyncRegular, SettingsRegular, DismissRegular } from "@fluentui/react-icons";
 
 type TitleBarProps = {
   onMouseDown?: MouseEventHandler<HTMLElement>;
@@ -22,41 +24,47 @@ export const TitleBar = memo(function TitleBar({
     <header className="title-bar" onMouseDown={onMouseDown}>
       <span className="title-bar-title">HDR Toolbox</span>
       {minimal ? (
-        <button className="title-bar-close" onClick={onClose}>
-          x
-        </button>
+        <Button
+          className="title-bar-btn title-bar-close"
+          appearance="subtle"
+          size="small"
+          icon={<DismissRegular />}
+          onClick={onClose}
+          title="Close"
+          aria-label="Close window"
+        />
       ) : (
         <div className="title-bar-actions">
-          <button
+          <Button
             className="title-bar-btn"
+            appearance="subtle"
+            size="small"
+            icon={refreshing ? <SvgIcon name="spinner" className="ui-icon-spin" /> : <ArrowSyncRegular />}
             onClick={() => {
               onRefresh?.();
             }}
             title={refreshing ? "Refreshing display list..." : "Refresh display list"}
             disabled={refreshing}
             aria-label="Refresh display list"
-          >
-            <SvgIcon
-              name={refreshing ? "spinner" : "refresh"}
-              className={refreshing ? "ui-icon-spin" : undefined}
-            />
-          </button>
-          <button
+          />
+          <Button
             className="title-bar-btn"
+            appearance="subtle"
+            size="small"
+            icon={<SettingsRegular />}
             onClick={onOpenSettings}
             title="Settings"
             aria-label="Open settings"
-          >
-            <SvgIcon name="settings" />
-          </button>
-          <button
+          />
+          <Button
             className="title-bar-btn title-bar-close"
+            appearance="subtle"
+            size="small"
+            icon={<DismissRegular />}
             onClick={onClose}
             title="Close"
             aria-label="Close window"
-          >
-            <SvgIcon name="close" />
-          </button>
+          />
         </div>
       )}
     </header>

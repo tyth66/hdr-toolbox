@@ -11,7 +11,7 @@ export function SvgIcon({ name, className }: SvgIconProps) {
     viewBox: "0 0 24 24",
     "aria-hidden": "true" as const,
     fill: "none" as const,
-    stroke: "#ffffff" as const,
+    stroke: "currentColor" as const,
     strokeWidth: 2 as const,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,

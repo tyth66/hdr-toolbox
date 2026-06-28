@@ -1,8 +1,10 @@
 import { memo, type WheelEventHandler } from "react";
+import { Slider, type SliderOnChangeData } from "@fluentui/react-components";
 import { SLIDER } from "../types";
 
 type BrightnessSliderProps = {
   value: number;
+  displayName: string;
   disabled?: boolean;
   onChange: (value: number, element: HTMLInputElement) => void;
   onPointerDown: () => void;
@@ -12,6 +14,7 @@ type BrightnessSliderProps = {
 
 export const BrightnessSlider = memo(function BrightnessSlider({
   value,
+  displayName,
   disabled = false,
   onChange,
   onPointerDown,
@@ -19,7 +22,10 @@ export const BrightnessSlider = memo(function BrightnessSlider({
   onWheelAdjust,
 }: BrightnessSliderProps) {
   return (
-    <div className="slider-section">
+    <div className="slider-section" onWheel={onWheelAdjust}>
+      <div className="display-name" title={displayName}>
+        {displayName}
+      </div>
       <div className="slider-header">
         <span className="slider-label">SDR Brightness</span>
         <div className="slider-value">
@@ -32,27 +38,30 @@ export const BrightnessSlider = memo(function BrightnessSlider({
         <div className="slider-helper">Turn HDR on to adjust SDR brightness</div>
       ) : null}
 
-      <div className="slider-wrapper" onWheel={onWheelAdjust}>
-        <div className="slider-fill" style={{ width: `${value}%` }} />
-        <input
-          type="range"
-          min={SLIDER.MIN}
-          max={SLIDER.MAX}
-          step={1}
-          value={value}
-          onChange={(event) => onChange(parseInt(event.target.value, 10), event.target)}
-          onMouseDown={onPointerDown}
-          onMouseUp={(event) => onCommit(parseInt(event.currentTarget.value, 10))}
-          onTouchStart={onPointerDown}
-          onTouchEnd={(event) => onCommit(parseInt(event.currentTarget.value, 10))}
-          className={`brightness-slider ${disabled ? "disabled" : ""}`}
-          disabled={disabled}
-          aria-label="SDR Brightness"
-          aria-valuemin={SLIDER.MIN}
-          aria-valuemax={SLIDER.MAX}
-          aria-valuenow={value}
-        />
-      </div>
+      <Slider
+        className="brightness-slider-control"
+        min={SLIDER.MIN}
+        max={SLIDER.MAX}
+        step={1}
+        value={value}
+        disabled={disabled}
+        size="small"
+        onChange={(_ev: React.ChangeEvent<HTMLInputElement>, data: SliderOnChangeData) => {
+          onChange(data.value, _ev.target);
+        }}
+        onMouseDown={onPointerDown}
+        onMouseUp={(_ev: React.MouseEvent<HTMLInputElement>) => {
+          onCommit(Number(_ev.currentTarget.value));
+        }}
+        onTouchStart={onPointerDown}
+        onTouchEnd={(_ev: React.TouchEvent<HTMLInputElement>) => {
+          onCommit(Number(_ev.currentTarget.value));
+        }}
+        aria-label="SDR Brightness"
+        aria-valuemin={SLIDER.MIN}
+        aria-valuemax={SLIDER.MAX}
+        aria-valuenow={value}
+      />
 
       <div className="slider-range">
         <span>{SLIDER.MIN}</span>

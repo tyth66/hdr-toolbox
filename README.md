@@ -30,6 +30,7 @@
 | 🔄 **Manual Refresh** | Re-detect displays via title bar |
 | 🚀 **Auto-start** | Launch on system boot (optional) |
 | 📍 **Tray Control** | Left-click show/hide, right-click menu |
+| 🎨 **Native Theme** | Acrylic window surface, Fluent UI controls, and Windows system accent color |
 
 ---
 
@@ -99,9 +100,14 @@ npm run tauri build
 |---------|-------------|
 | **Auto-start** | Enable/disable in Settings |
 | **Sync all displays** | Apply brightness changes to every detected HDR-capable display |
+| **Theme** | Follow system theme by default, or choose Light/Dark in Settings |
 | **Brightness Range** | Fixed at **80-480 nits** |
 
 > ℹ️ This app controls **SDR White Level** (Windows display adapter), not monitor OSD backlight brightness.
+
+### Appearance
+
+The app uses a transparent Tauri window with a Windows Acrylic backdrop and Fluent UI v9 controls. The Windows system accent color is read from the DWM registry and applied to sliders, switches, selected displays, and hover/focus states. The accent color is refreshed before the tray window is shown.
 
 ---
 
@@ -120,6 +126,7 @@ npm run tauri build
 | Layer | Technology |
 |-------|------------|
 | Frontend | React 18 · TypeScript · Vite |
+| UI | Fluent UI v9 · CSS tokens · Windows Acrylic |
 | Backend | Rust · Tauri 2 |
 | System API | Windows DisplayConfig API |
 

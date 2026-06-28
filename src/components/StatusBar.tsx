@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { Switch } from "@fluentui/react-components";
 
 type StatusBarProps = {
   hdrSupported: boolean;
@@ -14,35 +15,29 @@ export const StatusBar = memo(function StatusBar({
   onToggleHdr,
 }: StatusBarProps) {
   const toggleDisabled = !hdrSupported || hdrPending;
-  const title = !hdrSupported
-    ? "HDR is not available for this display"
-    : hdrPending
-      ? "Updating HDR setting..."
-      : hdrActive
-        ? "Disable HDR"
-        : "Enable HDR";
+  const label = !hdrSupported
+    ? "SDR Only"
+    : hdrActive
+      ? "HDR On"
+      : "HDR Off";
 
   return (
     <div className="status-bar">
       <div className="status-left">
         <div className={`status-indicator ${hdrActive ? "hdr-active" : ""}`} />
-        <span className="status-text">
-          {hdrSupported ? (hdrActive ? "HDR On" : "HDR OFF") : "SDR Only"}
-        </span>
+        <span className="status-text">{label}</span>
       </div>
       <div className="status-right">
         <span className="status-label">HDR</span>
-        <button
-          className={`hdr-toggle ${hdrActive ? "active" : ""}`}
-          type="button"
+        <Switch
+          className="accent-switch status-switch"
+          checked={hdrActive}
           disabled={toggleDisabled}
-          title={title}
-          onClick={() => {
+          onChange={() => {
             onToggleHdr?.();
           }}
-        >
-          <span className="toggle-thumb" />
-        </button>
+          aria-label={label}
+        />
       </div>
     </div>
   );

@@ -19,7 +19,11 @@ import {
   loadSyncBrightnessEnabled,
   saveSyncBrightnessEnabled,
 } from "../syncBrightness";
-import type { HotkeyConfig, HotkeyDirection } from "../types";
+import {
+  loadThemePreference,
+  saveThemePreference,
+} from "../themePreference";
+import type { HotkeyConfig, HotkeyDirection, ThemePreference } from "../types";
 
 type UseAppControllerOptions = {
   loadDisplays: () => Promise<void>;
@@ -45,6 +49,9 @@ export function useAppController({
   const [autostartEnabled, setAutostartEnabled] = useState(false);
   const [syncBrightnessEnabled, setSyncBrightnessEnabled] = useState(() =>
     loadSyncBrightnessEnabled()
+  );
+  const [themePreference, setThemePreference] = useState<ThemePreference>(() =>
+    loadThemePreference()
   );
   const [hotkeys, setHotkeys] = useState<HotkeyConfig>(() => loadHotkeys());
 
@@ -129,6 +136,12 @@ export function useAppController({
     setNotice(null);
   }, [setNotice, syncBrightnessEnabled]);
 
+  const handleThemePreferenceChange = useCallback((preference: ThemePreference) => {
+    setThemePreference(preference);
+    saveThemePreference(preference);
+    setNotice(null);
+  }, [setNotice]);
+
   return {
     showSettings,
     setShowSettings,
@@ -136,9 +149,11 @@ export function useAppController({
     setShowAbout,
     autostartEnabled,
     syncBrightnessEnabled,
+    themePreference,
     hotkeys,
     handleToggleAutostart,
     handleToggleSyncBrightness,
+    handleThemePreferenceChange,
     handleHotkeyChange,
     handleHotkeyReset,
   };

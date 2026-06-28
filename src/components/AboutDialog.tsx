@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { Button } from "@fluentui/react-components";
 import { formatHotkeyLabel } from "../hotkeys";
 import { HOTKEYS, type HotkeyConfig } from "../types";
 
@@ -14,9 +15,9 @@ export const AboutDialog = memo(function AboutDialog({ open, hotkeys, onClose }:
   }
 
   return (
-    <div className="about-overlay" onClick={onClose} role="presentation">
+    <div className="dialog-overlay" onClick={onClose} role="presentation">
       <div
-        className="about-dialog"
+        className="dialog-shell"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -27,7 +28,7 @@ export const AboutDialog = memo(function AboutDialog({ open, hotkeys, onClose }:
           A lightweight tray app for adjusting SDR brightness on HDR-capable
           displays without opening Windows Settings.
         </p>
-        <div className="shortcuts">
+        <div className="dialog-list">
           <div>
             <strong>Left-click tray:</strong> Show or hide the window
           </div>
@@ -38,10 +39,10 @@ export const AboutDialog = memo(function AboutDialog({ open, hotkeys, onClose }:
             <strong>{formatHotkeyLabel(hotkeys.decrease)}:</strong> -{HOTKEYS.STEP}%
           </div>
         </div>
-        <p style={{ fontSize: "11px", color: "#999" }}>v1.0.0 | MIT License</p>
-        <button className="btn btn-primary close-btn" onClick={onClose}>
+        <p className="dialog-meta">v1.0.0 | MIT License</p>
+        <Button className="btn-primary close-btn" appearance="primary" onClick={onClose}>
           Done
-        </button>
+        </Button>
       </div>
     </div>
   );
