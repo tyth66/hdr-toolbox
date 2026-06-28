@@ -77,8 +77,8 @@ npm run tauri build
 
 - Every branch push and pull request runs the Windows CI workflow.
 - CI validates TypeScript, frontend tests, Rust formatting, `cargo check`, clippy, Rust tests, and the Vite frontend build.
-- After CI succeeds for a branch push, the release workflow automatically builds the Windows Tauri release bundle and uploads it as a workflow artifact.
-- Pushing a `v*` tag still builds the release bundle and publishes GitHub Release assets.
+- After CI succeeds for a `main` branch push, the release workflow automatically builds the Windows Tauri release bundle, uploads it as a workflow artifact, and publishes the formal `HDR Toolbox` GitHub Release.
+- The formal release uses the fixed `release` tag and stable asset names without version suffixes: `hdr-toolbox.exe`, `hdr-toolbox-setup.exe`, and `hdr-toolbox.msi`.
 
 ---
 

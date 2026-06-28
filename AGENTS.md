@@ -140,8 +140,8 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - `clippy.toml` — Clippy lint configuration (src-tauri/)
 - CI runs on every branch push and pull request
 - CI should run `cargo fmt --check`, `cargo clippy`, frontend checks, and Rust tests
-- Release builds run automatically after successful push CI and upload Windows Tauri artifacts
-- `v*` tags publish GitHub Release assets
+- Release builds run automatically after successful `main` push CI, upload Windows Tauri artifacts, and publish the formal `HDR Toolbox` GitHub Release
+- Formal release publishing uses the fixed `release` tag and stable asset filenames without version suffixes
 
 ## CRITICAL NOTES
 

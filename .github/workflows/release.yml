@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -26,7 +26,8 @@ jobs:
       github.event_name != 'workflow_run' ||
       (
         github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push'
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main'
       )
 
     steps:
@@ -60,23 +61,56 @@ jobs:
       - name: Build Tauri release
         run: npm run tauri build
 
+      - name: Stage release assets
+        shell: pwsh
+        run: |
+          $stage = "release-assets"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+
+          Copy-Item "src-tauri/target/release/hdr-toolbox.exe" "$stage/hdr-toolbox.exe"
+
+          $setup = Get-ChildItem "src-tauri/target/release/bundle" -Recurse -File -Filter "*.exe" |
+            Select-Object -First 1
+          if ($setup) {
+            Copy-Item $setup.FullName "$stage/hdr-toolbox-setup.exe"
+          }
+
+          $msi = Get-ChildItem "src-tauri/target/release/bundle" -Recurse -File -Filter "*.msi" |
+            Select-Object -First 1
+          if ($msi) {
+            Copy-Item $msi.FullName "$stage/hdr-toolbox.msi"
+          }
+
+          Get-ChildItem $stage
+
       - name: Upload bundled artifacts
         uses: actions/upload-artifact@v4
         with:
           name: hdr-toolbox-windows-release
           path: |
-            src-tauri/target/release/hdr-toolbox.exe
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.exe
+            release-assets/*
           if-no-files-found: error
 
-      - name: Publish GitHub release assets
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Update rolling release tag
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f release
+          git push -f origin release
+
+      - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: release
+          name: HDR Toolbox
           files: |
-            src-tauri/target/release/hdr-toolbox.exe
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.exe
+            release-assets/*
           fail_on_unmatched_files: false
-          generate_release_notes: true
+          draft: false
+          prerelease: false
+          make_latest: true
+          body: |
+            Latest stable Windows build for HDR Toolbox.
+
+            Assets use stable filenames without version suffixes.

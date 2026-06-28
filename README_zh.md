@@ -77,8 +77,8 @@ npm run tauri build
 
 - 每次分支代码 push 和 pull request 都会运行 Windows CI。
 - CI 会验证 TypeScript、前端测试、Rust 格式、`cargo check`、clippy、Rust 测试和 Vite 前端构建。
-- 分支 push 的 CI 通过后，Release workflow 会自动构建 Windows Tauri 发布包，并上传为 workflow artifact。
-- 推送 `v*` tag 时仍会构建发布包，并发布到 GitHub Releases。
+- `main` 分支 push 的 CI 通过后，Release workflow 会自动构建 Windows Tauri 发布包，上传为 workflow artifact，并发布正式的 `HDR Toolbox` GitHub Release。
+- 正式发布使用固定的 `release` tag，产物文件名保持稳定且不带版本号后缀：`hdr-toolbox.exe`、`hdr-toolbox-setup.exe`、`hdr-toolbox.msi`。
 
 ---
 
