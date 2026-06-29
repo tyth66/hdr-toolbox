@@ -8,8 +8,12 @@ use super::ffi::{
     get_advanced_color_info, get_display_name, get_sdr_white_level_raw, query_active_display_paths,
     set_advanced_color_state, set_sdr_white_level_raw, DisplayPath,
 };
-use super::model::{luminance, DisplayInfo};
+use super::model::{luminance, BrightnessSource, DisplayInfo};
 use super::DisplayError;
+use super::{
+    ddcci::{self, DdcDisplay},
+    wmi::{self, WmiDisplay},
+};
 
 const MAX_CONSECUTIVE_FAILURES: usize = 3;
 const HDR_STATE_POLL_ATTEMPTS: usize = 8;
@@ -92,95 +96,11 @@ static FAILURE_TRACKER: Lazy<std::sync::Mutex<PerDisplayFailureTracker>> =
     Lazy::new(|| std::sync::Mutex::new(PerDisplayFailureTracker::new()));
 
 pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, DisplayError> {
-    let paths = query_active_display_paths()?;
+    get_displays_impl()
+}
 
-    let mut displays = Vec::new();
-    let mut tracker = match FAILURE_TRACKER.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => {
-            // Mutex was poisoned due to a previous panic. Log error and recover the inner value.
-            // This means failure tracking state may be stale but the app can continue functioning.
-            tracing::error!(
-                "[CRITICAL] Failure tracker mutex was poisoned (previous panic in critical section): {}",
-                poisoned
-            );
-            // Recover by using the inner value even though the mutex was poisoned
-            poisoned.into_inner()
-        }
-    };
-
-    for path in paths {
-        let key = DisplayKey::from_path(&path);
-
-        // Check if this specific display has too many failures
-        if tracker.is_disabled(&key) {
-            tracing::warn!(
-                "Skipping display {:?} - too many consecutive failures. Refresh to retry.",
-                key
-            );
-            continue;
-        }
-
-        let display_name = get_display_name(path);
-        let advanced_color_info = get_advanced_color_info(path);
-        let hdr_supported = advanced_color_info.is_supported();
-        let hdr_enabled = advanced_color_info.is_enabled();
-
-        if !hdr_supported {
-            continue;
-        }
-
-        let nits = match get_sdr_white_level_raw(path.adapter_id, path.target_id) {
-            Ok(n) => {
-                // Success - reset failure count for this display
-                tracker.reset(&key);
-                n
-            }
-            Err(e) => {
-                // Record failure for this specific display
-                let disabled = tracker.record_failure(&key);
-                if disabled {
-                    tracing::error!(
-                        "Display '{}' ({:?}) disabled after {} consecutive failures",
-                        display_name,
-                        key,
-                        MAX_CONSECUTIVE_FAILURES
-                    );
-                } else {
-                    tracing::warn!(
-                        "Failed to read SDR white level for '{}': {}; using fallback {} nits",
-                        display_name,
-                        e,
-                        luminance::DEFAULT_NITS
-                    );
-                }
-                luminance::DEFAULT_NITS
-            }
-        };
-
-        let min_nits = Some(luminance::MIN_NITS);
-        let max_nits = Some(luminance::MAX_NITS);
-        tracing::info!(
-            "Display '{}' brightness range: {}-{} nits (HDR10 standard)",
-            display_name,
-            luminance::MIN_NITS,
-            luminance::MAX_NITS
-        );
-
-        displays.push(DisplayInfo {
-            name: display_name,
-            nits,
-            min_percentage: 0,
-            max_percentage: 100,
-            hdr_supported,
-            hdr_enabled,
-            adapter_id_low: path.adapter_id_low,
-            adapter_id_high: path.adapter_id_high,
-            target_id: path.target_id,
-            min_nits,
-            max_nits,
-        });
-    }
+pub(super) fn get_displays_impl() -> Result<Vec<DisplayInfo>, DisplayError> {
+    let displays = enumerate_all_brightness_displays();
 
     if displays.is_empty() {
         Err(DisplayError::no_hdr_displays())
@@ -189,21 +109,79 @@ pub(super) fn get_hdr_displays_impl() -> Result<Vec<DisplayInfo>, DisplayError> 
     }
 }
 
-pub(super) fn set_brightness_impl(
-    adapter_low: i32,
-    adapter_high: i32,
-    target_id: u32,
-    percentage: u32,
-    min_nits: u32,
-    max_nits: u32,
-) -> Result<(), DisplayError> {
-    let adapter_id = LUID {
-        LowPart: adapter_low as u32,
-        HighPart: adapter_high,
+fn enumerate_all_brightness_displays() -> Vec<DisplayInfo> {
+    let mut displays = match enumerate_hdr_sdr_displays() {
+        Ok(displays) => displays,
+        Err(error) => {
+            tracing::warn!("HDR SDR enumeration skipped: {}", error);
+            Vec::new()
+        }
     };
-    let nits = percentage_to_nits(percentage, min_nits, max_nits);
-    set_sdr_white_level_raw(adapter_id, target_id, nits)
+
+    match ddcci::enumerate_ddc_displays() {
+        Ok(ddc_displays) => {
+            for display in ddc_displays {
+                merge_ddc_display(&mut displays, display);
+            }
+        }
+        Err(error) => tracing::warn!("DDC/CI enumeration skipped: {}", error),
+    }
+
+    match wmi::enumerate_wmi_displays() {
+        Ok(wmi_displays) => {
+            for display in wmi_displays {
+                merge_wmi_display(&mut displays, display);
+            }
+        }
+        Err(error) => tracing::warn!("WMI enumeration skipped: {}", error),
+    }
+
+    displays
 }
+
+
+pub(super) fn set_display_brightness_impl(
+    display: &DisplayInfo,
+    percentage: u32,
+) -> Result<(), DisplayError> {
+    let percentage = percentage.clamp(0, 100);
+
+    match display.brightness_source {
+        BrightnessSource::HdrSdr => {
+            let adapter_id = LUID {
+                LowPart: display.adapter_id_low as u32,
+                HighPart: display.adapter_id_high,
+            };
+            let nits = super::brightness::percent_to_sdr_nits(percentage);
+            set_sdr_white_level_raw(adapter_id, display.target_id, nits)
+        }
+        BrightnessSource::DdcHighLevel => {
+            ddcci::set_ddc_high_level_brightness(&display.brightness_device_id, percentage)
+        }
+        BrightnessSource::DdcVcp => {
+            let vcp_code = display.brightness_vcp_code.ok_or_else(|| {
+                DisplayError::ddc_brightness_failed(format!(
+                    "Missing DDC VCP code for {}",
+                    display.brightness_device_id
+                ))
+            })?;
+            let vcp_code = u8::try_from(vcp_code).map_err(|_| {
+                DisplayError::ddc_brightness_failed(format!(
+                    "Invalid DDC VCP code {vcp_code} for {}",
+                    display.brightness_device_id
+                ))
+            })?;
+            ddcci::set_ddc_vcp_brightness(
+                &display.brightness_device_id,
+                vcp_code,
+                percentage,
+                display.brightness_raw_max.unwrap_or(100),
+            )
+        }
+        BrightnessSource::Wmi => wmi::set_wmi_brightness(&display.brightness_device_id, percentage),
+    }
+}
+
 
 pub(super) fn set_brightness_all_impl(
     displays: Vec<DisplayInfo>,
@@ -239,7 +217,7 @@ pub(super) fn set_hdr_enabled_impl(
     set_advanced_color_state(adapter_id, target_id, enabled)
 }
 
-pub(super) fn get_hdr_displays_after_toggle_impl(
+#[allow(dead_code)] pub(super) fn get_hdr_displays_after_toggle_impl(
     adapter_low: i32,
     adapter_high: i32,
     target_id: u32,
@@ -270,11 +248,185 @@ pub(super) fn get_hdr_displays_after_toggle_impl(
     Ok(last_displays.unwrap_or_default())
 }
 
+
+fn enumerate_hdr_sdr_displays() -> Result<Vec<DisplayInfo>, DisplayError> {
+    let paths = query_active_display_paths()?;
+
+    let mut displays = Vec::new();
+    let mut tracker = match FAILURE_TRACKER.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            tracing::error!(
+                "[CRITICAL] Failure tracker mutex was poisoned (previous panic in critical section): {}",
+                poisoned
+            );
+            poisoned.into_inner()
+        }
+    };
+
+    for path in paths {
+        let key = DisplayKey::from_path(&path);
+
+        if tracker.is_disabled(&key) {
+            tracing::warn!(
+                "Skipping display {:?} - too many consecutive failures. Refresh to retry.",
+                key
+            );
+            continue;
+        }
+
+        let display_name = get_display_name(path);
+        let advanced_color_info = get_advanced_color_info(path);
+        let hdr_supported = advanced_color_info.is_supported();
+        let hdr_enabled = advanced_color_info.is_enabled();
+
+        if !hdr_supported {
+            continue;
+        }
+
+        let nits = match get_sdr_white_level_raw(path.adapter_id, path.target_id) {
+            Ok(n) => {
+                tracker.reset(&key);
+                n
+            }
+            Err(e) => {
+                let disabled = tracker.record_failure(&key);
+                if disabled {
+                    tracing::error!(
+                        "Display '{}' ({:?}) disabled after {} consecutive failures",
+                        display_name,
+                        key,
+                        MAX_CONSECUTIVE_FAILURES
+                    );
+                } else {
+                    tracing::warn!(
+                        "Failed to read SDR white level for '{}': {}; using fallback {} nits",
+                        display_name,
+                        e,
+                        luminance::DEFAULT_NITS
+                    );
+                }
+                luminance::DEFAULT_NITS
+            }
+        };
+
+        let brightness = super::brightness::sdr_nits_to_percent(nits);
+
+        displays.push(DisplayInfo {
+            name: display_name,
+            brightness,
+            brightness_source: BrightnessSource::HdrSdr,
+            brightness_raw: Some(brightness),
+            brightness_raw_max: Some(100),
+            brightness_device_id: display_identity(
+                path.adapter_id_low,
+                path.adapter_id_high,
+                path.target_id,
+            ),
+            brightness_vcp_code: None,
+            ddc_source: None,
+            nits,
+            min_percentage: 0,
+            max_percentage: 100,
+            hdr_supported,
+            hdr_enabled,
+            adapter_id_low: path.adapter_id_low,
+            adapter_id_high: path.adapter_id_high,
+            target_id: path.target_id,
+            min_nits: Some(luminance::MIN_NITS),
+            max_nits: Some(luminance::MAX_NITS),
+        });
+    }
+
+    Ok(displays)
+}
+
+fn merge_ddc_display(displays: &mut Vec<DisplayInfo>, display: DdcDisplay) {
+    let ddc_source = if display.high_level_supported {
+        BrightnessSource::DdcHighLevel
+    } else {
+        BrightnessSource::DdcVcp
+    };
+
+    // If an HDR SDR entry already exists, inject DDC metadata for HDR-off fallback.
+    if let Some(existing) = displays.iter_mut().find(|existing| {
+        existing.brightness_source == BrightnessSource::HdrSdr && existing.name == display.name
+    }) {
+        existing.ddc_source = Some(ddc_source);
+        existing.brightness_device_id = display.device_key;
+        existing.brightness_vcp_code = display.vcp_code.map(u32::from);
+        existing.brightness_raw = Some(display.brightness_raw);
+        existing.brightness_raw_max = Some(display.brightness_raw_max);
+        return;
+    }
+
+    let target_id = next_provider_target_id(displays);
+
+    displays.push(DisplayInfo {
+        name: display.name,
+        brightness: display.brightness_percent,
+        brightness_source: ddc_source,
+        brightness_raw: Some(display.brightness_raw),
+        brightness_raw_max: Some(display.brightness_raw_max),
+        brightness_device_id: display.device_key,
+        brightness_vcp_code: display.vcp_code.map(u32::from),
+        ddc_source: None,
+        nits: luminance::DEFAULT_NITS,
+        min_percentage: 0,
+        max_percentage: 100,
+        hdr_supported: false,
+        hdr_enabled: false,
+        adapter_id_low: -1000,
+        adapter_id_high: 0,
+        target_id,
+        min_nits: None,
+        max_nits: None,
+    });
+}
+
+fn merge_wmi_display(displays: &mut Vec<DisplayInfo>, display: WmiDisplay) {
+    let target_id = next_provider_target_id(displays);
+
+    displays.push(DisplayInfo {
+        name: display.name,
+        brightness: display.brightness_percent,
+        brightness_source: BrightnessSource::Wmi,
+        brightness_raw: Some(display.brightness_percent),
+        brightness_raw_max: Some(100),
+        brightness_device_id: display.key,
+        brightness_vcp_code: None,
+        ddc_source: None,
+        nits: luminance::DEFAULT_NITS,
+        min_percentage: 0,
+        max_percentage: 100,
+        hdr_supported: false,
+        hdr_enabled: false,
+        adapter_id_low: -2000,
+        adapter_id_high: 0,
+        target_id,
+        min_nits: None,
+        max_nits: None,
+    });
+}
+
+fn next_provider_target_id(displays: &[DisplayInfo]) -> u32 {
+    displays
+        .iter()
+        .map(|display| display.target_id)
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1)
+}
+
+fn display_identity(adapter_low: i32, adapter_high: i32, target_id: u32) -> String {
+    format!("{adapter_low}:{adapter_high}:{target_id}")
+}
+
 fn percentage_to_nits(percentage: u32, min_nits: u32, max_nits: u32) -> u32 {
     ((percentage.clamp(0, 100) * (max_nits.saturating_sub(min_nits))) / 100) + min_nits
 }
 
-pub(super) fn percentage_to_nits_public(percentage: u32, min_nits: u32, max_nits: u32) -> u32 {
+#[allow(dead_code)] pub(super) fn percentage_to_nits_public(percentage: u32, min_nits: u32, max_nits: u32) -> u32 {
     percentage_to_nits(percentage, min_nits, max_nits)
 }
 
@@ -424,10 +576,17 @@ mod tests {
 
     #[test]
     fn display_key_from_display_roundtrip() {
-        use crate::display::DisplayInfo;
+        use crate::display::{model::BrightnessSource, DisplayInfo};
 
         let display_info = DisplayInfo {
             name: "Test Display".to_string(),
+            brightness: 50,
+            brightness_source: BrightnessSource::HdrSdr,
+            brightness_raw: Some(50),
+            brightness_raw_max: Some(100),
+            brightness_device_id: "123:456:789".to_string(),
+            brightness_vcp_code: None,
+            ddc_source: None,
             nits: 280,
             min_percentage: 0,
             max_percentage: 100,

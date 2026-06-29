@@ -11,6 +11,7 @@ import { StartupInfoDialog } from "./components/StartupInfoDialog";
 import { StatusBar } from "./components/StatusBar";
 import { SvgIcon } from "./components/SvgIcon";
 import { TitleBar } from "./components/TitleBar";
+import { getBrightnessSourceLabel, isHdrBrightnessSource } from "./brightnessSource";
 import { createSystemAccentTheme } from "./theme";
 import { HOTKEYS, type DisplayInfo } from "./types";
 
@@ -28,6 +29,11 @@ const VISUAL_QA_ACCENT_STYLE = {
 const displays: DisplayInfo[] = [
   {
     name: "LG UltraGear HDR Primary Display With Extra Long Friendly Name That Must Truncate Cleanly",
+    brightness: 58,
+    brightness_source: "hdr_sdr",
+    brightness_raw: 58,
+    brightness_raw_max: 100,
+    brightness_device_id: "1:0:1",
     nits: 312,
     min_percentage: 0,
     max_percentage: 100,
@@ -39,6 +45,11 @@ const displays: DisplayInfo[] = [
   },
   {
     name: "Studio HDR",
+    brightness: 35,
+    brightness_source: "hdr_sdr",
+    brightness_raw: 35,
+    brightness_raw_max: 100,
+    brightness_device_id: "2:0:2",
     nits: 220,
     min_percentage: 0,
     max_percentage: 100,
@@ -50,6 +61,11 @@ const displays: DisplayInfo[] = [
   },
   {
     name: "Reference HDR",
+    brightness: 25,
+    brightness_source: "hdr_sdr",
+    brightness_raw: 25,
+    brightness_raw_max: 100,
+    brightness_device_id: "3:0:3",
     nits: 180,
     min_percentage: 0,
     max_percentage: 100,
@@ -61,6 +77,11 @@ const displays: DisplayInfo[] = [
   },
   {
     name: "Side HDR",
+    brightness: 50,
+    brightness_source: "hdr_sdr",
+    brightness_raw: 50,
+    brightness_raw_max: 100,
+    brightness_device_id: "4:0:4",
     nits: 280,
     min_percentage: 0,
     max_percentage: 100,
@@ -71,6 +92,58 @@ const displays: DisplayInfo[] = [
     target_id: 4,
   },
 ];
+
+const ddcHighLevelDisplay: DisplayInfo = {
+  name: "External DDC High Level",
+  brightness: 58,
+  brightness_source: "ddc_high_level",
+  brightness_raw: 58,
+  brightness_raw_max: 100,
+  brightness_device_id: "MONITOR#DDC_HIGH#1",
+  nits: 280,
+  min_percentage: 0,
+  max_percentage: 100,
+  hdr_supported: false,
+  hdr_enabled: false,
+  adapter_id_low: -1000,
+  adapter_id_high: 0,
+  target_id: 10,
+};
+
+const ddcVcpDisplay: DisplayInfo = {
+  name: "External DDC VCP",
+  brightness: 63,
+  brightness_source: "ddc_vcp",
+  brightness_raw: 160,
+  brightness_raw_max: 254,
+  brightness_device_id: "MONITOR#DDC_VCP#1",
+  brightness_vcp_code: 0x10,
+  nits: 280,
+  min_percentage: 0,
+  max_percentage: 100,
+  hdr_supported: false,
+  hdr_enabled: false,
+  adapter_id_low: -1000,
+  adapter_id_high: 0,
+  target_id: 11,
+};
+
+const wmiInternalDisplay: DisplayInfo = {
+  name: "Internal Display",
+  brightness: 42,
+  brightness_source: "wmi",
+  brightness_raw: 42,
+  brightness_raw_max: 100,
+  brightness_device_id: "DISPLAY\\INTERNAL\\1",
+  nits: 280,
+  min_percentage: 0,
+  max_percentage: 100,
+  hdr_supported: false,
+  hdr_enabled: false,
+  adapter_id_low: -2000,
+  adapter_id_high: 0,
+  target_id: 12,
+};
 
 const noop = () => {};
 const noopAsync = async () => {};
@@ -119,6 +192,9 @@ function MainSurface({
   refreshing = false,
 }: MainSurfaceProps) {
   const selectedDisplay = displaySet[selectedIndex] ?? displaySet[0];
+  const sourceLabel = getBrightnessSourceLabel(selectedDisplay.brightness_source);
+  const sliderDisabled =
+    hdrPending || (isHdrBrightnessSource(selectedDisplay.brightness_source) && !hdrActive);
 
   return (
     <>
@@ -150,7 +226,8 @@ function MainSurface({
           <BrightnessSlider
             value={value}
             displayName={selectedDisplay.name}
-            disabled={!hdrActive || hdrPending}
+            sourceLabel={sourceLabel}
+            disabled={sliderDisabled}
             onChange={noop}
             onPointerDown={noop}
             onCommit={noopAsync}
@@ -159,6 +236,7 @@ function MainSurface({
           <StatusBar
             hdrSupported={selectedDisplay.hdr_supported}
             hdrActive={hdrActive}
+            brightnessSourceLabel={sourceLabel}
             hdrPending={hdrPending}
             onToggleHdr={noopAsync}
           />
@@ -214,6 +292,18 @@ function VisualQaApp() {
         </WindowFrame>
         <WindowFrame label="many-displays">
           <MainSurface displaySet={displays} selectedIndex={2} value={44} />
+        </WindowFrame>
+        <WindowFrame label="hdr-sdr-display">
+          <MainSurface displaySet={[displays[0]]} value={58} />
+        </WindowFrame>
+        <WindowFrame label="ddc-high-level-display">
+          <MainSurface displaySet={[ddcHighLevelDisplay]} value={58} hdrActive={false} />
+        </WindowFrame>
+        <WindowFrame label="ddc-vcp-display">
+          <MainSurface displaySet={[ddcVcpDisplay]} value={63} hdrActive={false} />
+        </WindowFrame>
+        <WindowFrame label="wmi-internal-display">
+          <MainSurface displaySet={[wmiInternalDisplay]} value={42} hdrActive={false} />
         </WindowFrame>
         <WindowFrame label="loading">
           <StateSurface type="loading" />

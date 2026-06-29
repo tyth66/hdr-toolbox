@@ -16,7 +16,11 @@ export type DisplayErrorCode =
   | "hdr_toggle_failed"
   | "hdr_polling_timeout"
   | "brightness_failed"
-  | "invalid_adapter";
+  | "invalid_adapter"
+  | "ddc_enumeration_failed"
+  | "ddc_brightness_failed"
+  | "wmi_enumeration_failed"
+  | "wmi_brightness_failed";
 
 /**
  * Structured error from Rust backend.

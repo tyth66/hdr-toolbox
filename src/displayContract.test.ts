@@ -56,6 +56,10 @@ function normalizeRustType(rustType: string): Omit<FieldContract, "name"> {
     return { type: "boolean", optional: false };
   }
 
+  if (normalized === "BrightnessSource") {
+    return { type: "BrightnessSource", optional: false };
+  }
+
   if (["u32", "i32"].includes(normalized)) {
     return { type: "number", optional: false };
   }
@@ -88,6 +92,22 @@ function extractRustDisplayInfoFields(source: string): FieldContract[] {
   return fields;
 }
 
+function extractTsBrightnessSource(source: string): string[] {
+  const block = extractBlock(source, /export type BrightnessSource\s*=([\s\S]*?);/);
+  return [...block.matchAll(/"([a-z_]+)"/g)].map((match) => match[1]);
+}
+
+function extractRustBrightnessSource(source: string): string[] {
+  const block = extractBlock(source, /pub enum BrightnessSource\s*\{([\s\S]*?)\n\}/);
+  return block
+    .split("\n")
+    .map((line) => line.trim().replace(/,$/, ""))
+    .filter((line) => /^[A-Z]/.test(line))
+    .map((variant) =>
+      variant.replace(/[A-Z]/g, (char, index) => `${index ? "_" : ""}${char.toLowerCase()}`)
+    );
+}
+
 function extractRustConstValue(source: string, constantName: string): number {
   const match = source.match(new RegExp(`pub const ${constantName}: u32 = (\\d+);`));
   assert.ok(match?.[1], `Could not locate Rust constant ${constantName}`);
@@ -102,6 +122,24 @@ test("TypeScript DisplayInfo matches Rust DisplayInfo contract", () => {
   const rustFields = extractRustDisplayInfoFields(rustSource);
 
   assert.deepEqual(tsFields, rustFields);
+});
+
+test("DisplayInfo includes provider brightness routing identity", () => {
+  const tsFields = extractTsDisplayInfoFields(readFile(typesPath));
+  const fieldNames = tsFields.map((field) => field.name);
+
+  assert.ok(fieldNames.includes("brightness_device_id"));
+  assert.ok(fieldNames.includes("brightness_vcp_code"));
+});
+
+test("TypeScript BrightnessSource matches Rust BrightnessSource contract", () => {
+  const tsSource = readFile(typesPath);
+  const rustSource = readFile(rustModelPath);
+
+  assert.deepEqual(
+    extractTsBrightnessSource(tsSource),
+    extractRustBrightnessSource(rustSource)
+  );
 });
 
 test("TypeScript luminance constants match Rust luminance constants", async () => {

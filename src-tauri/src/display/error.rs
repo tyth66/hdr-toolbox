@@ -28,6 +28,14 @@ pub enum DisplayErrorCode {
     BrightnessFailed,
     /// Invalid display adapter ID
     InvalidAdapter,
+    /// DDC/CI display enumeration failed
+    DdcEnumerationFailed,
+    /// DDC/CI brightness write failed
+    DdcBrightnessFailed,
+    /// WMI display enumeration failed
+    WmiEnumerationFailed,
+    /// WMI brightness write failed
+    WmiBrightnessFailed,
 }
 
 /// A structured error with code and message.
@@ -104,6 +112,34 @@ impl DisplayError {
             "Invalid display adapter ID.",
         )
     }
+
+    pub fn ddc_enumeration_failed(detail: impl Into<String>) -> Self {
+        Self::new(
+            DisplayErrorCode::DdcEnumerationFailed,
+            format!("DDC/CI display enumeration failed: {}", detail.into()),
+        )
+    }
+
+    pub fn ddc_brightness_failed(detail: impl Into<String>) -> Self {
+        Self::new(
+            DisplayErrorCode::DdcBrightnessFailed,
+            format!("DDC/CI brightness update failed: {}", detail.into()),
+        )
+    }
+
+    pub fn wmi_enumeration_failed(detail: impl Into<String>) -> Self {
+        Self::new(
+            DisplayErrorCode::WmiEnumerationFailed,
+            format!("WMI display enumeration failed: {}", detail.into()),
+        )
+    }
+
+    pub fn wmi_brightness_failed(detail: impl Into<String>) -> Self {
+        Self::new(
+            DisplayErrorCode::WmiBrightnessFailed,
+            format!("WMI brightness update failed: {}", detail.into()),
+        )
+    }
 }
 
 impl fmt::Display for DisplayError {
@@ -113,3 +149,52 @@ impl fmt::Display for DisplayError {
 }
 
 impl std::error::Error for DisplayError {}
+
+#[cfg(test)]
+mod tests {
+    use super::{DisplayError, DisplayErrorCode};
+
+    #[test]
+    fn ddc_enumeration_error_has_provider_code_and_message() {
+        assert_eq!(
+            DisplayError::ddc_enumeration_failed("capabilities unavailable"),
+            DisplayError::new(
+                DisplayErrorCode::DdcEnumerationFailed,
+                "DDC/CI display enumeration failed: capabilities unavailable"
+            )
+        );
+    }
+
+    #[test]
+    fn ddc_brightness_error_has_provider_code_and_message() {
+        assert_eq!(
+            DisplayError::ddc_brightness_failed("monitor not responding"),
+            DisplayError::new(
+                DisplayErrorCode::DdcBrightnessFailed,
+                "DDC/CI brightness update failed: monitor not responding"
+            )
+        );
+    }
+
+    #[test]
+    fn wmi_enumeration_error_has_provider_code_and_message() {
+        assert_eq!(
+            DisplayError::wmi_enumeration_failed("namespace unavailable"),
+            DisplayError::new(
+                DisplayErrorCode::WmiEnumerationFailed,
+                "WMI display enumeration failed: namespace unavailable"
+            )
+        );
+    }
+
+    #[test]
+    fn wmi_brightness_error_has_provider_code_and_message() {
+        assert_eq!(
+            DisplayError::wmi_brightness_failed("access denied"),
+            DisplayError::new(
+                DisplayErrorCode::WmiBrightnessFailed,
+                "WMI brightness update failed: access denied"
+            )
+        );
+    }
+}

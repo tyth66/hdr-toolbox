@@ -9,10 +9,27 @@ pub mod luminance {
     pub const DEFAULT_NITS: u32 = (MIN_NITS + MAX_NITS) / 2;
 }
 
-/// SDR white level in nits (not the internal API value)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BrightnessSource {
+    HdrSdr,
+    DdcHighLevel,
+    DdcVcp,
+    Wmi,
+}
+
+/// Display brightness metadata. For HDR SDR displays, `nits` remains the SDR
+/// white level while `brightness` is the normalized 0-100 slider percentage.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DisplayInfo {
     pub name: String,
+    pub brightness: u32,
+    pub brightness_source: BrightnessSource,
+    pub brightness_raw: Option<u32>,
+    pub brightness_raw_max: Option<u32>,
+    pub brightness_device_id: String,
+    pub brightness_vcp_code: Option<u32>,
+    pub ddc_source: Option<BrightnessSource>,
     pub nits: u32,
     pub min_percentage: u32,
     pub max_percentage: u32,

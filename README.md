@@ -4,7 +4,7 @@
 
 # HDR Toolbox
 
-**A lightweight Windows system tray app for adjusting HDR monitor SDR brightness**
+**A lightweight Windows tray app for controlling display brightness across DDC/CI, internal WMI panels, and HDR SDR white level**
 
 [![Windows](https://img.shields.io/badge/Windows-10%2F11-blue?style=flat-square&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
@@ -14,6 +14,14 @@
 **[中文版 →](README_zh.md)**
 
 </div>
+
+---
+
+## Current Scope
+
+HDR Toolbox is a Universal Brightness Control style Windows tray app. The shared Rust/TypeScript display contract includes `BrightnessSource`, normalized `brightness`, provider identity, and DDC VCP code metadata. Provider modules contain DDC/CI physical-monitor plus internal-panel WMI enumeration/write paths, the Rust service merges HDR SDR, DDC/CI, and WMI provider results into one display list, and backend brightness writes route by source.
+
+Remaining documentation contract and final verification work is tracked in `docs/superpowers/plans/2026-06-29-universal-brightness-control.md`.
 
 ---
 
@@ -30,7 +38,18 @@
 | 🔄 **Manual Refresh** | Re-detect displays via title bar |
 | 🚀 **Auto-start** | Launch on system boot (optional) |
 | 📍 **Tray Control** | Left-click show/hide, right-click menu |
-| 🎨 **Native Theme** | Acrylic window surface, Fluent UI controls, and Windows system accent color |
+| 🎨 **Native Theme** | Acrylic window surface, Fluent UI controls, and a fixed Codex accent color |
+| 🧭 **Universal brightness foundation** | Internal `DisplayInfo` model carries `BrightnessSource`, generic `brightness`, raw metadata, and Rust-side source routing helpers |
+| 🧱 **Provider error contracts** | Structured DDC/CI and WMI error codes are ready for upcoming provider enumeration and write paths |
+| 🧩 **Provider boundaries** | Empty Rust provider modules and architecture tests reserve DDC/CI APIs for `display/ddcci.rs` and WMI APIs for `display/wmi.rs` |
+| 🧮 **DDC/CI provider foundation** | Rust provider code enumerates physical monitor handles, reads high-level/VCP brightness, writes high-level/VCP brightness, and keeps tested raw/percent helpers |
+| 🖥️ **WMI provider foundation** | Rust provider code connects to `ROOT\WMI`, reads `WmiMonitorBrightness`, and writes `WmiMonitorBrightnessMethods.WmiSetBrightness` |
+| 🔀 **Provider merge foundation** | Rust service merges HDR SDR, DDC/CI, and WMI provider results behind the existing display-list command |
+| 🔀 **HDR/DDC source switching** | HDR toggle flips between SDR white level and DDC/CI physical brightness on the same display entry |
+| 🎛️ **Source-routed backend writes** | Rust brightness commands now route HDR SDR, DDC/CI high-level, DDC/CI VCP, and WMI writes through the selected display's `BrightnessSource` |
+| 🧩 **Generic frontend state** | Frontend display-state hooks now read and update normalized `brightness` instead of deriving every slider value from HDR SDR nits |
+| 🏷️ **Source-aware UI labels** | The main slider and status bar describe HDR SDR, DDC/CI, and WMI brightness sources and allow non-HDR brightness controls |
+| 📍 **Generic tray summaries** | Tray menu and tooltip summaries use source-aware brightness percentages instead of HDR-only nits |
 
 ---
 
@@ -46,7 +65,7 @@
 
 ### Download
 
-Get the latest release from **[Releases](https://github.com/your-repo/hdr-toolbox/releases)**:
+Get the latest release from **[Releases](https://github.com/tyth66/hdr-toolbox/releases)**:
 
 ```
 hdr-toolbox.exe
@@ -56,7 +75,7 @@ hdr-toolbox.exe
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-repo/hdr-toolbox.git
+git clone https://github.com/tyth66/hdr-toolbox.git
 cd hdr-toolbox
 
 # Install dependencies
@@ -116,7 +135,7 @@ npm run tauri build
 
 ### Appearance
 
-The app uses a transparent Tauri window with a Windows Acrylic backdrop and Fluent UI v9 controls. The Windows system accent color is read from the DWM registry and applied to sliders, switches, selected displays, and hover/focus states. The accent color is refreshed before the tray window is shown.
+The app uses a transparent Tauri window with a Windows Acrylic backdrop and Fluent UI v9 controls. A fixed Codex accent (`#339CFF`) is applied to sliders, switches, selected displays, and hover/focus states. The accent variables are refreshed before the tray window is shown.
 
 ---
 
@@ -137,7 +156,7 @@ The app uses a transparent Tauri window with a Windows Acrylic backdrop and Flue
 | Frontend | React 18 · TypeScript · Vite |
 | UI | Fluent UI v9 · CSS tokens · Windows Acrylic |
 | Backend | Rust · Tauri 2 |
-| System API | Windows DisplayConfig API |
+| System API | Windows DisplayConfig API; DDC/CI and WMI provider APIs are planned |
 
 ---
 

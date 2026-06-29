@@ -5,6 +5,7 @@ import { SLIDER } from "../types";
 type BrightnessSliderProps = {
   value: number;
   displayName: string;
+  sourceLabel: string;
   disabled?: boolean;
   onChange: (value: number, element: HTMLInputElement) => void;
   onPointerDown: () => void;
@@ -15,6 +16,7 @@ type BrightnessSliderProps = {
 export const BrightnessSlider = memo(function BrightnessSlider({
   value,
   displayName,
+  sourceLabel,
   disabled = false,
   onChange,
   onPointerDown,
@@ -27,7 +29,7 @@ export const BrightnessSlider = memo(function BrightnessSlider({
         {displayName}
       </div>
       <div className="slider-header">
-        <span className="slider-label">SDR Brightness</span>
+        <span className="slider-label">{sourceLabel}</span>
         <div className="slider-value">
           <span className="nits-value">{value}</span>
           <span className="nits-unit">%</span>
@@ -57,7 +59,7 @@ export const BrightnessSlider = memo(function BrightnessSlider({
         onTouchEnd={(_ev: React.TouchEvent<HTMLInputElement>) => {
           onCommit(Number(_ev.currentTarget.value));
         }}
-        aria-label="SDR Brightness"
+        aria-label={sourceLabel}
         aria-valuemin={SLIDER.MIN}
         aria-valuemax={SLIDER.MAX}
         aria-valuenow={value}

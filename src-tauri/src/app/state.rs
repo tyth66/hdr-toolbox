@@ -1,10 +1,11 @@
-use crate::display::DisplayInfo;
+use crate::display::{model::BrightnessSource, DisplayInfo};
 use std::sync::Mutex;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TrayDisplaySummary {
     pub name: String,
-    pub nits: u32,
+    pub brightness: u32,
+    pub brightness_source: BrightnessSource,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -19,7 +20,8 @@ impl TrayState {
                 .iter()
                 .map(|display| TrayDisplaySummary {
                     name: display.name.clone(),
-                    nits: display.nits,
+                    brightness: display.brightness,
+                    brightness_source: display.brightness_source,
                 })
                 .collect(),
         }
@@ -50,17 +52,24 @@ impl Default for AppState {
 #[cfg(test)]
 mod tests {
     use super::TrayState;
-    use crate::display::DisplayInfo;
+    use crate::display::{model::BrightnessSource, DisplayInfo};
 
     #[test]
-    fn tray_state_keeps_only_tray_relevant_display_fields() {
+    fn tray_state_keeps_generic_brightness_fields() {
         let displays = vec![DisplayInfo {
-            name: "Display A".to_string(),
+            name: "External DDC".to_string(),
+            brightness: 64,
+            brightness_source: BrightnessSource::DdcVcp,
+            brightness_raw: Some(163),
+            brightness_raw_max: Some(100),
+            brightness_device_id: "MONITOR#DDC#1".to_string(),
+            brightness_vcp_code: Some(0x10),
+            ddc_source: None,
             nits: 280,
             min_percentage: 0,
             max_percentage: 100,
-            hdr_supported: true,
-            hdr_enabled: true,
+            hdr_supported: false,
+            hdr_enabled: false,
             adapter_id_low: 1,
             adapter_id_high: 2,
             target_id: 3,
@@ -71,7 +80,11 @@ mod tests {
         let tray_state = TrayState::from_displays(&displays);
 
         assert_eq!(tray_state.displays.len(), 1);
-        assert_eq!(tray_state.displays[0].name, "Display A");
-        assert_eq!(tray_state.displays[0].nits, 280);
+        assert_eq!(tray_state.displays[0].name, "External DDC");
+        assert_eq!(tray_state.displays[0].brightness, 64);
+        assert_eq!(
+            tray_state.displays[0].brightness_source,
+            BrightnessSource::DdcVcp
+        );
     }
 }

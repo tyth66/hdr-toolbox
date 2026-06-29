@@ -4,6 +4,7 @@ import { Switch } from "@fluentui/react-components";
 type StatusBarProps = {
   hdrSupported: boolean;
   hdrActive: boolean;
+  brightnessSourceLabel: string;
   hdrPending?: boolean;
   onToggleHdr?: () => Promise<void>;
 };
@@ -11,15 +12,16 @@ type StatusBarProps = {
 export const StatusBar = memo(function StatusBar({
   hdrSupported,
   hdrActive,
+  brightnessSourceLabel,
   hdrPending = false,
   onToggleHdr,
 }: StatusBarProps) {
   const toggleDisabled = !hdrSupported || hdrPending;
-  const label = !hdrSupported
-    ? "SDR Only"
-    : hdrActive
+  const label = hdrSupported
+    ? hdrActive
       ? "HDR On"
-      : "HDR Off";
+      : "HDR Off"
+    : brightnessSourceLabel;
 
   return (
     <div className="status-bar">

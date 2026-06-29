@@ -7,6 +7,11 @@ import type { DisplayInfo } from "../types.ts";
 const displays: DisplayInfo[] = [
   {
     name: "Display A",
+    brightness: 0,
+    brightness_source: "hdr_sdr",
+    brightness_raw: 0,
+    brightness_raw_max: 100,
+    brightness_device_id: "1:2:3",
     nits: 80,
     min_percentage: 0,
     max_percentage: 100,
@@ -20,6 +25,11 @@ const displays: DisplayInfo[] = [
   },
   {
     name: "Display B",
+    brightness: 50,
+    brightness_source: "hdr_sdr",
+    brightness_raw: 50,
+    brightness_raw_max: 100,
+    brightness_device_id: "4:5:6",
     nits: 280,
     min_percentage: 0,
     max_percentage: 100,

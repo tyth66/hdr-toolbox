@@ -1,4 +1,4 @@
-import { type DisplayInfo, nitsToPercentage, percentageToNits } from "../types.ts";
+import { type DisplayInfo, percentageToNits } from "../types.ts";
 
 export type SelectedDisplaySnapshot = {
   selectedIndex: number;
@@ -16,7 +16,7 @@ export function getSelectedDisplaySnapshot(
 
   return {
     selectedIndex: index,
-    currentPercentage: nitsToPercentage(displays[index].nits),
+    currentPercentage: displays[index].brightness,
     hdrActive: displays[index].hdr_enabled,
   };
 }
@@ -26,10 +26,27 @@ export function buildBrightnessUpdate(
   selectedIndex: number,
   percentage: number
 ): DisplayInfo[] {
-  const nits = percentageToNits(percentage);
-  return displays.map((display, index) =>
-    index === selectedIndex ? { ...display, nits } : display
-  );
+  return displays.map((display, index) => {
+    if (index !== selectedIndex) {
+      return display;
+    }
+
+    const brightness = Math.max(0, Math.min(100, percentage));
+    const brightness_raw =
+      display.brightness_source === "ddc_vcp"
+        ? Math.round((brightness * (display.brightness_raw_max ?? 100)) / 100)
+        : brightness;
+
+    return {
+      ...display,
+      brightness,
+      brightness_raw,
+      nits:
+        display.brightness_source === "hdr_sdr"
+          ? percentageToNits(brightness)
+          : display.nits,
+    };
+  });
 }
 
 export function findMatchingDisplayIndex(

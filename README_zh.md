@@ -4,7 +4,7 @@
 
 # HDR Toolbox
 
-**Windows 系统托盘应用，调节 HDR 显示器 SDR 亮度**
+**Windows 托盘亮度工具，支持 DDC/CI 外接显示器、内置屏 WMI 亮度和 HDR SDR 白点电平**
 
 [![Windows](https://img.shields.io/badge/Windows-10%2F11-blue?style=flat-square&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
@@ -14,6 +14,14 @@
 **[English →](README.md)**
 
 </div>
+
+---
+
+## 当前范围
+
+HDR Toolbox 是一个 Universal Brightness Control 风格的 Windows 托盘应用。Rust/TypeScript 共享显示器契约已经加入 `BrightnessSource`、通用 `brightness`、provider 身份和 DDC VCP code 元数据。provider 模块现在已包含 DDC/CI 物理显示器和内置屏 WMI 的枚举/写入路径，Rust service 已经把 HDR SDR、DDC/CI 和 WMI provider 结果合并为一个显示器列表，后端亮度写入也已经按来源路由。
+
+剩余文档合同和最终验证工作记录在 `docs/superpowers/plans/2026-06-29-universal-brightness-control.md`。
 
 ---
 
@@ -30,7 +38,17 @@
 | 🔄 **手动刷新** | 标题栏按钮重新检测显示器 |
 | 🚀 **开机自启** | 可选系统启动时运行 |
 | 📍 **托盘控制** | 左键显示/隐藏，右键菜单 |
-| 🎨 **原生主题** | Acrylic 窗口材质、Fluent UI 控件和 Windows 系统强调色 |
+| 🎨 **原生主题** | Acrylic 窗口材质、Fluent UI 控件和固定 Codex 强调色 |
+| 🧭 **通用亮度基础** | 内部 `DisplayInfo` 模型已包含 `BrightnessSource`、通用 `brightness`、raw 亮度元数据和 Rust 侧来源路由 helper |
+| 🧱 **Provider 错误契约** | DDC/CI 和 WMI 的结构化错误码已为后续枚举和写入路径准备好 |
+| 🧩 **Provider 边界** | Rust 空 provider 模块和架构测试已锁定 DDC/CI API 只能进入 `display/ddcci.rs`，WMI API 只能进入 `display/wmi.rs` |
+| 🧮 **DDC/CI provider 基础** | Rust provider 代码已能枚举物理显示器句柄、读取 high-level/VCP 亮度、写入 high-level/VCP 亮度，并保留 raw/percent helper 测试 |
+| 🖥️ **WMI provider 基础** | Rust provider 代码已能连接 `ROOT\WMI`，读取 `WmiMonitorBrightness`，并调用 `WmiMonitorBrightnessMethods.WmiSetBrightness` 写入亮度 |
+| 🔀 **Provider merge 基础** | Rust service 已在现有显示器列表命令背后合并 HDR SDR、DDC/CI 和 WMI provider 结果 |
+| 🎛️ **按来源路由的后端写入** | Rust 亮度命令现在会按选中显示器的 `BrightnessSource` 路由 HDR SDR、DDC/CI high-level、DDC/CI VCP 和 WMI 写入 |
+| 🧩 **通用前端状态** | 前端 display-state hooks 现在读取和更新标准化 `brightness`，不再把所有 slider 值都从 HDR SDR nits 反推 |
+| 🏷️ **来源感知 UI 标签** | 主滑块和状态栏会描述 HDR SDR、DDC/CI 和 WMI 亮度来源，并允许非 HDR 亮度控件 |
+| 📍 **通用托盘摘要** | 托盘菜单和 tooltip 摘要使用来源感知的亮度百分比，不再是 HDR-only nits |
 
 ---
 
@@ -46,7 +64,7 @@
 
 ### 下载安装
 
-从 **[Releases](https://github.com/your-repo/hdr-toolbox/releases)** 下载：
+从 **[Releases](https://github.com/tyth66/hdr-toolbox/releases)** 下载：
 
 ```
 hdr-toolbox.exe
@@ -56,7 +74,7 @@ hdr-toolbox.exe
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-repo/hdr-toolbox.git
+git clone https://github.com/tyth66/hdr-toolbox.git
 cd hdr-toolbox
 
 # 安装依赖
@@ -116,7 +134,7 @@ npm run tauri build
 
 ### 外观
 
-应用使用透明 Tauri 窗口和 Windows Acrylic 背景材质，控件层使用 Fluent UI v9。Windows 系统强调色由 Rust 从 DWM 注册表读取，并应用到滑块、开关、选中显示器、悬停和焦点状态。每次托盘窗口显示前都会先刷新强调色。
+应用使用透明 Tauri 窗口和 Windows Acrylic 背景材质，控件层使用 Fluent UI v9。固定 Codex 强调色（`#339CFF`）会应用到滑块、开关、选中显示器、悬停和焦点状态。每次托盘窗口显示前都会先刷新强调色变量。
 
 ---
 
@@ -137,7 +155,7 @@ npm run tauri build
 | 前端 | React 18 · TypeScript · Vite |
 | UI | Fluent UI v9 · CSS tokens · Windows Acrylic |
 | 后端 | Rust · Tauri 2 |
-| 系统 API | Windows DisplayConfig API |
+| 系统 API | Windows DisplayConfig API；DDC/CI 和 WMI provider API 仍在计划中 |
 
 ---
 

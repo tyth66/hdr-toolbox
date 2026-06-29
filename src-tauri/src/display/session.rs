@@ -1,4 +1,4 @@
-use super::model::DisplayInfo;
+use super::model::{BrightnessSource, DisplayInfo};
 use crate::{
     app::{AppState, TrayState},
     tray,
@@ -21,7 +21,7 @@ impl DisplayTarget {
         }
     }
 
-    fn matches(self, display: &DisplayInfo) -> bool {
+    pub(super) fn matches(self, display: &DisplayInfo) -> bool {
         display.adapter_id_low == self.adapter_low
             && display.adapter_id_high == self.adapter_high
             && display.target_id == self.target_id
@@ -32,6 +32,72 @@ impl DisplayTarget {
 ///
 /// Poisoned mutexes are logged and treated as recoverable because the next
 /// successful hardware refresh can repair stale app state.
+
+/// Flips brightness_source between HdrSdr and ddc_source when HDR is toggled.
+/// Returns the updated display list for the frontend.
+pub(super) fn flip_hdr_source_in_cache(
+    app: &AppHandle,
+    state: &AppState,
+    target: DisplayTarget,
+    hdr_enabled: bool,
+) -> Result<Vec<DisplayInfo>, crate::display::DisplayError> {
+    match state.displays.lock() {
+        Ok(mut guard) => {
+            let display = guard
+                .iter_mut()
+                .find(|d| target.matches(d))
+                .ok_or_else(crate::display::DisplayError::display_not_found)?;
+
+            if hdr_enabled {
+                // HDR turned ON: restore HdrSdr, save current source as ddc_source
+                if display.ddc_source.is_some() || display.brightness_source != BrightnessSource::HdrSdr {
+                    let current = display.brightness_source;
+                    display.brightness_source = BrightnessSource::HdrSdr;
+                    display.ddc_source = Some(current);
+                }
+            } else {
+                // HDR turned OFF: switch to ddc_source if available
+                if let Some(ddc) = display.ddc_source.take() {
+                    display.brightness_source = ddc;
+                    display.ddc_source = Some(BrightnessSource::HdrSdr);
+                }
+                // If no ddc_source, slider will be disabled by frontend
+            }
+            display.hdr_enabled = hdr_enabled;
+
+            let displays = guard.clone();
+            drop(guard);
+            sync_tray_from_display_guard(state, &displays);
+            refresh_tray(app);
+            Ok(displays)
+        }
+        Err(poisoned) => {
+            tracing::error!(
+                "[CRITICAL] Display mutex poisoned during HDR toggle: {}",
+                poisoned
+            );
+            let mut guard = poisoned.into_inner();
+            if let Some(display) = guard.iter_mut().find(|d| target.matches(d)) {
+                if hdr_enabled && display.ddc_source.is_some() {
+                    let current = display.brightness_source;
+                    display.brightness_source = BrightnessSource::HdrSdr;
+                    display.ddc_source = Some(current);
+                } else if !hdr_enabled {
+                    if let Some(ddc) = display.ddc_source.take() {
+                        display.brightness_source = ddc;
+                        display.ddc_source = Some(BrightnessSource::HdrSdr);
+                    }
+                }
+                display.hdr_enabled = hdr_enabled;
+            }
+            let displays = guard.clone();
+            drop(guard);
+            sync_tray_from_display_guard(state, &displays);
+            refresh_tray(app);
+            Ok(displays)
+        }
+    }
+}
 pub(super) fn replace_cached_displays(
     state: &AppState,
     displays: Vec<DisplayInfo>,
@@ -62,11 +128,11 @@ pub(super) fn replace_cached_displays(
 pub(super) fn update_cached_brightness(
     state: &AppState,
     target: DisplayTarget,
-    updated_nits: u32,
+    percentage: u32,
 ) -> Vec<DisplayInfo> {
     match state.displays.lock() {
         Ok(mut guard) => {
-            update_display_nits(&mut guard, target, updated_nits);
+            update_display_brightness(&mut guard, target, percentage);
             sync_tray_from_display_guard(state, &guard)
         }
         Err(poisoned) => {
@@ -76,7 +142,7 @@ pub(super) fn update_cached_brightness(
                 poisoned
             );
             let mut guard = poisoned.into_inner();
-            update_display_nits(&mut guard, target, updated_nits);
+            update_display_brightness(&mut guard, target, percentage);
             sync_tray_from_display_guard(state, &guard)
         }
     }
@@ -134,9 +200,9 @@ pub(super) fn sync_cached_brightness(
     app: &AppHandle,
     state: &AppState,
     target: DisplayTarget,
-    updated_nits: u32,
+    percentage: u32,
 ) -> Vec<DisplayInfo> {
-    let displays = update_cached_brightness(state, target, updated_nits);
+    let displays = update_cached_brightness(state, target, percentage);
     refresh_tray(app);
     displays
 }
@@ -158,9 +224,21 @@ fn refresh_tray(app: &AppHandle) {
     tray::update_tray_menu(app);
 }
 
-fn update_display_nits(displays: &mut [DisplayInfo], target: DisplayTarget, updated_nits: u32) {
+fn update_display_brightness(displays: &mut [DisplayInfo], target: DisplayTarget, percentage: u32) {
     if let Some(display) = displays.iter_mut().find(|display| target.matches(display)) {
-        display.nits = updated_nits;
+        let percentage = percentage.clamp(0, 100);
+        display.brightness = percentage;
+        display.brightness_raw = Some(match display.brightness_source {
+            BrightnessSource::DdcVcp => {
+                (percentage * display.brightness_raw_max.unwrap_or(100)) / 100
+            }
+            BrightnessSource::HdrSdr | BrightnessSource::DdcHighLevel | BrightnessSource::Wmi => {
+                percentage
+            }
+        });
+        if display.brightness_source == BrightnessSource::HdrSdr {
+            display.nits = super::brightness::percent_to_sdr_nits(percentage);
+        }
     }
 }
 
@@ -186,12 +264,22 @@ mod tests {
     };
     use crate::{
         app::{AppState, TrayDisplaySummary, TrayState},
-        display::{model::luminance, DisplayInfo},
+        display::{
+            model::{luminance, BrightnessSource},
+            DisplayInfo,
+        },
     };
 
     fn display(name: &str, target_id: u32, nits: u32) -> DisplayInfo {
         DisplayInfo {
             name: name.to_string(),
+            brightness: super::super::brightness::sdr_nits_to_percent(nits),
+            brightness_source: BrightnessSource::HdrSdr,
+            brightness_raw: Some(super::super::brightness::sdr_nits_to_percent(nits)),
+            brightness_raw_max: Some(100),
+            brightness_device_id: format!("1:2:{target_id}"),
+            brightness_vcp_code: None,
+            ddc_source: None,
             nits,
             min_percentage: 0,
             max_percentage: 100,
@@ -220,11 +308,13 @@ mod tests {
                 displays: vec![
                     TrayDisplaySummary {
                         name: "Display A".to_string(),
-                        nits: 280,
+                        brightness: 50,
+                        brightness_source: BrightnessSource::HdrSdr,
                     },
                     TrayDisplaySummary {
                         name: "Display B".to_string(),
-                        nits: 320,
+                        brightness: 60,
+                        brightness_source: BrightnessSource::HdrSdr,
                     },
                 ],
             }
@@ -239,7 +329,7 @@ mod tests {
             vec![display("Display A", 1, 80), display("Display B", 2, 80)],
         );
 
-        let updated = update_cached_brightness(&state, DisplayTarget::new(1, 2, 2), 280);
+        let updated = update_cached_brightness(&state, DisplayTarget::new(1, 2, 2), 50);
 
         assert_eq!(
             updated,
@@ -251,11 +341,13 @@ mod tests {
                 displays: vec![
                     TrayDisplaySummary {
                         name: "Display A".to_string(),
-                        nits: 80,
+                        brightness: 0,
+                        brightness_source: BrightnessSource::HdrSdr,
                     },
                     TrayDisplaySummary {
                         name: "Display B".to_string(),
-                        nits: 280,
+                        brightness: 50,
+                        brightness_source: BrightnessSource::HdrSdr,
                     },
                 ],
             }

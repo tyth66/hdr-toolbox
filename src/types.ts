@@ -4,8 +4,21 @@
 
 // Note: DisplayInfo must match the Rust struct exactly
 // Any changes to the Rust struct must be reflected here
+export type BrightnessSource =
+  | "hdr_sdr"
+  | "ddc_high_level"
+  | "ddc_vcp"
+  | "wmi";
+
 export interface DisplayInfo {
   name: string;
+  brightness: number;
+  brightness_source: BrightnessSource;
+  brightness_raw?: number;
+  brightness_raw_max?: number;
+  brightness_device_id: string;
+  brightness_vcp_code?: number;
+  ddc_source?: BrightnessSource;
   nits: number;
   min_percentage: number;
   max_percentage: number;

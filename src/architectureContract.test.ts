@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -73,6 +73,38 @@ test("DisplayConfig API calls stay inside display/ffi.rs", () => {
   const violations = listFiles(tauriSrcDir, [".rs"])
     .filter((filePath) => relativePath(filePath) !== allowedPath)
     .filter((filePath) => displayConfigPattern.test(readFile(filePath)))
+    .map(relativePath);
+
+  assert.deepEqual(violations, []);
+});
+
+test("physical monitor configuration calls stay inside display/ddcci.rs", () => {
+  const allowedPath = "src-tauri/src/display/ddcci.rs";
+  const allowedFile = path.resolve(repoRoot, allowedPath);
+  const physicalMonitorPattern =
+    /GetPhysicalMonitorsFromHMONITOR|DestroyPhysicalMonitors|GetMonitorBrightness|SetMonitorBrightness|GetVCPFeatureAndVCPFeatureReply|SetVCPFeature/;
+
+  assert.equal(existsSync(allowedFile), true);
+
+  const violations = listFiles(tauriSrcDir, [".rs"])
+    .filter((filePath) => relativePath(filePath) !== allowedPath)
+    .filter((filePath) => physicalMonitorPattern.test(readFile(filePath)))
+    .map(relativePath);
+
+  assert.deepEqual(violations, []);
+});
+
+test("WMI brightness calls stay inside display/wmi.rs", () => {
+  const allowedPath = "src-tauri/src/display/wmi.rs";
+  const allowedFile = path.resolve(repoRoot, allowedPath);
+  const wmiBrightnessPattern =
+    /WmiMonitorBrightness|WmiMonitorBrightnessMethods|IWbemServices|IWbemLocator|ROOT\\\\WMI|root\\\\wmi/i;
+
+  assert.equal(existsSync(allowedFile), true);
+
+  const violations = listFiles(tauriSrcDir, [".rs"])
+    .filter((filePath) => relativePath(filePath) !== allowedPath)
+    .filter((filePath) => wmiBrightnessPattern.test(readFile(filePath)))
     .map(relativePath);
 
   assert.deepEqual(violations, []);

@@ -1,11 +1,11 @@
-use super::model::DisplayInfo;
+use super::model::{BrightnessSource, DisplayInfo};
 use super::service::{
-    get_hdr_displays_after_toggle_impl, get_hdr_displays_impl, set_brightness_all_impl,
-    set_brightness_impl, set_hdr_enabled_impl,
+    get_hdr_displays_impl, set_brightness_all_impl,
+    set_display_brightness_impl, set_hdr_enabled_impl,
 };
 use super::session::{
     cached_displays, clear_display_cache, sync_brightness_outcome, sync_cached_brightness,
-    sync_display_cache, DisplayTarget,
+    sync_display_cache, flip_hdr_source_in_cache, DisplayTarget,
 };
 use crate::{app::AppState, display::DisplayError};
 use tauri::{AppHandle, State};
@@ -37,11 +37,19 @@ fn build_brightness_all_outcome(
         .map(|(mut display, result)| {
             match result {
                 Ok(()) => {
-                    display.nits = super::service::percentage_to_nits_public(
-                        percentage,
-                        display.min_nits.unwrap_or(80),
-                        display.max_nits.unwrap_or(480),
-                    );
+                    let percentage = percentage.clamp(0, 100);
+                    display.brightness = percentage;
+                    display.brightness_raw = Some(match display.brightness_source {
+                        BrightnessSource::DdcVcp => {
+                            (percentage * display.brightness_raw_max.unwrap_or(100)) / 100
+                        }
+                        BrightnessSource::HdrSdr
+                        | BrightnessSource::DdcHighLevel
+                        | BrightnessSource::Wmi => percentage,
+                    });
+                    if display.brightness_source == BrightnessSource::HdrSdr {
+                        display.nits = super::brightness::percent_to_sdr_nits(percentage);
+                    }
                 }
                 Err(error) => failures.push(BrightnessAllFailure {
                     adapter_id_low: display.adapter_id_low,
@@ -89,18 +97,16 @@ pub fn set_brightness(
     min_nits: u32,
     max_nits: u32,
 ) -> Result<Vec<DisplayInfo>, DisplayError> {
-    set_brightness_impl(
-        adapter_low,
-        adapter_high,
-        target_id,
-        percentage,
-        min_nits,
-        max_nits,
-    )?;
-
-    let updated_nits = super::service::percentage_to_nits_public(percentage, min_nits, max_nits);
+    let _legacy_bounds = (min_nits, max_nits);
     let target = DisplayTarget::new(adapter_low, adapter_high, target_id);
-    let displays = sync_cached_brightness(&app, &state, target, updated_nits);
+    let display = cached_displays(&state)
+        .into_iter()
+        .find(|display| target.matches(display))
+        .ok_or_else(DisplayError::display_not_found)?;
+
+    set_display_brightness_impl(&display, percentage)?;
+
+    let displays = sync_cached_brightness(&app, &state, target, percentage);
     Ok(displays)
 }
 
@@ -130,26 +136,32 @@ pub fn set_hdr_enabled(
 ) -> Result<Vec<DisplayInfo>, DisplayError> {
     set_hdr_enabled_impl(adapter_low, adapter_high, target_id, enabled)?;
 
-    match get_hdr_displays_after_toggle_impl(adapter_low, adapter_high, target_id, enabled) {
-        Ok(displays) => {
-            let displays = sync_display_cache(&app, &state, displays);
-            Ok(displays)
-        }
-        Err(err) => {
-            clear_display_cache(&app, &state);
-            Err(err)
-        }
-    }
+    // Flip the brightness_source in cache: HDR on -> HdrSdr, HDR off -> ddc_source
+    // This avoids a full re-enumeration and keeps a single entry per display.
+    let target = DisplayTarget::new(adapter_low, adapter_high, target_id);
+    let displays = flip_hdr_source_in_cache(&app, &state, target, enabled)?;
+
+    Ok(displays)
 }
 
 #[cfg(test)]
 mod tests {
     use super::{build_brightness_all_outcome, BrightnessAllFailure, BrightnessAllOutcome};
-    use crate::display::{model::luminance, DisplayError, DisplayInfo};
+    use crate::display::{
+        model::{luminance, BrightnessSource},
+        DisplayError, DisplayInfo,
+    };
 
     fn display(name: &str, target_id: u32, nits: u32) -> DisplayInfo {
         DisplayInfo {
             name: name.to_string(),
+            brightness: super::super::brightness::sdr_nits_to_percent(nits),
+            brightness_source: BrightnessSource::HdrSdr,
+            brightness_raw: Some(super::super::brightness::sdr_nits_to_percent(nits)),
+            brightness_raw_max: Some(100),
+            brightness_device_id: format!("1:2:{target_id}"),
+            brightness_vcp_code: None,
+            ddc_source: None,
             nits,
             min_percentage: 0,
             max_percentage: 100,
@@ -160,6 +172,38 @@ mod tests {
             target_id,
             min_nits: Some(luminance::MIN_NITS),
             max_nits: Some(luminance::MAX_NITS),
+        }
+    }
+
+    fn display_with_source(
+        name: &str,
+        target_id: u32,
+        brightness: u32,
+        source: BrightnessSource,
+    ) -> DisplayInfo {
+        DisplayInfo {
+            name: name.to_string(),
+            brightness,
+            brightness_source: source,
+            brightness_raw: Some(brightness),
+            brightness_raw_max: Some(100),
+            brightness_device_id: format!("device-{target_id}"),
+            brightness_vcp_code: (source == BrightnessSource::DdcVcp).then_some(0x10),
+            ddc_source: None,
+            nits: if source == BrightnessSource::HdrSdr {
+                super::super::brightness::percent_to_sdr_nits(brightness)
+            } else {
+                luminance::DEFAULT_NITS
+            },
+            min_percentage: 0,
+            max_percentage: 100,
+            hdr_supported: source == BrightnessSource::HdrSdr,
+            hdr_enabled: source == BrightnessSource::HdrSdr,
+            adapter_id_low: 1,
+            adapter_id_high: 2,
+            target_id,
+            min_nits: (source == BrightnessSource::HdrSdr).then_some(luminance::MIN_NITS),
+            max_nits: (source == BrightnessSource::HdrSdr).then_some(luminance::MAX_NITS),
         }
     }
 
@@ -183,5 +227,22 @@ mod tests {
                 }],
             }
         );
+    }
+
+    #[test]
+    fn brightness_all_outcome_updates_percent_for_successful_displays() {
+        let original = vec![
+            display_with_source("HDR", 1, 50, BrightnessSource::HdrSdr),
+            display_with_source("DDC", 2, 40, BrightnessSource::DdcVcp),
+        ];
+        let results = vec![Ok(()), Ok(())];
+
+        let outcome = build_brightness_all_outcome(original, results, 75);
+
+        assert_eq!(outcome.displays[0].brightness, 75);
+        assert_eq!(outcome.displays[0].nits, 380);
+        assert_eq!(outcome.displays[1].brightness, 75);
+        assert_eq!(outcome.displays[1].nits, luminance::DEFAULT_NITS);
+        assert_eq!(outcome.failures.len(), 0);
     }
 }

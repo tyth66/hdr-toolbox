@@ -5,7 +5,7 @@
 
 ## OVERVIEW
 
-Windows system tray app for HDR monitor SDR brightness control via Windows DisplayConfig API. Rust FFI backend + React/TypeScript frontend bundled by Tauri 2.
+Windows system tray app currently controlling HDR monitor SDR brightness via Windows DisplayConfig API. The codebase is migrating toward Universal Brightness Control; the shared display contract now includes brightness source metadata for future DDC/CI and WMI providers. Rust FFI backend + React/TypeScript frontend bundled by Tauri 2.
 
 ## STRUCTURE
 
@@ -19,13 +19,13 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 |  |- components/             # Presentational UI
 |  |- hooks/                   # Stateful logic (display state/commands/feedback, hotkeys, window)
 |  |- services/tauriApi.ts     # Typed Tauri invoke wrappers
-|  |- theme.ts                 # Fluent theme generation from system accent
+|  |- theme.ts                 # Fluent theme generation from fixed Codex accent
 |  |- visualQa.tsx             # Static browser visual QA harness
-|  '- types.ts                 # Shared constants
- |- src-tauri/src/
+|  '- types.ts                 # Shared constants + DisplayInfo/BrightnessSource contract
+|- src-tauri/src/
 |  |- lib.rs                   # Tauri builder + module wiring
 |  |- app/                     # State, commands, window
-|  |- display/                 # FFI, model, service, session, commands, error, accent
+|  |- display/                 # FFI, model, brightness helpers, provider stubs, service, session, commands, error
 |  '- tray.rs                  # System tray
 |- DESIGN.md                   # Current UI/design source of truth
 |- visual-qa.html              # Browser QA entrypoint
@@ -51,17 +51,20 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 | Display state helpers | `src/hooks/displayState.ts` | Pure selection/update helpers |
 | Hotkeys | `src/hooks/useHotkeys.ts` + `src/hotkeys.ts` | User-configurable accelerators |
 | Theme preference | `src/themePreference.ts` + `src/hooks/useSystemColorScheme.ts` | System/Light/Dark persisted preference |
-| System accent | `src/hooks/useAccentColor.ts` + `src/theme.ts` | Reads Windows accent and applies CSS/Fluent tokens |
+| Fixed accent | `src/hooks/useAccentColor.ts` + `src/theme.ts` | Applies fixed Codex accent to CSS/Fluent tokens |
 | Visual QA | `visual-qa.html` + `src/visualQa.tsx` | Static WebView-state harness for browser QA |
 | Window position | `src/hooks/useWindowPosition.ts` | Saved position + tray placement |
 | Startup overlay | `src/hooks/useStartupOverlay.ts` | 4s info + Rust sync |
-| Error mapping | `src/errors.ts` | User-facing error messages |
-| Contract checks | `src/displayContract.test.ts` | TS/Rust DisplayInfo drift detection |
+| Error mapping | `src/errors.ts` | User-facing error messages + provider error-code contract |
+| Contract checks | `src/displayContract.test.ts` | TS/Rust DisplayInfo and BrightnessSource drift detection |
+| Architecture checks | `src/architectureContract.test.ts` | Tauri boundary, DisplayConfig, DDC/CI, and WMI module boundary checks |
+| Brightness source helpers | `src-tauri/src/display/brightness.rs` | Pure percent/nits conversion, DDC raw scaling, source-to-hardware value selection |
+| DDC/CI provider | `src-tauri/src/display/ddcci.rs` | Physical monitor enumeration, high-level brightness, VCP brightness, and raw scaling |
+| WMI provider | `src-tauri/src/display/wmi.rs` | Native COM/WMI internal-panel enumeration and brightness writes |
 | DisplayConfig FFI | `src-tauri/src/display/ffi.rs` | DisplayConfig enumeration, HDR state, and SDR white level |
-| Display service | `src-tauri/src/display/service.rs` | HDR enumeration, toggle polling, brightness logic, structured errors |
+| Display service | `src-tauri/src/display/service.rs` | HDR/Provider enumeration merge, toggle polling, brightness logic, structured errors |
 | Display session | `src-tauri/src/display/session.rs` | Display cache updates + tray state synchronization |
 | Display commands | `src-tauri/src/display/commands.rs` | Thin Tauri command boundary |
-| System accent command | `src-tauri/src/display/accent.rs` | Reads Windows DWM accent color from registry |
 | App state | `src-tauri/src/app/state.rs` | AppState + TrayState |
 | Tray management | `src-tauri/src/tray.rs` | Dynamic menu, tooltip, click handlers |
 | Blur-to-hide | `src-tauri/src/app/window.rs` | Acrylic + `on_window_event(Focused(false))` |
@@ -74,18 +77,20 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - `services/`: typed Tauri bridge
 - `theme.ts`: Fluent UI v9 brand ramp and effective theme helpers
 - `visualQa.tsx`: static QA-only rendering of production components
-- `types.ts`: shared constants and conversion helpers
+- `types.ts`: shared constants, conversion helpers, and `BrightnessSource`/`DisplayInfo` contract
 - `*.test.ts`: Node test runner coverage for pure frontend logic
 
 **Key rules:** No raw `invoke()` outside `services/tauriApi.ts`; display actions use `useDisplayCommandClient()` rather than Tauri services directly; keep `App.tsx` as composition and keep app-level JSX shells in `components/AppSurfaces.tsx`; error copy in `errors.ts`; keep visual QA using a non-blue test accent so accent regressions are visible.
 
 ## RUST ARCHITECTURE
 
-- `display/model.rs`: DisplayInfo + luminance constants (80-480 nits)
+- `display/model.rs`: DisplayInfo, BrightnessSource, generic brightness metadata, and luminance constants (80-480 nits)
+- `display/brightness.rs`: pure brightness conversion/routing helpers; no Windows API calls
+- `display/ddcci.rs`: DDC/CI provider module for physical monitor enumeration, VCP reads/writes, and high-level brightness reads/writes
+- `display/wmi.rs`: internal-panel WMI brightness provider through native COM/WMI
 - `display/ffi.rs`: raw Windows DisplayConfig FFI
-- `display/error.rs`: structured error types (DisplayErrorCode, DisplayError)
-- `display/accent.rs`: DWM registry accent-color command
-- `display/service.rs`: HDR discovery, toggle, brightness logic, tests
+- `display/error.rs`: structured error types (DisplayErrorCode, DisplayError), including DDC/WMI provider failure codes
+- `display/service.rs`: HDR discovery, provider result merge, toggle, brightness logic, tests
 - `display/session.rs`: AppState display cache + TrayState synchronization
 - `display/commands.rs`: thin Tauri command surface
 - `app/state.rs`: AppState + TrayState + TrayDisplaySummary
@@ -113,7 +118,7 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - `useDisplayDeviceActions.ts` must depend on `useDisplayCommandClient.ts`, not `services/tauriApi.ts`
 - Keep display selection/refs in `useDisplayStateStore.ts` and display loading/error/notice state in `useDisplayFeedbackState.ts`
 - Use Fluent UI v9 for Slider, Switch, Button, and Provider
-- System accent must flow through Rust registry read -> `useAccentColor()` -> CSS vars + Fluent theme
+- Fixed Codex accent must flow through `useAccentColor()` -> CSS vars + Fluent theme
 - Window display must refresh accent before showing the window, not after showing it
 - Exclude `*.test.ts` from production TypeScript build
 
@@ -146,7 +151,19 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 ## CRITICAL NOTES
 
 - SDR white level range: **80-480 nits** (fixed)
-- SDR White Level is the brightness control path; MCCS brightness range is not used for display enumeration
+- Current display enumeration merges HDR SDR, DDC/CI, and WMI provider results behind the existing `get_hdr_displays` command name
+- Brightness writes are source-routed in Rust: HDR SDR uses DisplayConfig, DDC high-level/VCP uses `display/ddcci.rs`, and WMI uses `display/wmi.rs`
+- `BrightnessSource` currently includes `HdrSdr`, `DdcHighLevel`, `DdcVcp`, and `Wmi`
+- `DisplayInfo.brightness` is the normalized 0-100 slider value; `DisplayInfo.nits` remains the HDR SDR white-level value for `HdrSdr`
+- `brightness_raw`, `brightness_raw_max`, `brightness_device_id`, and `brightness_vcp_code` are part of the shared contract for provider-specific raw scales and write routing
+- `display/brightness.rs` maps HDR SDR percent to 80-480 nits, maps SDR nits back to percent, scales DDC VCP percent to raw max, and keeps WMI/high-level DDC as percent values
+- DDC/WMI provider error codes are part of the shared contract: `ddc_enumeration_failed`, `ddc_brightness_failed`, `wmi_enumeration_failed`, and `wmi_brightness_failed`
+- Provider module boundaries are pinned by `src/architectureContract.test.ts`: physical monitor APIs belong in `display/ddcci.rs`; WMI brightness APIs belong in `display/wmi.rs`
+- `display/ddcci.rs` VCP priority is luminance `0x10`, brightness `0x13`, backlight `0x6B`, then contrast `0x12`; raw scaling uses reported max values
+- DDC/CI provider implementation exists in `display/ddcci.rs`; service-level provider merge and source-routed app writes are implemented
+- WMI provider implementation exists in `display/wmi.rs`; service-level provider merge and source-routed app writes are implemented
+- WMI COM initialization treats `RPC_E_CHANGED_MODE` as a reusable host COM apartment and must not call `CoUninitialize` for that borrowed apartment
+- Frontend source-aware slider gating and non-HDR labels are implemented
 - `DisplayInfo` distinguishes `hdr_supported` from `hdr_enabled`
 - Display enumeration returns HDR-capable displays even when HDR is off
 - Rust owns authoritative display state; frontend consumes command results
@@ -158,12 +175,14 @@ Windows system tray app for HDR monitor SDR brightness control via Windows Displ
 - Tray menu must be set before right-click; do not use `popup_menu()`
 - Each tray-show triggers silent display-state refresh (no startup overlay replay)
 - Hotkeys: 4% step; mouse wheel on slider: 2% step
-- SDR brightness controls disabled while HDR is off
+- Frontend display-state hooks use `DisplayInfo.brightness` as the slider value and update `nits` only for `brightness_source === "hdr_sdr"`
+- Component-level brightness UI is source-aware: HDR SDR depends on HDR enabled; DDC/WMI brightness controls do not
+- Tray summaries use generic brightness percentages plus `BrightnessSource`, not HDR-only nits
 - Non-blocking failures: auto-dismissing notice banner; init failures: blocking
 - **Single instance**: `tauri-plugin-single-instance` prevents multiple app instances; second instance focuses existing window
 - **Structured errors**: FFI/service/commands use `DisplayError`; commands return `{ code: DisplayErrorCode, message: string }` for precise frontend error handling
-- **System accent**: Windows accent color is read from `HKCU\SOFTWARE\Microsoft\Windows\DWM\AccentColor`; the window refreshes it before every show.
-- **UI baseline**: Acrylic transparent shell + Fluent UI v9 controls + system accent hover/active/focus states + 4-8px control radius.
+- **Fixed accent**: `useAccentColor()` applies Codex accent `#339CFF`; the window refreshes accent variables before every show.
+- **UI baseline**: Acrylic transparent shell + Fluent UI v9 controls + fixed-accent hover/active/focus states + 4-8px control radius.
 - **Visual QA**: use `agent-browser` against `visual-qa.html`; the harness intentionally uses a non-blue accent (`#c38aa0`) to expose default-blue regressions.
 
 ## COMMANDS

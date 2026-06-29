@@ -1,4 +1,4 @@
-﻿# Frontend - React/TypeScript UI Layer
+# Frontend - React/TypeScript UI Layer
 
 **Parent:** ./AGENTS.md
 **Generated:** 2026-06-29
@@ -39,8 +39,8 @@ React 18 single-window UI for HDR brightness control. Frontend is split into com
 
 ## UI RULES
 
-- `StatusBar` HDR toggle must refresh state after change
-- SDR controls disabled when `hdr_enabled` is `false`
+- `StatusBar` HDR toggle flips brightness source via `flip_hdr_source_in_cache`; when HDR is off on an HDR-capable DDC display, shows DDC source label instead of "HDR Off"
+- Slider disabled only during HDR pending state; HDR-off no longer disables slider (DDC fallback handles it)
 - Frontend consumes Rust-owned state; no push sync paths
 
 ## TEST COVERAGE

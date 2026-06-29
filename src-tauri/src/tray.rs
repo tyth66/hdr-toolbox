@@ -48,7 +48,16 @@ fn build_full_menu(
 
     // Build device items
     for (i, d) in displays.iter().enumerate() {
-        let label = format!("{} ({} nits)", d.name, d.nits);
+        let label = match d.brightness_source {
+            crate::display::model::BrightnessSource::HdrSdr => {
+                format!("{} ({}% SDR white)", d.name, d.brightness)
+            }
+            crate::display::model::BrightnessSource::DdcHighLevel
+            | crate::display::model::BrightnessSource::DdcVcp
+            | crate::display::model::BrightnessSource::Wmi => {
+                format!("{} ({}%)", d.name, d.brightness)
+            }
+        };
         match MenuItem::with_id(app, format!("display-{}", i), &label, true, None::<&str>) {
             Ok(item) => owned_items.push(item),
             Err(e) => {
@@ -95,8 +104,8 @@ pub fn update_tray_tooltip(app: &AppHandle) {
             "HDR Toolbox - No HDR-capable displays".to_string()
         } else if tray_state.displays.len() == 1 {
             format!(
-                "HDR Toolbox - {}: {} nits",
-                tray_state.displays[0].name, tray_state.displays[0].nits
+                "HDR Toolbox - {}: {}%",
+                tray_state.displays[0].name, tray_state.displays[0].brightness
             )
         } else {
             format!("HDR Toolbox - {} displays", tray_state.displays.len())

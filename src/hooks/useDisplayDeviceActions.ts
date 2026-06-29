@@ -36,7 +36,7 @@ export function useDisplayDeviceActions({
       try {
         const idx = selectedIndexRef.current;
         const display = displaysRef.current[idx];
-        if (!display || !display.hdr_enabled) {
+        if (!display) {
           return;
         }
 

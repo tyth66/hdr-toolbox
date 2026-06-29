@@ -1,5 +1,9 @@
 import { memo, type MouseEventHandler, type WheelEventHandler } from "react";
 import { Button } from "@fluentui/react-components";
+import {
+  getBrightnessSourceLabel,
+  isHdrBrightnessSource,
+} from "../brightnessSource";
 import type { AppNotice } from "../errors";
 import type {
   DisplayInfo,
@@ -145,6 +149,10 @@ export const MainSurface = memo(function MainSurface({
   onCloseStartupOverlay,
 }: MainSurfaceProps) {
   const selectedDisplay = displays[selectedIndex];
+  const selectedBrightnessSource = selectedDisplay?.brightness_source ?? "hdr_sdr";
+  const brightnessSourceLabel = getBrightnessSourceLabel(selectedBrightnessSource);
+  const sliderDisabled =
+    isHdrPending || (isHdrBrightnessSource(selectedBrightnessSource) && !hdrActive);
 
   return (
     <div className={windowClassName}>
@@ -185,7 +193,8 @@ export const MainSurface = memo(function MainSurface({
           <BrightnessSlider
             value={currentPercentage}
             displayName={selectedDisplay?.name ?? "Unknown display"}
-            disabled={!hdrActive || isHdrPending}
+            sourceLabel={brightnessSourceLabel}
+            disabled={sliderDisabled}
             onChange={onSliderChange}
             onPointerDown={onSliderDown}
             onCommit={onSliderCommit}
@@ -194,6 +203,7 @@ export const MainSurface = memo(function MainSurface({
           <StatusBar
             hdrSupported={selectedDisplay?.hdr_supported ?? false}
             hdrActive={hdrActive}
+            brightnessSourceLabel={brightnessSourceLabel}
             hdrPending={isHdrPending}
             onToggleHdr={onToggleHdr}
           />

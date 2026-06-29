@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   mapInitialLoadError,
   mapRefreshError,
@@ -10,6 +13,57 @@ import {
   mapHotkeyValidationError,
   mapHotkeyRegistrationError,
 } from "./errors.ts";
+import type { StructuredDisplayError } from "./errors.ts";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const errorsPath = path.resolve(__dirname, "errors.ts");
+const rustErrorPath = path.resolve(__dirname, "..", "src-tauri", "src", "display", "error.rs");
+
+function readFile(filePath: string): string {
+  return readFileSync(filePath, "utf8");
+}
+
+function extractBlock(source: string, pattern: RegExp): string {
+  const match = source.match(pattern);
+  assert.ok(match?.[1], `Could not locate block for pattern ${pattern}`);
+  return match[1];
+}
+
+function extractTsDisplayErrorCodes(source: string): string[] {
+  const block = extractBlock(source, /export type DisplayErrorCode\s*=([\s\S]*?);/);
+  return [...block.matchAll(/"([a-z_]+)"/g)].map((match) => match[1]);
+}
+
+function extractRustDisplayErrorCodes(source: string): string[] {
+  const block = extractBlock(source, /pub enum DisplayErrorCode\s*\{([\s\S]*?)\n\}/);
+  return block
+    .split("\n")
+    .map((line) => line.trim().replace(/,$/, ""))
+    .filter((line) => /^[A-Z]/.test(line))
+    .map((variant) =>
+      variant.replace(/[A-Z]/g, (char, index) => `${index ? "_" : ""}${char.toLowerCase()}`)
+    );
+}
+
+test("TypeScript DisplayErrorCode matches Rust DisplayErrorCode contract", () => {
+  assert.deepEqual(
+    extractTsDisplayErrorCodes(readFile(errorsPath)),
+    extractRustDisplayErrorCodes(readFile(rustErrorPath))
+  );
+});
+
+test("DisplayErrorCode contract includes DDC and WMI provider failures", () => {
+  const tsCodes = extractTsDisplayErrorCodes(readFile(errorsPath));
+  for (const code of [
+    "ddc_enumeration_failed",
+    "ddc_brightness_failed",
+    "wmi_enumeration_failed",
+    "wmi_brightness_failed",
+  ]) {
+    assert.ok(tsCodes.includes(code), `Missing DisplayErrorCode ${code}`);
+  }
+});
 
 test("mapInitialLoadError recognizes HDR-capable display empty-state errors", () => {
   assert.equal(
@@ -87,6 +141,30 @@ test("mapBrightnessError returns correct notice", () => {
   assert.deepEqual(mapBrightnessError(), {
     title: "Brightness update failed",
     message: "HDR Toolbox couldn't update SDR brightness for the selected display.",
+  });
+});
+
+test("maps DDC brightness errors to specific notices", () => {
+  const error: StructuredDisplayError = {
+    code: "ddc_brightness_failed",
+    message: "DDC/CI brightness update failed: monitor not responding",
+  };
+
+  assert.deepEqual(mapBrightnessError(error), {
+    title: "Brightness update failed",
+    message: "DDC/CI brightness update failed: monitor not responding",
+  });
+});
+
+test("maps WMI brightness errors to specific notices", () => {
+  const error: StructuredDisplayError = {
+    code: "wmi_brightness_failed",
+    message: "WMI brightness update failed: access denied",
+  };
+
+  assert.deepEqual(mapBrightnessError(error), {
+    title: "Brightness update failed",
+    message: "WMI brightness update failed: access denied",
   });
 });
 

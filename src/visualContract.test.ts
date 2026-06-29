@@ -313,3 +313,16 @@ test("phase 5 visual QA harness covers fixed-window visual states", () => {
   assert.match(visualQaStyles, /\.visual-qa-window\[data-theme="light"\]\s*\{[\s\S]*--side-nav-bg:\s*rgba\(0,\s*0,\s*0,\s*0\.07\)/);
   assert.match(visualQaStyles, /\.visual-qa-window\[data-theme="light"\]\s*\{[\s\S]*--glass-highlight:\s*transparent/);
 });
+
+test("visual QA covers all brightness source display states", () => {
+  const visualQa = readRepoFile("src/visualQa.tsx");
+
+  for (const scenario of [
+    "ddc-high-level-display",
+    "ddc-vcp-display",
+    "wmi-internal-display",
+    "hdr-sdr-display",
+  ]) {
+    assert.match(visualQa, new RegExp(`label="${scenario}"`));
+  }
+});
