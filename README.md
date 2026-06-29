@@ -45,7 +45,7 @@ Remaining documentation contract and final verification work is tracked in `docs
 | 🧮 **DDC/CI provider foundation** | Rust provider code enumerates physical monitor handles, reads high-level/VCP brightness, writes high-level/VCP brightness, and keeps tested raw/percent helpers |
 | 🖥️ **WMI provider foundation** | Rust provider code connects to `ROOT\WMI`, reads `WmiMonitorBrightness`, and writes `WmiMonitorBrightnessMethods.WmiSetBrightness` |
 | 🔀 **Provider merge foundation** | Rust service merges HDR SDR, DDC/CI, and WMI provider results behind the existing display-list command |
-| 🔀 **HDR/DDC source switching** | HDR toggle flips between SDR white level and DDC/CI physical brightness on the same display entry |
+| 🔀 **HDR source switching** | HDR toggle automatically flips between SDR white level and physical brightness (DDC/CI or internal WMI) on the same display entry — no duplicate entries |
 | 🎛️ **Source-routed backend writes** | Rust brightness commands now route HDR SDR, DDC/CI high-level, DDC/CI VCP, and WMI writes through the selected display's `BrightnessSource` |
 | 🧩 **Generic frontend state** | Frontend display-state hooks now read and update normalized `brightness` instead of deriving every slider value from HDR SDR nits |
 | 🏷️ **Source-aware UI labels** | The main slider and status bar describe HDR SDR, DDC/CI, and WMI brightness sources and allow non-HDR brightness controls |
@@ -108,7 +108,7 @@ npm run tauri build
 2. Left-click tray icon → show/hide brightness window
 3. Right-click tray icon → open device menu
 4. Drag slider or use wheel/keyboard to adjust brightness
-5. Click HDR toggle in status bar to enable/disable HDR
+5. Click HDR toggle to switch between SDR white level and physical brightness
 ```
 
 ### ⌨️ Hotkeys
@@ -143,7 +143,7 @@ The app uses a transparent Tauri window with a Windows Acrylic backdrop and Flue
 
 | Question | Answer |
 |----------|--------|
-| **HDR toggle is grayed out** | Ensure monitor is connected and supports HDR. Click the refresh button. |
+| **HDR toggle is grayed out** | Display does not support HDR. DDC/WMI brightness still available without HDR. |
 | **Adjustments have no effect** | Some monitors may not support this control path. |
 | **How to exit** | Right-click tray icon → **Quit** |
 
