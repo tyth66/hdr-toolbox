@@ -52,7 +52,7 @@ Windows DisplayConfig backend for HDR SDR brightness control. The display contra
 
 - SDR white level: undocumented type `0xFFFFFFEE` with `final_value = 1`
 - Current production enumeration merges HDR SDR, DDC/CI, and WMI providers; backend brightness writes route by `BrightnessSource`
-- `BrightnessSource` variants are `HdrSdr`, `DdcHighLevel`, `DdcVcp`, and `Wmi`; enumeration assigns source-specific values. HDR-capable displays with DDC support carry `ddc_source` metadata for automatic source switching on HDR toggle.
+- `BrightnessSource` variants are `HdrSdr`, `DdcHighLevel`, `DdcVcp`, and `Wmi`; enumeration assigns source-specific values. HDR-capable displays carry `ddc_source` metadata (DDC or WMI) for automatic source switching on HDR toggle.
 - `DisplayInfo.brightness` is normalized 0-100; `DisplayInfo.nits` remains the HDR SDR white-level value
 - `brightness_raw`, `brightness_raw_max`, `brightness_device_id`, and `brightness_vcp_code` carry provider raw scales and stable write-routing metadata
 - `display/brightness.rs` provides HDR SDR percent/nits conversion plus source-to-hardware value selection
