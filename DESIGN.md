@@ -3,8 +3,8 @@
 ## Status
 
 - Status: Active
-- Last refreshed: 2026-06-29
-- Product: HDR Toolbox, a fixed-size Windows tray utility currently controlling HDR display SDR white level while migrating toward universal brightness control.
+- Last refreshed: 2026-06-30
+- Product: HDR Toolbox, a fixed-size Windows tray utility controlling display brightness across HDR SDR white level, DDC/CI, and internal WMI panel paths. HDR toggle flips between SDR white level and physical brightness on the same display entry.
 - Primary surfaces:
   - 300 x 200 tray flyout
   - Display rail

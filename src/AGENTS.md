@@ -39,8 +39,8 @@ React 18 single-window UI for HDR brightness control. Frontend is split into com
 
 ## UI RULES
 
-- `StatusBar` HDR toggle flips brightness source via `flip_hdr_source_in_cache`; when HDR is off on an HDR-capable DDC display, shows DDC source label instead of "HDR Off"
-- Slider disabled only during HDR pending state; HDR-off no longer disables slider (DDC fallback handles it)
+- `StatusBar` HDR toggle flips brightness source; shows fallback source label (DDC or WMI) when HDR is off
+- Slider disabled only during HDR-pending; HDR-off uses fallback source (DDC or WMI)
 - Frontend consumes Rust-owned state; no push sync paths
 
 ## TEST COVERAGE
