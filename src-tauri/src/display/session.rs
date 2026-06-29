@@ -32,7 +32,6 @@ impl DisplayTarget {
 ///
 /// Poisoned mutexes are logged and treated as recoverable because the next
 /// successful hardware refresh can repair stale app state.
-
 /// Flips brightness_source between HdrSdr and ddc_source when HDR is toggled.
 /// Returns the updated display list for the frontend.
 pub(super) fn flip_hdr_source_in_cache(
