@@ -188,19 +188,8 @@ pub(super) fn set_brightness_all_impl(
     percentage: u32,
 ) -> Vec<Result<(), DisplayError>> {
     displays
-        .into_iter()
-        .map(|display| {
-            let adapter_id = LUID {
-                LowPart: display.adapter_id_low as u32,
-                HighPart: display.adapter_id_high,
-            };
-            let (min_nits, max_nits) = (
-                display.min_nits.unwrap_or(80),
-                display.max_nits.unwrap_or(480),
-            );
-            let nits = percentage_to_nits(percentage, min_nits, max_nits);
-            set_sdr_white_level_raw(adapter_id, display.target_id, nits)
-        })
+        .iter()
+        .map(|display| set_display_brightness_impl(display, percentage))
         .collect()
 }
 
