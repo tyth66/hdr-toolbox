@@ -29,7 +29,7 @@ pub struct DisplayInfo {
     pub brightness_raw_max: Option<u32>,
     pub brightness_device_id: String,
     pub brightness_vcp_code: Option<u32>,
-    pub ddc_source: Option<BrightnessSource>,
+    pub fallback_source: Option<BrightnessSource>,
     pub nits: u32,
     pub min_percentage: u32,
     pub max_percentage: u32,

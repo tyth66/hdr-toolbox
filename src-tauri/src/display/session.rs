@@ -32,7 +32,7 @@ impl DisplayTarget {
 ///
 /// Poisoned mutexes are logged and treated as recoverable because the next
 /// successful hardware refresh can repair stale app state.
-/// Flips brightness_source between HdrSdr and ddc_source when HDR is toggled.
+/// Flips brightness_source between HdrSdr and fallback_source when HDR is toggled.
 /// Returns the updated display list for the frontend.
 pub(super) fn flip_hdr_source_in_cache(
     app: &AppHandle,
@@ -48,19 +48,19 @@ pub(super) fn flip_hdr_source_in_cache(
                 .ok_or_else(crate::display::DisplayError::display_not_found)?;
 
             if hdr_enabled {
-                // HDR turned ON: restore HdrSdr, save current source as ddc_source
-                if display.ddc_source.is_some() || display.brightness_source != BrightnessSource::HdrSdr {
+                // HDR turned ON: restore HdrSdr, save current source as fallback_source
+                if display.fallback_source.is_some() || display.brightness_source != BrightnessSource::HdrSdr {
                     let current = display.brightness_source;
                     display.brightness_source = BrightnessSource::HdrSdr;
-                    display.ddc_source = Some(current);
+                    display.fallback_source = Some(current);
                 }
             } else {
-                // HDR turned OFF: switch to ddc_source if available
-                if let Some(ddc) = display.ddc_source.take() {
+                // HDR turned OFF: switch to fallback_source if available
+                if let Some(ddc) = display.fallback_source.take() {
                     display.brightness_source = ddc;
-                    display.ddc_source = Some(BrightnessSource::HdrSdr);
+                    display.fallback_source = Some(BrightnessSource::HdrSdr);
                 }
-                // If no ddc_source, slider will be disabled by frontend
+                // If no fallback_source, slider will be disabled by frontend
             }
             display.hdr_enabled = hdr_enabled;
 
@@ -77,14 +77,14 @@ pub(super) fn flip_hdr_source_in_cache(
             );
             let mut guard = poisoned.into_inner();
             if let Some(display) = guard.iter_mut().find(|d| target.matches(d)) {
-                if hdr_enabled && display.ddc_source.is_some() {
+                if hdr_enabled && display.fallback_source.is_some() {
                     let current = display.brightness_source;
                     display.brightness_source = BrightnessSource::HdrSdr;
-                    display.ddc_source = Some(current);
+                    display.fallback_source = Some(current);
                 } else if !hdr_enabled {
-                    if let Some(ddc) = display.ddc_source.take() {
+                    if let Some(ddc) = display.fallback_source.take() {
                         display.brightness_source = ddc;
-                        display.ddc_source = Some(BrightnessSource::HdrSdr);
+                        display.fallback_source = Some(BrightnessSource::HdrSdr);
                     }
                 }
                 display.hdr_enabled = hdr_enabled;
@@ -278,7 +278,7 @@ mod tests {
             brightness_raw_max: Some(100),
             brightness_device_id: format!("1:2:{target_id}"),
             brightness_vcp_code: None,
-            ddc_source: None,
+            fallback_source: None,
             nits,
             min_percentage: 0,
             max_percentage: 100,

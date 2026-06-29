@@ -52,11 +52,11 @@ Windows DisplayConfig backend for HDR SDR brightness control. The display contra
 
 - SDR white level: undocumented type `0xFFFFFFEE` with `final_value = 1`
 - Current production enumeration merges HDR SDR, DDC/CI, and WMI providers; backend brightness writes route by `BrightnessSource`
-- `BrightnessSource` variants are `HdrSdr`, `DdcHighLevel`, `DdcVcp`, and `Wmi`; enumeration assigns source-specific values. HDR-capable displays carry `ddc_source` metadata (DDC or WMI) for automatic source switching on HDR toggle.
+- `BrightnessSource` variants are `HdrSdr`, `DdcHighLevel`, `DdcVcp`, and `Wmi`; enumeration assigns source-specific values. HDR-capable displays carry `fallback_source` metadata (DDC or WMI) for automatic source switching on HDR toggle.
 - `DisplayInfo.brightness` is normalized 0-100; `DisplayInfo.nits` remains the HDR SDR white-level value
 - `brightness_raw`, `brightness_raw_max`, `brightness_device_id`, and `brightness_vcp_code` carry provider raw scales and stable write-routing metadata
 - `display/brightness.rs` provides HDR SDR percent/nits conversion plus source-to-hardware value selection
-- `DisplayInfo.ddc_source` stores fallback DDC brightness source; `flip_hdr_source_in_cache` in `session.rs` swaps `brightness_source` on HDR toggle without re-enumeration
+- `DisplayInfo.fallback_source` stores fallback DDC brightness source; `flip_hdr_source_in_cache` in `session.rs` swaps `brightness_source` on HDR toggle without re-enumeration
 - DDC/WMI provider errors have dedicated codes and constructors for enumeration and brightness failures
 - `display/ddcci.rs` now implements DDC/CI Windows enumeration and writes; `display/wmi.rs` now implements native COM/WMI enumeration and writes; service-level merge and generic brightness write routing are implemented
 - WMI COM initialization accepts `RPC_E_CHANGED_MODE` as a borrowed host apartment; only successful `CoInitializeEx` calls owned by this module should be paired with `CoUninitialize`

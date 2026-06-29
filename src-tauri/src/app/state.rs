@@ -64,7 +64,7 @@ mod tests {
             brightness_raw_max: Some(100),
             brightness_device_id: "MONITOR#DDC#1".to_string(),
             brightness_vcp_code: Some(0x10),
-            ddc_source: None,
+            fallback_source: None,
             nits: 280,
             min_percentage: 0,
             max_percentage: 100,

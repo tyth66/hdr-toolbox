@@ -313,7 +313,7 @@ fn enumerate_hdr_sdr_displays() -> Result<Vec<DisplayInfo>, DisplayError> {
                 path.target_id,
             ),
             brightness_vcp_code: None,
-            ddc_source: None,
+            fallback_source: None,
             nits,
             min_percentage: 0,
             max_percentage: 100,
@@ -331,7 +331,7 @@ fn enumerate_hdr_sdr_displays() -> Result<Vec<DisplayInfo>, DisplayError> {
 }
 
 fn merge_ddc_display(displays: &mut Vec<DisplayInfo>, display: DdcDisplay) {
-    let ddc_source = if display.high_level_supported {
+    let fallback_source = if display.high_level_supported {
         BrightnessSource::DdcHighLevel
     } else {
         BrightnessSource::DdcVcp
@@ -341,7 +341,7 @@ fn merge_ddc_display(displays: &mut Vec<DisplayInfo>, display: DdcDisplay) {
     if let Some(existing) = displays.iter_mut().find(|existing| {
         existing.brightness_source == BrightnessSource::HdrSdr && existing.name == display.name
     }) {
-        existing.ddc_source = Some(ddc_source);
+        existing.fallback_source = Some(fallback_source);
         existing.brightness_device_id = display.device_key;
         existing.brightness_vcp_code = display.vcp_code.map(u32::from);
         existing.brightness_raw = Some(display.brightness_raw);
@@ -354,12 +354,12 @@ fn merge_ddc_display(displays: &mut Vec<DisplayInfo>, display: DdcDisplay) {
     displays.push(DisplayInfo {
         name: display.name,
         brightness: display.brightness_percent,
-        brightness_source: ddc_source,
+        brightness_source: fallback_source,
         brightness_raw: Some(display.brightness_raw),
         brightness_raw_max: Some(display.brightness_raw_max),
         brightness_device_id: display.device_key,
         brightness_vcp_code: display.vcp_code.map(u32::from),
-        ddc_source: None,
+        fallback_source: None,
         nits: luminance::DEFAULT_NITS,
         min_percentage: 0,
         max_percentage: 100,
@@ -378,7 +378,7 @@ fn merge_wmi_display(displays: &mut Vec<DisplayInfo>, display: WmiDisplay) {
     if let Some(existing) = displays.iter_mut().find(|existing| {
         existing.brightness_source == BrightnessSource::HdrSdr && existing.name == display.name
     }) {
-        existing.ddc_source = Some(BrightnessSource::Wmi);
+        existing.fallback_source = Some(BrightnessSource::Wmi);
         existing.brightness_device_id = display.key;
         existing.brightness_raw = Some(display.brightness_percent);
         existing.brightness_raw_max = Some(100);
@@ -397,7 +397,7 @@ fn merge_wmi_display(displays: &mut Vec<DisplayInfo>, display: WmiDisplay) {
         brightness_raw_max: Some(100),
         brightness_device_id: display.key,
         brightness_vcp_code: None,
-        ddc_source: None,
+        fallback_source: None,
         nits: luminance::DEFAULT_NITS,
         min_percentage: 0,
         max_percentage: 100,
@@ -588,7 +588,7 @@ mod tests {
             brightness_raw_max: Some(100),
             brightness_device_id: "123:456:789".to_string(),
             brightness_vcp_code: None,
-            ddc_source: None,
+            fallback_source: None,
             nits: 280,
             min_percentage: 0,
             max_percentage: 100,
@@ -635,7 +635,7 @@ mod tests {
             brightness_raw_max: Some(100),
             brightness_device_id: format!("{adapter_id_low}:{adapter_id_high}:{target_id}"),
             brightness_vcp_code: None,
-            ddc_source: None,
+            fallback_source: None,
             nits,
             min_percentage: 0,
             max_percentage: 100,
@@ -674,7 +674,7 @@ mod tests {
         // Should still be one entry, not two
         assert_eq!(displays.len(), 1);
         assert_eq!(displays[0].brightness_source, BrightnessSource::HdrSdr);
-        assert_eq!(displays[0].ddc_source, Some(BrightnessSource::Wmi));
+        assert_eq!(displays[0].fallback_source, Some(BrightnessSource::Wmi));
         assert_eq!(displays[0].brightness_device_id, "WMI-1");
         assert_eq!(displays[0].brightness_raw, Some(60));
     }
@@ -687,7 +687,7 @@ mod tests {
         assert_eq!(displays.len(), 1);
         assert_eq!(displays[0].brightness_source, BrightnessSource::Wmi);
         assert_eq!(displays[0].brightness, 42);
-        assert_eq!(displays[0].ddc_source, None);
+        assert_eq!(displays[0].fallback_source, None);
     }
 
 }

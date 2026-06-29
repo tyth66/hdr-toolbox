@@ -136,7 +136,7 @@ pub fn set_hdr_enabled(
 ) -> Result<Vec<DisplayInfo>, DisplayError> {
     set_hdr_enabled_impl(adapter_low, adapter_high, target_id, enabled)?;
 
-    // Flip the brightness_source in cache: HDR on -> HdrSdr, HDR off -> ddc_source
+    // Flip the brightness_source in cache: HDR on -> HdrSdr, HDR off -> fallback_source
     // This avoids a full re-enumeration and keeps a single entry per display.
     let target = DisplayTarget::new(adapter_low, adapter_high, target_id);
     let displays = flip_hdr_source_in_cache(&app, &state, target, enabled)?;
@@ -161,7 +161,7 @@ mod tests {
             brightness_raw_max: Some(100),
             brightness_device_id: format!("1:2:{target_id}"),
             brightness_vcp_code: None,
-            ddc_source: None,
+            fallback_source: None,
             nits,
             min_percentage: 0,
             max_percentage: 100,
@@ -189,7 +189,7 @@ mod tests {
             brightness_raw_max: Some(100),
             brightness_device_id: format!("device-{target_id}"),
             brightness_vcp_code: (source == BrightnessSource::DdcVcp).then_some(0x10),
-            ddc_source: None,
+            fallback_source: None,
             nits: if source == BrightnessSource::HdrSdr {
                 super::super::brightness::percent_to_sdr_nits(brightness)
             } else {

@@ -18,7 +18,7 @@ export interface DisplayInfo {
   brightness_raw_max?: number;
   brightness_device_id: string;
   brightness_vcp_code?: number;
-  ddc_source?: BrightnessSource;
+  fallback_source?: BrightnessSource;
   nits: number;
   min_percentage: number;
   max_percentage: number;
