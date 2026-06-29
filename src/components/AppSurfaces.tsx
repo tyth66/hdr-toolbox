@@ -4,7 +4,6 @@ import type { AppNotice } from "../errors";
 import type {
   DisplayInfo,
   HotkeyConfig,
-  HotkeyDirection,
   ThemePreference,
 } from "../types";
 import { AboutDialog } from "./AboutDialog";
@@ -86,6 +85,9 @@ type MainSurfaceProps = AppShellSurfaceProps & {
   syncBrightnessEnabled: boolean;
   themePreference: ThemePreference;
   hotkeys: HotkeyConfig;
+  hotkeyRecordingDirection: "increase" | "decrease" | null;
+  hotkeyError: string | null;
+  hotkeyErrorSeq: number;
   showStartupInfo: boolean;
   onTitleBarMouseDown: MouseEventHandler<HTMLElement>;
   onRefreshDisplays: () => Promise<void>;
@@ -101,8 +103,7 @@ type MainSurfaceProps = AppShellSurfaceProps & {
   onToggleAutostart: () => Promise<void>;
   onToggleSyncBrightness: () => void;
   onChangeThemePreference: (preference: ThemePreference) => void;
-  onUpdateHotkey: (direction: HotkeyDirection, value: string) => boolean;
-  onResetHotkeys: () => void;
+  onStartHotkeyRecording: (direction: "increase" | "decrease") => void;
   onCloseStartupOverlay: () => void;
 };
 
@@ -121,6 +122,7 @@ export const MainSurface = memo(function MainSurface({
   syncBrightnessEnabled,
   themePreference,
   hotkeys,
+  hotkeyRecordingDirection,
   showStartupInfo,
   onTitleBarMouseDown,
   onRefreshDisplays,
@@ -136,8 +138,9 @@ export const MainSurface = memo(function MainSurface({
   onToggleAutostart,
   onToggleSyncBrightness,
   onChangeThemePreference,
-  onUpdateHotkey,
-  onResetHotkeys,
+  onStartHotkeyRecording,
+  hotkeyError,
+  hotkeyErrorSeq,
   onClose,
   onCloseStartupOverlay,
 }: MainSurfaceProps) {
@@ -203,12 +206,14 @@ export const MainSurface = memo(function MainSurface({
         syncBrightnessEnabled={syncBrightnessEnabled}
         themePreference={themePreference}
         hotkeys={hotkeys}
+        hotkeyRecordingDirection={hotkeyRecordingDirection}
         onClose={() => onSetShowSettings(false)}
         onToggleAutostart={onToggleAutostart}
         onToggleSyncBrightness={onToggleSyncBrightness}
         onChangeThemePreference={onChangeThemePreference}
-        onUpdateHotkey={onUpdateHotkey}
-        onResetHotkeys={onResetHotkeys}
+        onStartHotkeyRecording={onStartHotkeyRecording}
+        hotkeyError={hotkeyError}
+        hotkeyErrorSeq={hotkeyErrorSeq}
         onShowAbout={() => onSetShowAbout(true)}
       />
 
@@ -226,3 +231,5 @@ export const MainSurface = memo(function MainSurface({
     </div>
   );
 });
+
+

@@ -69,11 +69,13 @@ function App() {
     syncBrightnessEnabled,
     themePreference,
     hotkeys,
+    hotkeyRecordingDirection,
+    handleStartHotkeyRecording,
+    hotkeyError,
+    hotkeyErrorSeq,
     handleToggleAutostart,
     handleToggleSyncBrightness,
     handleThemePreferenceChange,
-    handleHotkeyChange,
-    handleHotkeyReset,
   } = useAppController({
     loadDisplays,
     refreshDisplays,
@@ -155,6 +157,7 @@ function App() {
         syncBrightnessEnabled={syncBrightnessEnabled}
         themePreference={themePreference}
         hotkeys={hotkeys}
+        hotkeyRecordingDirection={hotkeyRecordingDirection}
         showStartupInfo={showStartupInfo}
         onTitleBarMouseDown={handleTitleBarMouseDown}
         onRefreshDisplays={refreshDisplays}
@@ -170,8 +173,9 @@ function App() {
         onToggleAutostart={handleToggleAutostart}
         onToggleSyncBrightness={handleToggleSyncBrightness}
         onChangeThemePreference={handleThemePreferenceChange}
-        onUpdateHotkey={handleHotkeyChange}
-        onResetHotkeys={handleHotkeyReset}
+        onStartHotkeyRecording={handleStartHotkeyRecording}
+        hotkeyError={hotkeyError}
+        hotkeyErrorSeq={hotkeyErrorSeq}
         onClose={hideWindow}
         onCloseStartupOverlay={closeStartupOverlay}
       />

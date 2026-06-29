@@ -1,17 +1,20 @@
 /* Windows 11 tray utility design system */
 
 :root {
-  --color-accent: #0078d4;
-  --color-accent-hover: #0a84d8;
-  --color-accent-active: #006cbe;
-  --acrylic-window-tint: rgba(20, 20, 20, 0.34);
+  --color-accent: #339CFF;
+  --color-accent-hover: #339CFF;
+  --color-accent-active: #339CFF;
+  --acrylic-window-tint: #181818;
+  --glass-highlight: transparent;
   --color-window: rgba(32, 32, 32, 0.82);
-  --color-surface: rgba(255, 255, 255, 0.055);
-  --color-surface-hover: rgba(255, 255, 255, 0.09);
-  --color-surface-active: rgba(255, 255, 255, 0.13);
+  --color-surface: rgba(255, 255, 255, 0.07);
+  --color-surface-hover: rgba(255, 255, 255, 0.1);
+  --color-surface-active: rgba(255, 255, 255, 0.14);
   --color-border: rgba(255, 255, 255, 0.12);
   --color-border-strong: rgba(255, 255, 255, 0.22);
-  --color-text-primary: #f5f5f5;
+  --color-text-primary: #ffffff;
+  --color-text-inverse: #ffffff;
+
   --color-text-secondary: #c8c8c8;
   --color-text-muted: #969696;
   --color-warning: #f9c642;
@@ -25,6 +28,7 @@
   --color-notice-text: #fde68a;
   --color-notice-dismiss-hover: #fff7ed;
   --dialog-overlay-bg: rgba(0, 0, 0, 0.34);
+  --side-nav-bg: rgba(255, 255, 255, 0.07);
 
   --space-1: 4px;
   --space-2: 8px;
@@ -61,15 +65,17 @@
 /* Light mode overrides */
 @media (prefers-color-scheme: light) {
   :root {
-    --acrylic-window-tint: rgba(250, 250, 250, 0.44);
+    --acrylic-window-tint: #ffffff;
+    --glass-highlight: transparent;
     --color-window: rgba(250, 250, 250, 0.9);
-    --color-surface: rgba(0, 0, 0, 0.035);
-    --color-surface-hover: rgba(0, 0, 0, 0.06);
-    --color-surface-active: rgba(0, 0, 0, 0.09);
+    --color-surface: rgba(0, 0, 0, 0.07);
+    --color-surface-hover: rgba(0, 0, 0, 0.1);
+    --color-surface-active: rgba(0, 0, 0, 0.14);
     --color-border: rgba(0, 0, 0, 0.1);
     --color-border-strong: rgba(0, 0, 0, 0.16);
-    --color-text-primary: #1f1f1f;
-    --color-text-secondary: #4b5563;
+  --color-text-primary: #1a1c1f;
+  --color-text-inverse: #1a1c1f;
+  --color-text-secondary: #4b5563;
     --color-text-muted: #6b7280;
     --color-warning: #b45309;
     --color-error: #dc2626;
@@ -81,18 +87,21 @@
     --color-notice-text: #92400e;
     --color-notice-dismiss-hover: #451a03;
     --dialog-overlay-bg: rgba(255, 255, 255, 0.22);
+    --side-nav-bg: rgba(0, 0, 0, 0.07);
   }
 }
 
 .app-theme-dark {
-  --acrylic-window-tint: rgba(20, 20, 20, 0.34);
+  --acrylic-window-tint: #181818;
+  --glass-highlight: transparent;
   --color-window: rgba(32, 32, 32, 0.82);
-  --color-surface: rgba(255, 255, 255, 0.055);
-  --color-surface-hover: rgba(255, 255, 255, 0.09);
-  --color-surface-active: rgba(255, 255, 255, 0.13);
+  --color-surface: rgba(255, 255, 255, 0.07);
+  --color-surface-hover: rgba(255, 255, 255, 0.1);
+  --color-surface-active: rgba(255, 255, 255, 0.14);
   --color-border: rgba(255, 255, 255, 0.12);
   --color-border-strong: rgba(255, 255, 255, 0.22);
-  --color-text-primary: #f5f5f5;
+  --color-text-primary: #ffffff;
+  --color-text-inverse: #1a1c1f;
   --color-text-secondary: #c8c8c8;
   --color-text-muted: #969696;
   --color-warning: #f9c642;
@@ -105,6 +114,7 @@
   --color-notice-text: #fde68a;
   --color-notice-dismiss-hover: #fff7ed;
   --dialog-overlay-bg: rgba(0, 0, 0, 0.34);
+  --side-nav-bg: rgba(255, 255, 255, 0.07);
 
   --win-bg: transparent;
   --mica-bg: var(--color-window);
@@ -120,14 +130,16 @@
 }
 
 .app-theme-light {
-  --acrylic-window-tint: rgba(250, 250, 250, 0.44);
+  --acrylic-window-tint: #ffffff;
+  --glass-highlight: transparent;
   --color-window: rgba(250, 250, 250, 0.9);
-  --color-surface: rgba(0, 0, 0, 0.035);
-  --color-surface-hover: rgba(0, 0, 0, 0.06);
-  --color-surface-active: rgba(0, 0, 0, 0.09);
+  --color-surface: rgba(0, 0, 0, 0.07);
+  --color-surface-hover: rgba(0, 0, 0, 0.1);
+  --color-surface-active: rgba(0, 0, 0, 0.14);
   --color-border: rgba(0, 0, 0, 0.1);
   --color-border-strong: rgba(0, 0, 0, 0.16);
-  --color-text-primary: #1f1f1f;
+  --color-text-primary: #1a1c1f;
+  --color-text-inverse: #1a1c1f;
   --color-text-secondary: #4b5563;
   --color-text-muted: #6b7280;
   --color-warning: #b45309;
@@ -140,6 +152,7 @@
   --color-notice-text: #92400e;
   --color-notice-dismiss-hover: #451a03;
   --dialog-overlay-bg: rgba(255, 255, 255, 0.22);
+  --side-nav-bg: rgba(0, 0, 0, 0.07);
 
   --win-bg: transparent;
   --mica-bg: var(--color-window);
@@ -164,7 +177,7 @@ html, body, #root {
   height: 100%;
   overflow: hidden;
   user-select: none;
-  background: var(--acrylic-window-tint);
+  background: transparent;
 }
 
 .fluent-root {
@@ -173,7 +186,7 @@ html, body, #root {
 }
 
 body {
-  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   color: var(--text-primary);
@@ -209,7 +222,10 @@ input {
 .mica-window {
   width: 300px;
   height: 200px;
-  background: var(--acrylic-window-tint);
+  background:
+    linear-gradient(135deg, var(--glass-highlight), transparent 54%),
+    var(--acrylic-window-tint);
+  backdrop-filter: blur(28px) saturate(1.45);
   border: 1px solid var(--mica-border);
   border-top-color: var(--mica-border-top);
   border-radius: var(--radius-window);
@@ -377,7 +393,7 @@ input {
   align-items: center;
   padding: 8px 0;
   gap: 4px;
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--side-nav-bg);
   border-right: 1px solid var(--color-border);
 }
 
@@ -720,7 +736,7 @@ input {
   flex: 1;
   padding: 16px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 13px;
   text-align: center;
 }
 
@@ -838,33 +854,18 @@ input {
 .settings-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin: 10px 0 0;
+  gap: 2px;
+  margin: 6px 0 0;
 }
 
 .settings-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding-top: 8px;
-  border-top: 1px solid var(--color-border);
-}
-
-.settings-group:first-child {
-  padding-top: 0;
-  border-top: none;
-}
-
-.settings-heading {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1.2;
-  text-transform: none;
+  gap: 2px;
 }
 
 .settings-row {
+  font-size: 13px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -885,6 +886,26 @@ input {
   align-items: stretch;
   flex-direction: column;
   gap: 6px;
+}
+
+.settings-notice-banner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  width: calc(90% * 0.9);
+  background: rgba(249, 198, 66, 0.7);
+  border: 1px solid rgba(249, 198, 66, 0.7);
+  border-radius: var(--radius-control);
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 .theme-segmented {
@@ -924,7 +945,7 @@ input {
 }
 
 .shortcut-btn {
-  width: 118px;
+  width: 100px;
   padding: 6px 10px;
   font-size: 11px;
   background: rgba(255, 255, 255, 0.06);
@@ -953,10 +974,10 @@ input {
 /* About link in settings */
 .about-link {
   min-width: 64px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid transparent;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
-  color: var(--win-blue);
+  color: var(--text-secondary);
   cursor: pointer;
   font-size: 11px;
   padding: 6px 10px;
@@ -964,8 +985,7 @@ input {
 }
 
 .about-link:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--color-accent-hover);
+  background: var(--color-surface-hover);
 }
 
 .settings-footer {
@@ -1025,4 +1045,13 @@ input {
   .btn:active {
     transform: none;
   }
+}
+
+
+.app-theme-dark .settings-notice-banner {
+  color: #2b5df7;
+}
+
+.app-theme-light .settings-notice-banner {
+  color: #4275f9;
 }

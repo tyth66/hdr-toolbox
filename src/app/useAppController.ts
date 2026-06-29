@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
+import { formatHotkeyFromEvent } from "../hotkeys";
 import {
   mapAutostartError,
   mapHotkeyRegistrationError,
@@ -8,7 +9,6 @@ import {
   type AppNotice,
 } from "../errors";
 import {
-  getDefaultHotkeys,
   loadHotkeys,
   normalizeHotkeyShortcut,
   saveHotkeys,
@@ -54,6 +54,63 @@ export function useAppController({
     loadThemePreference()
   );
   const [hotkeys, setHotkeys] = useState<HotkeyConfig>(() => loadHotkeys());
+  const [hotkeyRecording, setHotkeyRecording] = useState(false);
+  const [hotkeyRecordingDirection, setHotkeyRecordingDirection] = useState<"increase" | "decrease" | null>(null);
+  const [hotkeyError, setHotkeyError] = useState<string | null>(null);
+  const [hotkeyErrorSeq, setHotkeyErrorSeq] = useState(0);
+
+  useEffect(() => {
+    if (!hotkeyRecording) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (event.key === "Escape" && !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey) {
+        setHotkeyRecordingDirection(null);
+        setHotkeyRecording(false);
+        return;
+      }
+
+      const formatted = formatHotkeyFromEvent(event);
+      if (!formatted || !hotkeyRecordingDirection) {
+        return;
+      }
+
+      const direction = hotkeyRecordingDirection;
+      const nextHotkeys = {
+        ...hotkeys,
+        [direction]: normalizeHotkeyShortcut(formatted),
+      };
+
+      const validationError = validateHotkeys(nextHotkeys);
+      if (validationError) {
+        setHotkeyErrorSeq((n) => n + 1);
+        setHotkeyError(validationError);
+        setHotkeyRecordingDirection(null);
+        setHotkeyRecording(false);
+        return;
+      }
+
+      setHotkeys(nextHotkeys);
+      saveHotkeys(nextHotkeys);
+      setHotkeyError(null);
+      setHotkeyRecordingDirection(null);
+      setHotkeyRecording(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [hotkeyRecording, hotkeyRecordingDirection, hotkeys, setNotice]);
+
+  const handleStartHotkeyRecording = useCallback((direction: "increase" | "decrease") => {
+    setHotkeyRecordingDirection(direction);
+    setHotkeyRecording(true);
+  }, []);
 
   const handleHotkeyRegistrationError = useCallback(() => {
     setNotice(mapHotkeyRegistrationError());
@@ -63,6 +120,7 @@ export function useAppController({
     currentPercentageRef,
     applyBrightness,
     hotkeys,
+    disabled: hotkeyRecording,
     onRegistrationError: handleHotkeyRegistrationError,
   });
 
@@ -122,13 +180,6 @@ export function useAppController({
     return true;
   }, [hotkeys, setNotice]);
 
-  const handleHotkeyReset = useCallback(() => {
-    const defaultHotkeys = getDefaultHotkeys();
-    setHotkeys(defaultHotkeys);
-    saveHotkeys(defaultHotkeys);
-    setNotice(null);
-  }, [setNotice]);
-
   const handleToggleSyncBrightness = useCallback(() => {
     const nextValue = !syncBrightnessEnabled;
     setSyncBrightnessEnabled(nextValue);
@@ -151,10 +202,13 @@ export function useAppController({
     syncBrightnessEnabled,
     themePreference,
     hotkeys,
+    hotkeyRecordingDirection,
+    handleStartHotkeyRecording,
+    hotkeyError,
+    hotkeyErrorSeq,
     handleToggleAutostart,
     handleToggleSyncBrightness,
     handleThemePreferenceChange,
     handleHotkeyChange,
-    handleHotkeyReset,
   };
 }

@@ -1,26 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
-import { getSystemAccentColor } from "../services/tauriApi";
 
-const FALLBACK_ACCENT_COLOR = "#0078d4";
+const FIXED_CODEX_ACCENT_COLOR = "#339CFF";
 
 /**
- * Reads the Windows system accent color on mount and injects it into CSS
- * custom properties. Falls back to #0078d4 if the Rust command fails.
+ * Injects the fixed Codex accent into CSS custom properties.
  */
 export function useAccentColor() {
-  const [accentColor, setAccentColor] = useState(FALLBACK_ACCENT_COLOR);
+  const [accentColor, setAccentColor] = useState(FIXED_CODEX_ACCENT_COLOR);
 
   const refreshAccentColor = useCallback(async () => {
-    try {
-      const color = await getSystemAccentColor();
-      setAccentColor(color);
-      applyAccentColor(color);
-      return color;
-    } catch {
-      setAccentColor(FALLBACK_ACCENT_COLOR);
-      applyAccentColor(FALLBACK_ACCENT_COLOR);
-      return FALLBACK_ACCENT_COLOR;
-    }
+    setAccentColor(FIXED_CODEX_ACCENT_COLOR);
+    applyAccentColor(FIXED_CODEX_ACCENT_COLOR);
+    return FIXED_CODEX_ACCENT_COLOR;
   }, []);
 
   useEffect(() => {

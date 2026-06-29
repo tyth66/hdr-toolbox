@@ -232,12 +232,14 @@ function VisualQaApp() {
             syncBrightnessEnabled
             themePreference="system"
             hotkeys={HOTKEYS}
+            hotkeyRecordingDirection={null}
+            hotkeyError={null}
+            hotkeyErrorSeq={0}
             onClose={noop}
             onToggleAutostart={noopAsync}
             onToggleSyncBrightness={noop}
             onChangeThemePreference={noop}
-            onUpdateHotkey={() => true}
-            onResetHotkeys={noop}
+            onStartHotkeyRecording={noop}
             onShowAbout={noop}
           />
         </WindowFrame>

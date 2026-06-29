@@ -72,10 +72,6 @@ export async function setDraggingMode(active: boolean): Promise<void> {
   return invoke("set_dragging_mode", { active });
 }
 
-export async function getSystemAccentColor(): Promise<string> {
-  return invoke<string>("get_system_accent_color");
-}
-
 export async function quit(): Promise<void> {
   return invoke("quit");
 }

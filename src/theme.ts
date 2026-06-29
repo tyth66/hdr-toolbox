@@ -1,6 +1,6 @@
 import type { ThemePreference } from "./types";
 
-const FALLBACK_ACCENT = "#0078d4";
+const FALLBACK_ACCENT = "#339CFF";
 
 export type FluentBrandRamp = Record<
   10 | 20 | 30 | 40 | 50 | 60 | 70 | 80 | 90 | 100 | 110 | 120 | 130 | 140 | 150 | 160,

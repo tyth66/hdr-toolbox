@@ -8,6 +8,7 @@ type UseHotkeysOptions = {
   currentPercentageRef: RefObject<number>;
   applyBrightness: (percentage: number) => Promise<void>;
   hotkeys: HotkeyConfig;
+  disabled?: boolean;
   onRegistrationError?: () => void;
 };
 
@@ -15,11 +16,16 @@ export function useHotkeys({
   currentPercentageRef,
   applyBrightness,
   hotkeys,
+  disabled = false,
   onRegistrationError,
 }: UseHotkeysOptions) {
   useEffect(() => {
+    if (disabled) {
+      return;
+    }
     let settled = false;
     const registered = { increase: false, decrease: false };
+    const repeatTimers: ReturnType<typeof setInterval>[] = [];
 
     const adjustBrightnessByHotkey = async (delta: number) => {
       const nextPercentage = Math.max(
@@ -31,26 +37,27 @@ export function useHotkeys({
       await applyBrightness(nextPercentage);
     };
 
+    const makeHotkeyHandler = (delta: number) => async (event: ShortcutEvent) => {
+      if (settled) return;
+      if (event.state === "Pressed") {
+        await adjustBrightnessByHotkey(delta);
+        const timer = setInterval(() => adjustBrightnessByHotkey(delta), 120);
+        repeatTimers.push(timer);
+      } else if (event.state === "Released") {
+        while (repeatTimers.length > 0) {
+          clearInterval(repeatTimers.pop());
+        }
+      }
+    };
+
     const setupHotkeys = async () => {
       try {
-        await register(hotkeys.increase, async (event: ShortcutEvent) => {
-          if (settled || event.state !== "Pressed") return;
-          await adjustBrightnessByHotkey(HOTKEYS.STEP);
-        });
-        if (settled) {
-          unregister(hotkeys.increase).catch(() => {});
-          return;
-        }
+        await register(hotkeys.increase, makeHotkeyHandler(HOTKEYS.STEP));
+        if (settled) { unregister(hotkeys.increase).catch(() => {}); return; }
         registered.increase = true;
 
-        await register(hotkeys.decrease, async (event: ShortcutEvent) => {
-          if (settled || event.state !== "Pressed") return;
-          await adjustBrightnessByHotkey(-HOTKEYS.STEP);
-        });
-        if (settled) {
-          unregister(hotkeys.decrease).catch(() => {});
-          return;
-        }
+        await register(hotkeys.decrease, makeHotkeyHandler(-HOTKEYS.STEP));
+        if (settled) { unregister(hotkeys.decrease).catch(() => {}); return; }
         registered.decrease = true;
       } catch (err) {
         console.warn("Failed to register hotkeys:", err);
@@ -62,8 +69,11 @@ export function useHotkeys({
 
     return () => {
       settled = true;
+      while (repeatTimers.length > 0) {
+        clearInterval(repeatTimers.pop());
+      }
       if (registered.increase) unregister(hotkeys.increase).catch(() => {});
       if (registered.decrease) unregister(hotkeys.decrease).catch(() => {});
     };
-  }, [applyBrightness, currentPercentageRef, hotkeys, onRegistrationError]);
+  }, [disabled, applyBrightness, currentPercentageRef, hotkeys, onRegistrationError]);
 }

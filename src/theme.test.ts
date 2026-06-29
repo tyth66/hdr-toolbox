@@ -16,7 +16,7 @@ test("explicit theme preference overrides the OS color scheme", () => {
   assert.equal(resolveEffectiveThemePreference("light", true), "light");
 });
 
-test("Fluent brand ramp is generated from the Windows accent color", () => {
+test("Fluent brand ramp is generated from a supplied accent color", () => {
   const ramp = buildFluentBrandRamp("#336699");
 
   assert.equal(ramp[80], "#336699");
@@ -24,13 +24,13 @@ test("Fluent brand ramp is generated from the Windows accent color", () => {
   assert.equal(ramp[160], "#0d1926");
 });
 
-test("invalid accent colors fall back to Windows blue", () => {
+test("invalid accent colors fall back to Codex blue", () => {
   const ramp = buildFluentBrandRamp("not-a-color");
 
-  assert.equal(ramp[80], "#0078d4");
+  assert.equal(ramp[80], "#339cff");
 });
 
-test("system accent theme preserves base theme and overrides Fluent brand tokens", () => {
+test("accent theme preserves base theme and overrides Fluent brand tokens", () => {
   const theme = createSystemAccentTheme(
     {
       colorNeutralBackground1: "#111111",
