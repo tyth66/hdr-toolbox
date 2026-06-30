@@ -91,6 +91,21 @@ jobs:
             release-assets/*
           if-no-files-found: error
 
+      - name: Delete previous rolling release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view release --repo $env:GITHUB_REPOSITORY --json id 1>$null 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release delete release --repo $env:GITHUB_REPOSITORY --yes --cleanup-tag
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+          } else {
+            Write-Host "No existing rolling release to delete."
+          }
+
       - name: Update rolling release tag
         shell: pwsh
         run: |

@@ -157,7 +157,7 @@ Windows system tray app for universal brightness control across HDR SDR white le
 - CI runs on every branch push and pull request
 - CI should run `cargo fmt --check`, `cargo clippy`, frontend checks, and Rust tests
 - Release builds run automatically after successful `main` push CI, upload Windows Tauri artifacts, and publish the formal `HDR Toolbox` GitHub Release
-- Formal release publishing uses the fixed `release` tag and stable asset filenames without version suffixes
+- Formal release publishing uses the fixed `release` tag and stable asset filenames without version suffixes. The workflow deletes and recreates the rolling GitHub Release after a successful build so the release page timestamp reflects the latest publish while download URLs remain stable.
 
 ## CRITICAL NOTES
 
