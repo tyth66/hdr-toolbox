@@ -24,7 +24,7 @@ Windows system tray app currently controlling HDR monitor SDR brightness via Win
 |  '- types.ts                 # Shared constants + DisplayInfo/BrightnessSource contract
 |- src-tauri/src/
 |  |- lib.rs                   # Tauri builder + module wiring
-|  |- app/                     # State, commands, window
+|  |- app/                     # State, commands, logging, window
 |  |- display/                 # FFI, model, brightness helpers, provider stubs, service, session, commands, error
 |  '- tray.rs                  # System tray
 |- DESIGN.md                   # Current UI/design source of truth
@@ -73,6 +73,7 @@ Windows system tray app currently controlling HDR monitor SDR brightness via Win
 | Display session | `src-tauri/src/display/session.rs` | Display cache updates + tray state synchronization |
 | Display commands | `src-tauri/src/display/commands.rs` | Thin Tauri command boundary |
 | App state | `src-tauri/src/app/state.rs` | AppState + TrayState |
+| File logging | `src-tauri/src/app/logging.rs` | Timestamped log files, 10MB rotation, max 3 files |
 | Tray management | `src-tauri/src/tray.rs` | Dynamic menu, tooltip, click handlers |
 | Blur-to-hide | `src-tauri/src/app/window.rs` | Acrylic + `on_window_event(Focused(false))` |
 
@@ -102,6 +103,7 @@ Windows system tray app currently controlling HDR monitor SDR brightness via Win
 - `display/session.rs`: AppState display cache + TrayState synchronization
 - `display/commands.rs`: thin Tauri command surface
 - `app/state.rs`: AppState + TrayState + TrayDisplaySummary
+- `app/logging.rs`: tracing subscriber setup, stderr tee, timestamped file logs, and size-based rotation
 - `app/window.rs`: blur-to-hide + Acrylic backdrop
 - `tray.rs`: tray icon, menu, events from summary state
 - `lib.rs`: Tauri builder and module wiring
@@ -189,6 +191,7 @@ Windows system tray app currently controlling HDR monitor SDR brightness via Win
 - Non-blocking failures: auto-dismissing notice banner; init failures: blocking
 - **Single instance**: `tauri-plugin-single-instance` prevents multiple app instances; second instance focuses existing window
 - **Structured errors**: FFI/service/commands use `DisplayError`; commands return `{ code: DisplayErrorCode, message: string }` for precise frontend error handling
+- **File logs**: Rust tracing writes timestamped `.log` files under `log/`; debug builds use the repository `log/`, release builds use the executable directory `log/`. Each file is capped at 10MB and at most 3 log files are kept by deleting the oldest before creating a new one.
 - **Fixed accent**: `useAccentColor()` applies Codex accent `#339CFF`; the window refreshes accent variables before every show.
 - **UI baseline**: Acrylic transparent shell + Fluent UI v9 controls + fixed-accent hover/active/focus states + 4-8px control radius.
 - **Visual QA**: use `agent-browser` against `visual-qa.html`; the harness intentionally uses a non-blue accent (`#c38aa0`) to expose default-blue regressions.

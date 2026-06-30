@@ -37,6 +37,7 @@ HDR Toolbox is a Universal Brightness Control style Windows tray app. The shared
 | 🚀 **Auto-start** | Launch on system boot (optional) |
 | 📍 **Tray Control** | Left-click show/hide, right-click menu |
 | 🎨 **Native Theme** | Acrylic window surface, Fluent UI controls, and a fixed Codex accent color |
+| 🧾 **Rolling Logs** | Timestamped `.log` files are written under `log/`, capped at 10MB each with at most 3 files |
 | 🧭 **Universal brightness model** | Internal `DisplayInfo` carries `BrightnessSource`, normalized `brightness`, raw metadata, provider identity, and Rust-side source routing |
 | 🧱 **Structured provider errors** | DDC/CI and WMI failures use stable structured error codes across Rust commands and frontend handling |
 | 🧩 **Provider module boundaries** | Architecture tests keep physical monitor APIs in `display/ddcci.rs` and WMI APIs in `display/wmi.rs` |
@@ -128,6 +129,7 @@ npm run tauri build
 | **Sync all displays** | Apply brightness changes to every detected HDR-capable display |
 | **Theme** | Follow system theme by default, or choose Light/Dark in Settings |
 | **Brightness Range** | Fixed at **80-480 nits** |
+| **Logs** | Debug builds write to the repository `log/`; release builds write to `log/` beside the executable. Each timestamped file is capped at 10MB, with at most 3 files kept. |
 
 > ℹ️ With HDR enabled, this app controls **SDR White Level**. With HDR disabled, it switches to physical brightness through DDC/CI or WMI when available.
 

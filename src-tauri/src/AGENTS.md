@@ -25,6 +25,7 @@ Windows DisplayConfig backend for HDR SDR brightness control. Universal Brightne
 | Display session | `display/session.rs` | AppState cache updates + TrayState synchronization |
 | Commands | `display/commands.rs` | Stable, thin JS-facing commands |
 | App state | `app/state.rs` | `AppState`, `TrayState`, `TrayDisplaySummary` |
+| File logging | `app/logging.rs` | Tracing subscriber setup, stderr tee, timestamped log files, 10MB rotation, max 3 files |
 | Window | `app/window.rs` | Acrylic + blur-to-hide |
 | Tray | `tray.rs` | Left/right click from summary state |
 
@@ -63,6 +64,7 @@ Windows DisplayConfig backend for HDR SDR brightness control. Universal Brightne
 - `BrightnessSource` variants are `HdrSdr`, `DdcHighLevel`, `DdcVcp`, and `Wmi`; enumeration assigns source-specific values. HDR-capable displays carry `fallback_source` metadata (DDC or WMI) for automatic source switching on HDR toggle.
 - `DisplayInfo.brightness` is normalized 0-100; `DisplayInfo.nits` remains the HDR SDR white-level value
 - `brightness_raw`, `brightness_raw_max`, `brightness_device_id`, and `brightness_vcp_code` carry provider raw scales and stable write-routing metadata
+- File logs are timestamp-named `.log` files under `log/`; debug builds use the repository `log/`, release builds use the executable directory `log/`. Rotation happens at 10MB per file and keeps at most 3 files.
 - `display/brightness.rs` provides HDR SDR percent/nits conversion, DDC raw scaling, and source-to-hardware value selection
 - `DisplayInfo.fallback_source` stores fallback DDC/WMI brightness source; `source_state.rs` performs the pure source transition and `flip_hdr_source_in_cache` in `session.rs` applies it to cached displays without re-enumeration
 - DDC/WMI provider errors have dedicated codes and constructors for enumeration and brightness failures

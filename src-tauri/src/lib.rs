@@ -12,13 +12,7 @@ pub use display::{
 pub use tray::{setup_tray, update_tray_menu, update_tray_tooltip};
 
 pub fn run() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive(tracing::Level::INFO.into()),
-        )
-        .with_target(false)
-        .init();
+    app::logging::init_logging();
 
     tracing::info!("HDR Toolbox starting...");
 
