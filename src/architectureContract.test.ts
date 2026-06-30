@@ -96,6 +96,60 @@ test("app controller composes focused controller hooks", () => {
   assert.doesNotMatch(useAppControllerSource, /\bisEnabled\(/);
 });
 
+test("tray wake refresh reads known hardware state instead of full discovery", () => {
+  const trayEventsSource = readFile(path.resolve(srcDir, "app", "useTrayDisplayEvents.ts"));
+  const appControllerSource = readFile(path.resolve(srcDir, "app", "useAppController.ts"));
+
+  assert.match(trayEventsSource, /refreshKnownDisplayState\(\{\s*silent:\s*true\s*\}\)/);
+  assert.doesNotMatch(trayEventsSource, /refreshDisplays\(\{\s*silent:\s*true\s*\}\)/);
+  assert.match(appControllerSource, /refreshKnownDisplayState/);
+});
+
+test("frontend exposes separate full discovery and known-state refresh commands", () => {
+  const tauriApiSource = readFile(path.resolve(srcDir, "services", "tauriApi.ts"));
+  const commandClientSource = readFile(
+    path.resolve(srcDir, "hooks", "useDisplayCommandClient.ts")
+  );
+  const deviceActionsSource = readFile(
+    path.resolve(srcDir, "hooks", "useDisplayDeviceActions.ts")
+  );
+
+  assert.match(tauriApiSource, /export async function getHdrDisplays/);
+  assert.match(tauriApiSource, /export async function refreshCachedDisplays/);
+  assert.match(tauriApiSource, /export async function refreshKnownDisplayState/);
+  assert.match(tauriApiSource, /invoke<DisplayInfo\[\]>\("refresh_cached_displays"\)/);
+  assert.match(tauriApiSource, /invoke<DisplayInfo\[\]>\("refresh_known_display_state"\)/);
+  assert.match(commandClientSource, /getDisplays:\s*getHdrDisplays/);
+  assert.match(commandClientSource, /refreshCachedDisplays/);
+  assert.match(commandClientSource, /refreshKnownDisplayState/);
+  assert.match(deviceActionsSource, /runDisplayRefresh\(commands\.getDisplays/);
+  assert.match(deviceActionsSource, /runDisplayRefresh\(commands\.refreshCachedDisplays/);
+  assert.match(deviceActionsSource, /runDisplayRefresh\(commands\.refreshKnownDisplayState/);
+});
+
+test("focused window state refresh uses known-device hardware reads", () => {
+  const appControllerSource = readFile(path.resolve(srcDir, "app", "useAppController.ts"));
+
+  assert.match(appControllerSource, /onFocusChanged/);
+  assert.match(appControllerSource, /refreshKnownDisplayState\(\{\s*silent:\s*true\s*\}\)/);
+});
+
+test("silent known-state refresh does not drive visible refresh indicator", () => {
+  const feedbackSource = readFile(
+    path.resolve(srcDir, "hooks", "useDisplayFeedbackState.ts")
+  );
+
+  assert.match(
+    feedbackSource,
+    /beginRefresh\s*=\s*useCallback\(\(\{\s*initial,\s*silent\s*\}/
+  );
+  assert.match(
+    feedbackSource,
+    /finishRefresh\s*=\s*useCallback\(\(\{\s*initial,\s*silent\s*\}/
+  );
+  assert.match(feedbackSource, /if\s*\(\s*silent\s*\)\s*\{\s*return;\s*\}/);
+});
+
 test("DisplayConfig API calls stay inside display/ffi.rs", () => {
   const allowedPath = "src-tauri/src/display/ffi.rs";
   const displayConfigPattern =
@@ -179,6 +233,40 @@ test("display command boundary delegates cache and tray synchronization", () => 
     .map((pattern) => pattern.source);
 
   assert.deepEqual(violations, []);
+});
+
+test("cached display refresh command does not run provider enumeration", () => {
+  const commandsSource = readFile(
+    path.resolve(tauriSrcDir, "display", "commands.rs")
+  );
+  const libSource = readFile(path.resolve(tauriSrcDir, "lib.rs"));
+  const commandMatch = commandsSource.match(
+    /pub fn refresh_cached_displays\([\s\S]*?\n\}/
+  );
+
+  assert.ok(commandMatch?.[0], "Could not locate refresh_cached_displays command");
+  assert.match(commandMatch[0], /sync_cached_display_state/);
+  assert.doesNotMatch(commandMatch[0], /get_hdr_displays_impl|enumerate_all_brightness_displays/);
+  assert.match(libSource, /refresh_cached_displays/);
+});
+
+test("known display state refresh command updates cache and falls back through service discovery only on invalid identity", () => {
+  const commandsSource = readFile(
+    path.resolve(tauriSrcDir, "display", "commands.rs")
+  );
+  const serviceSource = readFile(path.resolve(tauriSrcDir, "display", "service.rs"));
+  const libSource = readFile(path.resolve(tauriSrcDir, "lib.rs"));
+  const commandMatch = commandsSource.match(
+    /pub fn refresh_known_display_state\([\s\S]*?\n\}/
+  );
+
+  assert.ok(commandMatch?.[0], "Could not locate refresh_known_display_state command");
+  assert.match(commandMatch[0], /refresh_known_display_state_impl/);
+  assert.match(commandMatch[0], /sync_display_cache/);
+  assert.doesNotMatch(commandMatch[0], /enumerate_all_brightness_displays/);
+  assert.match(serviceSource, /read_known_display_state/);
+  assert.match(serviceSource, /get_hdr_displays_impl\(\)/);
+  assert.match(libSource, /refresh_known_display_state/);
 });
 
 test("sync brightness uses Rust-owned display state instead of frontend snapshots", () => {

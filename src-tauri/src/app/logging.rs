@@ -100,7 +100,7 @@ impl Write for LogWriteGuard {
         let file_result = self
             .inner
             .lock()
-            .map_err(|_| io::Error::new(io::ErrorKind::Other, "log writer mutex poisoned"))
+            .map_err(|_| io::Error::other("log writer mutex poisoned"))
             .and_then(|mut writer| writer.write_all(buf));
 
         let stderr_result = self.stderr.write_all(buf);
@@ -165,11 +165,11 @@ fn default_log_directory() -> io::Result<PathBuf> {
     #[cfg(debug_assertions)]
     {
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        return Ok(manifest_dir
+        Ok(manifest_dir
             .parent()
             .map(Path::to_path_buf)
             .unwrap_or(manifest_dir)
-            .join("log"));
+            .join("log"))
     }
 
     #[cfg(not(debug_assertions))]

@@ -115,13 +115,7 @@ pub(super) fn get_display_name(path: DisplayPath) -> String {
 
     unsafe {
         if DisplayConfigGetDeviceInfo(&mut target_name.header as *mut _ as *mut _) == 0 {
-            let name_wide = target_name.monitorFriendlyDeviceName;
-            let name = String::from_utf16_lossy(
-                &name_wide[..name_wide
-                    .iter()
-                    .position(|&c| c == 0)
-                    .unwrap_or(name_wide.len())],
-            );
+            let name = wide_array_to_string(&target_name.monitorFriendlyDeviceName);
             if name.is_empty() {
                 "Unknown Display".to_string()
             } else {
@@ -131,6 +125,40 @@ pub(super) fn get_display_name(path: DisplayPath) -> String {
             "Unknown Display".to_string()
         }
     }
+}
+
+pub(super) fn get_display_device_path(path: DisplayPath) -> Option<String> {
+    let mut target_name = DISPLAYCONFIG_TARGET_DEVICE_NAME {
+        header: windows::Win32::Devices::Display::DISPLAYCONFIG_DEVICE_INFO_HEADER {
+            r#type: DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME,
+            size: std::mem::size_of::<DISPLAYCONFIG_TARGET_DEVICE_NAME>() as u32,
+            adapterId: path.adapter_id,
+            id: path.target_id,
+        },
+        ..Default::default()
+    };
+
+    unsafe {
+        if DisplayConfigGetDeviceInfo(&mut target_name.header as *mut _ as *mut _) != 0 {
+            return None;
+        }
+    }
+
+    let path = wide_array_to_string(&target_name.monitorDevicePath);
+    if path.is_empty() {
+        None
+    } else {
+        Some(path)
+    }
+}
+
+fn wide_array_to_string(value: &[u16]) -> String {
+    let len = value
+        .iter()
+        .position(|character| *character == 0)
+        .unwrap_or(value.len());
+
+    String::from_utf16_lossy(&value[..len])
 }
 
 pub(super) fn get_advanced_color_info(path: DisplayPath) -> AdvancedColorState {

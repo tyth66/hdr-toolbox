@@ -19,6 +19,8 @@ export function useDisplays({
   const {
     applyBrightness,
     refreshDisplays,
+    refreshCachedDisplays,
+    refreshKnownDisplayState,
     loadDisplays,
     toggleHdr,
   } = useDisplayDeviceActions({
@@ -49,6 +51,8 @@ export function useDisplays({
     setNotice: displayFeedback.setNotice,
     loadDisplays,
     refreshDisplays,
+    refreshCachedDisplays,
+    refreshKnownDisplayState,
     toggleHdr,
     selectDisplay: displayState.selectDisplay,
     previewPercentage: displayState.previewPercentage,

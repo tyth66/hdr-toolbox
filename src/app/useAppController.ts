@@ -1,4 +1,5 @@
-import type { RefObject } from "react";
+import { useEffect, type RefObject } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { AppNotice } from "../errors";
 import { useDialogController } from "./useDialogController";
 import { useHotkeyController } from "./useHotkeyController";
@@ -7,7 +8,7 @@ import { useTrayDisplayEvents } from "./useTrayDisplayEvents";
 
 type UseAppControllerOptions = {
   loadDisplays: () => Promise<void>;
-  refreshDisplays: (options?: { initial?: boolean; silent?: boolean }) => Promise<void>;
+  refreshKnownDisplayState: (options?: { initial?: boolean; silent?: boolean }) => Promise<void>;
   selectDisplay: (idx: number) => void;
   showWindow: () => Promise<void>;
   currentPercentageRef: RefObject<number>;
@@ -17,7 +18,7 @@ type UseAppControllerOptions = {
 
 export function useAppController({
   loadDisplays,
-  refreshDisplays,
+  refreshKnownDisplayState,
   selectDisplay,
   showWindow,
   currentPercentageRef,
@@ -34,10 +35,35 @@ export function useAppController({
 
   useTrayDisplayEvents({
     loadDisplays,
-    refreshDisplays,
+    refreshKnownDisplayState,
     selectDisplay,
     showWindow,
   });
+
+  useEffect(() => {
+    let unlistenFocus: (() => void) | null = null;
+
+    const setupFocusListener = async () => {
+      try {
+        const win = getCurrentWindow();
+        unlistenFocus = await win.onFocusChanged(({ payload: focused }) => {
+          if (focused) {
+            refreshKnownDisplayState({ silent: true });
+          }
+        });
+      } catch {
+        // Ignore focus-listener setup failures; tray wake still refreshes state.
+      }
+    };
+
+    setupFocusListener();
+
+    return () => {
+      if (unlistenFocus) {
+        unlistenFocus();
+      }
+    };
+  }, [refreshKnownDisplayState]);
 
   return {
     ...dialogs,

@@ -20,18 +20,33 @@ This file is the current UI source of truth. Do not revive deleted one-off phase
 - Universal brightness model status: shared Rust/TypeScript `DisplayInfo` now includes `BrightnessSource`, normalized `brightness`, `brightness_raw`, `brightness_raw_max`, `brightness_device_id`, and `brightness_vcp_code`.
 - Backend routing foundation: `src-tauri/src/display/brightness.rs` owns pure HDR SDR percent/nits conversion, DDC raw scaling, and `BrightnessSource` to hardware-value selection helpers.
 - Provider failure contract: Rust and TypeScript now share DDC/WMI enumeration and brightness error codes, with frontend notices forwarding structured provider messages.
-- Provider boundary contract: empty `display/ddcci.rs` and `display/wmi.rs` modules are registered, and architecture tests reserve physical monitor APIs for DDC/CI and WMI APIs for the WMI module.
+- Provider boundary contract: `display/ddcci.rs` and `display/wmi.rs` own their Windows provider APIs, and architecture tests reserve physical monitor APIs for DDC/CI and WMI APIs for the WMI module.
 - DDC/CI provider foundation: `display/ddcci.rs` has tested VCP priority selection, DDC raw-to-percent conversion, percent-to-raw conversion, Windows physical monitor enumeration, high-level brightness read/write, and VCP read/write.
 - WMI provider foundation: `display/wmi.rs` has tested instance-name parsing and brightness clamping, native COM connection to `ROOT\WMI`, `WmiMonitorBrightness` enumeration, and `WmiMonitorBrightnessMethods.WmiSetBrightness` writes.
 - WMI runtime robustness: `display/wmi.rs` tolerates `RPC_E_CHANGED_MODE` from `CoInitializeEx` so WMI can run when Tauri/WebView has already initialized COM on the thread.
-- Provider merge foundation: `display/service.rs` now merges HDR SDR, DDC/CI, and WMI provider results into one `DisplayInfo` list while preserving `HdrSdr > DDC > WMI` precedence for same-name HDR/DDC matches.
+- Provider merge foundation: `display/service.rs` now merges HDR SDR, DDC/CI, and WMI provider results into one `DisplayInfo` list while preserving `HdrSdr > DDC > WMI` precedence. DDC/CI merge first matches the DisplayConfig monitor device path against the DDC physical-monitor key with its physical index removed, then falls back to exact-name matching for older paths. When a matched HDR display is enumerated while HDR is off, the active `brightness_source` is immediately switched to the provider fallback and `brightness` uses that provider's current percentage.
 - Backend write routing: `display/commands.rs` looks up cached `DisplayInfo` entries and `display/service.rs` routes writes to DisplayConfig HDR SDR, DDC/CI high-level, DDC/CI VCP, or WMI based on `BrightnessSource`.
 - Frontend state status: display-state hooks now use normalized `brightness`, brightness preview updates only change HDR SDR `nits` for `hdr_sdr`, and the action layer no longer blocks brightness writes only because HDR is off.
-- HDR/DDC/WMI source switching: `DisplayInfo.fallback_source` stores the fallback brightness source (DDC or WMI) for HDR-capable displays. When HDR is off, the brightness source flips from `HdrSdr` to the fallback so the slider controls physical brightness via DDC or WMI. When HDR is turned back on, it flips back to `HdrSdr`. A single display entry serves all paths — no duplicate entries. When HDR is off, the brightness source flips from `HdrSdr` to `DdcHighLevel`/`DdcVcp`/`Wmi` so the slider controls physical brightness. When HDR is turned back on, it flips back to `HdrSdr`. A single display entry serves all paths — no duplicate entries.
+- HDR/DDC/WMI source switching: `DisplayInfo.fallback_source` stores the alternate brightness source for HDR-capable displays. When HDR is off, either toggle handling or full discovery flips the active source from `HdrSdr` to `DdcHighLevel`/`DdcVcp`/`Wmi` so the slider controls physical brightness. Re-reading state while HDR remains off must keep the provider source active instead of flipping back to `HdrSdr`; when HDR is turned back on, it flips back to `HdrSdr`. A single display entry serves all paths; duplicate entries are avoided by provider identity matching before display-name fallback.
 - HDR toggle no longer triggers full re-enumeration; `flip_hdr_source_in_cache` swaps `brightness_source` and `fallback_source` in the Rust cache directly.
+- Known-device refresh: `refresh_known_display_state` reads the active source for cached display identities on tray wake/window focus, updates brightness/HDR state, and falls back to full discovery only when a cached identity can no longer be read.
 - Component surface status: `BrightnessSlider`, `StatusBar`, and `AppSurfaces` are source-aware; HDR SDR displays with fallback (DDC or WMI) are never disabled; the slider always works and HDR toggle flips the active source. Displays without any fallback show the disabled state when HDR is off.
 - Tray status: `TrayDisplaySummary` stores generic brightness percentage plus `BrightnessSource`, and tray tooltip/menu text uses percentage summaries instead of HDR-only nits.
 - UI implication: keep compact tray-flyout density while source-specific labels describe the active `BrightnessSource`.
+
+## Refresh Model
+
+| Trigger | Rust command | Hardware work | UI feedback |
+| --- | --- | --- | --- |
+| Initial load | `get_hdr_displays` | Full HDR, DDC/CI, and WMI discovery | Loading/startup overlay |
+| Title-bar refresh button | `get_hdr_displays` | Full HDR, DDC/CI, and WMI discovery | Refresh indicator spins |
+| Tray wake | `refresh_known_display_state` | Read cached display HDR state and active brightness source | Silent |
+| Window focus | `refresh_known_display_state` | Read cached display HDR state and active brightness source | Silent |
+
+- Manual refresh is the only routine full provider discovery path after startup.
+- Tray wake and window focus are lightweight known-state refreshes. They must not re-enumerate all providers, replay startup overlay, or drive the title-bar refresh indicator.
+- Known-state refresh uses the cached active source. When HDR remains off and the active source is already `DdcHighLevel`, `DdcVcp`, or `Wmi`, the source-state transition is idempotent and keeps that provider source active.
+- Service fallback to `get_hdr_displays` is reserved for read failures from the known-device path. There is no extra source-state validation step that forces discovery before attempting the known read.
 
 ## Design Direction
 
@@ -124,7 +139,9 @@ Use a neutral Acrylic shell, Fluent UI v9 controls, the fixed Codex accent color
 ## Interaction Rules
 
 - Tray show must refresh accent variables before showing the window.
-- Each tray show also silently refreshes display state without replaying startup overlay.
+- Each tray show and window focus silently refresh known display hardware state without replaying startup overlay or re-running full provider discovery.
+- Manual refresh remains the full discovery path for HDR, DDC/CI, and WMI providers.
+- Only manual refresh drives the title-bar refresh indicator; tray wake and window-focus known-state refreshes are silent.
 - Closing hides the window; quitting happens from tray/menu command.
 - Blur-to-hide remains Rust-side for frameless reliability.
 - Disabled HDR-dependent controls must remain stable in size.

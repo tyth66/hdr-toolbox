@@ -1,12 +1,12 @@
 use super::model::DisplayInfo;
 use super::projection::apply_brightness_projection;
 use super::service::{
-    get_hdr_displays_impl, set_brightness_all_impl, set_display_brightness_impl,
-    set_hdr_enabled_impl,
+    get_hdr_displays_impl, refresh_known_display_state_impl, set_brightness_all_impl,
+    set_display_brightness_impl, set_hdr_enabled_impl,
 };
 use super::session::{
     cached_displays, clear_display_cache, flip_hdr_source_in_cache, sync_brightness_outcome,
-    sync_cached_brightness, sync_display_cache, DisplayTarget,
+    sync_cached_brightness, sync_cached_display_state, sync_display_cache, DisplayTarget,
 };
 use crate::{app::AppState, display::DisplayError};
 use tauri::{AppHandle, State};
@@ -73,6 +73,22 @@ pub fn get_hdr_displays(
             Err(err)
         }
     }
+}
+
+#[tauri::command]
+pub fn refresh_cached_displays(app: AppHandle, state: State<AppState>) -> Vec<DisplayInfo> {
+    sync_cached_display_state(&app, &state)
+}
+
+#[tauri::command]
+pub fn refresh_known_display_state(
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<Vec<DisplayInfo>, DisplayError> {
+    let displays = cached_displays(&state);
+    let displays = refresh_known_display_state_impl(displays)?;
+    let displays = sync_display_cache(&app, &state, displays);
+    Ok(displays)
 }
 
 #[tauri::command]

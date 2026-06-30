@@ -5,7 +5,7 @@
 
 ## OVERVIEW
 
-Windows system tray app currently controlling HDR monitor SDR brightness via Windows DisplayConfig API. The codebase is migrating toward Universal Brightness Control; the shared display contract now includes brightness source metadata for future DDC/CI and WMI providers. Rust FFI backend + React/TypeScript frontend bundled by Tauri 2.
+Windows system tray app for universal brightness control across HDR SDR white level, DDC/CI external-monitor brightness, and WMI internal-panel brightness. Rust FFI/provider backend + React/TypeScript frontend bundled by Tauri 2.
 
 ## STRUCTURE
 
@@ -66,6 +66,7 @@ Windows system tray app currently controlling HDR monitor SDR brightness via Win
 | Contract checks | `src/displayContract.test.ts` | TS/Rust DisplayInfo and BrightnessSource drift detection |
 | Architecture checks | `src/architectureContract.test.ts` | Tauri boundary, DisplayConfig, DDC/CI, and WMI module boundary checks |
 | Brightness source helpers | `src-tauri/src/display/brightness.rs` | Pure percent/nits conversion, DDC raw scaling, source-to-hardware value selection |
+| Brightness reader | `src-tauri/src/display/reader.rs` | Source-routed known-device brightness/HDR state reads |
 | DDC/CI provider | `src-tauri/src/display/ddcci.rs` | Physical monitor enumeration, high-level brightness, VCP brightness, and raw scaling |
 | WMI provider | `src-tauri/src/display/wmi.rs` | Native COM/WMI internal-panel enumeration and brightness writes |
 | DisplayConfig FFI | `src-tauri/src/display/ffi.rs` | DisplayConfig enumeration, HDR state, and SDR white level |
@@ -99,7 +100,7 @@ Windows system tray app currently controlling HDR monitor SDR brightness via Win
 - `display/wmi.rs`: internal-panel WMI brightness provider through native COM/WMI
 - `display/ffi.rs`: raw Windows DisplayConfig FFI
 - `display/error.rs`: structured error types (DisplayErrorCode, DisplayError), including DDC/WMI provider failure codes
-- `display/service.rs`: HDR discovery, provider result merge, toggle, brightness logic, tests
+- `display/service.rs`: HDR discovery, provider result merge, toggle, brightness logic, tests; HDR entries store the DisplayConfig monitor device path when available so DDC/CI can merge by provider identity before display-name fallback
 - `display/session.rs`: AppState display cache + TrayState synchronization
 - `display/commands.rs`: thin Tauri command surface
 - `app/state.rs`: AppState + TrayState + TrayDisplaySummary
@@ -161,11 +162,14 @@ Windows system tray app currently controlling HDR monitor SDR brightness via Win
 ## CRITICAL NOTES
 
 - SDR white level range: **80-480 nits** (fixed)
-- Current display enumeration merges HDR SDR, DDC/CI, and WMI provider results behind the existing `get_hdr_displays` command name
+- Current display enumeration merges HDR SDR, DDC/CI, and WMI provider results behind the existing `get_hdr_displays` command name. DDC/CI merge matches monitor device identity before falling back to display-name equality, so one HDR+DDC physical monitor remains one app entry. If that entry is enumerated while HDR is off, merge activates the DDC/WMI fallback source immediately and uses the provider brightness percentage.
+- Refresh paths are intentionally split: initial load and manual title-bar refresh call `get_hdr_displays` for full provider discovery; tray wake and window focus call `refresh_known_display_state` for cached-display hardware reads only.
+- `refresh_known_display_state` reads the cached display HDR state and current active brightness source. If HDR is still off and the active source is already DDC/WMI, `source_state.rs` must keep that provider source active.
+- Service fallback from known-state refresh to `get_hdr_displays` is for known-device read failures only; do not add source-state validation that forces discovery before attempting the known read.
 - Brightness writes are source-routed in Rust: HDR SDR uses DisplayConfig, DDC high-level/VCP uses `display/ddcci.rs`, and WMI uses `display/wmi.rs`
 - `BrightnessSource` currently includes `HdrSdr`, `DdcHighLevel`, `DdcVcp`, and `Wmi`
 - `DisplayInfo.brightness` is the normalized 0-100 slider value; `DisplayInfo.nits` remains the HDR SDR white-level value for `HdrSdr`
-- `brightness_raw`, `brightness_raw_max`, `brightness_device_id`, and `brightness_vcp_code` are part of the shared contract for provider-specific raw scales and write routing
+- `brightness_raw`, `brightness_raw_max`, `brightness_device_id`, and `brightness_vcp_code` are part of the shared contract for provider-specific raw scales and write routing. For initial HDR SDR entries, `brightness_device_id` stores the DisplayConfig monitor device path when available for DDC/CI identity matching; after fallback injection it stores the DDC/WMI write key.
 - `display/brightness.rs` maps HDR SDR percent to 80-480 nits, maps SDR nits back to percent, scales DDC VCP percent to raw max, and keeps WMI/high-level DDC as percent values
 - DDC/WMI provider error codes are part of the shared contract: `ddc_enumeration_failed`, `ddc_brightness_failed`, `wmi_enumeration_failed`, and `wmi_brightness_failed`
 - Provider module boundaries are pinned by `src/architectureContract.test.ts`: physical monitor APIs belong in `display/ddcci.rs`; WMI brightness APIs belong in `display/wmi.rs`
@@ -183,7 +187,9 @@ Windows system tray app currently controlling HDR monitor SDR brightness via Win
 - HDR toggle uses `DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE` + brief polling
 - **Per-display failure tracking**: failures are tracked per-display (via `DisplayKey`), not globally. A display is skipped after 3 consecutive failures, but recovers on next successful query.
 - Tray menu must be set before right-click; do not use `popup_menu()`
-- Each tray-show triggers silent display-state refresh (no startup overlay replay)
+- Each tray-show and window focus triggers silent known-device state refresh; it must keep an already-active DDC/WMI source when HDR remains off, and must not re-run full HDR/DDC/WMI provider discovery or replay the startup overlay unless the cached entry is unrecoverable
+- Manual refresh remains the full HDR/DDC/WMI provider enumeration path
+- Only manual refresh should drive the visible title-bar refresh indicator; tray-show and window-focus known-device refreshes must pass `silent: true` and not set the shared refresh spinner state
 - Hotkeys: 4% step; mouse wheel on slider: 2% step
 - Frontend display-state hooks use `DisplayInfo.brightness` as the slider value and update `nits` only for `brightness_source === "hdr_sdr"`
 - Component-level brightness UI is source-aware: HDR SDR depends on HDR enabled; DDC/WMI brightness controls do not

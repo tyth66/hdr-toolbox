@@ -19,6 +19,14 @@ export async function getHdrDisplays(): Promise<DisplayInfo[]> {
   return invoke<DisplayInfo[]>("get_hdr_displays");
 }
 
+export async function refreshCachedDisplays(): Promise<DisplayInfo[]> {
+  return invoke<DisplayInfo[]>("refresh_cached_displays");
+}
+
+export async function refreshKnownDisplayState(): Promise<DisplayInfo[]> {
+  return invoke<DisplayInfo[]>("refresh_known_display_state");
+}
+
 export async function setBrightness(
   adapterLow: number,
   adapterHigh: number,

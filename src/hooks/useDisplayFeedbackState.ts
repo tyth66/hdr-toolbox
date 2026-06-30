@@ -31,7 +31,7 @@ export function useDisplayFeedbackState() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<AppNotice | null>(null);
 
-  const beginRefresh = useCallback(({ initial }: RefreshOptions) => {
+  const beginRefresh = useCallback(({ initial, silent }: RefreshOptions) => {
     if (initial) {
       setLoading(true);
       setError(null);
@@ -39,12 +39,20 @@ export function useDisplayFeedbackState() {
       return;
     }
 
+    if (silent) {
+      return;
+    }
+
     setIsRefreshing(true);
   }, []);
 
-  const finishRefresh = useCallback(({ initial }: RefreshOptions) => {
+  const finishRefresh = useCallback(({ initial, silent }: RefreshOptions) => {
     if (initial) {
       setLoading(false);
+      return;
+    }
+
+    if (silent) {
       return;
     }
 

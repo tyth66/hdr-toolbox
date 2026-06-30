@@ -53,6 +53,7 @@ function App() {
     setNotice,
     loadDisplays,
     refreshDisplays,
+    refreshKnownDisplayState,
     toggleHdr,
     previewPercentage,
     applyBrightness,
@@ -79,7 +80,7 @@ function App() {
     handleThemePreferenceChange,
   } = useAppController({
     loadDisplays,
-    refreshDisplays,
+    refreshKnownDisplayState,
     selectDisplay,
     showWindow: showWindowWithAccentRefresh,
     currentPercentageRef,

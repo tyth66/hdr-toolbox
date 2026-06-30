@@ -46,6 +46,10 @@ pub(super) fn set_wmi_brightness(key: &str, percent: u32) -> Result<(), DisplayE
     set_wmi_brightness_windows(key, percent)
 }
 
+pub(super) fn read_wmi_brightness(key: &str) -> Result<WmiDisplay, DisplayError> {
+    read_wmi_brightness_windows(key)
+}
+
 fn key_from_instance_name(instance_name: &str) -> Option<String> {
     let mut parts = instance_name.split('\\');
     let _display = parts.next()?;
@@ -81,6 +85,22 @@ fn set_wmi_brightness_windows(key: &str, percent: u32) -> Result<(), DisplayErro
 
 #[cfg(not(windows))]
 fn set_wmi_brightness_windows(key: &str, _percent: u32) -> Result<(), DisplayError> {
+    Err(DisplayError::wmi_brightness_failed(format!(
+        "WMI provider requires Windows for {key}"
+    )))
+}
+
+#[cfg(windows)]
+fn read_wmi_brightness_windows(key: &str) -> Result<WmiDisplay, DisplayError> {
+    read_wmi_brightness_via_com(key).map_err(|error| {
+        DisplayError::wmi_brightness_failed(format!(
+            "WmiMonitorBrightness read failed for {key}: {error}"
+        ))
+    })
+}
+
+#[cfg(not(windows))]
+fn read_wmi_brightness_windows(key: &str) -> Result<WmiDisplay, DisplayError> {
     Err(DisplayError::wmi_brightness_failed(format!(
         "WMI provider requires Windows for {key}"
     )))
@@ -131,6 +151,14 @@ fn enumerate_wmi_displays_via_com() -> Result<Vec<WmiDisplay>, String> {
     }
 
     Ok(displays)
+}
+
+#[cfg(windows)]
+fn read_wmi_brightness_via_com(key: &str) -> Result<WmiDisplay, String> {
+    enumerate_wmi_displays_via_com()?
+        .into_iter()
+        .find(|display| display.key == key)
+        .ok_or_else(|| "matching WmiMonitorBrightness instance not found".to_string())
 }
 
 #[cfg(windows)]

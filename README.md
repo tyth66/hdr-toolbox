@@ -4,162 +4,142 @@
 
 # HDR Toolbox
 
-**A lightweight Windows tray app for controlling display brightness across DDC/CI, internal WMI panels, and HDR SDR white level**
+**A lightweight Windows tray app for controlling monitor brightness**
 
 [![Windows](https://img.shields.io/badge/Windows-10%2F11-blue?style=flat-square&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Rust](https://img.shields.io/badge/Rust-1.70+-orange?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Tauri](https://img.shields.io/badge/Tauri-2.0-4K8C6D?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app)
 
-**[中文版 →](README_zh.md)**
+**[中文版 ->](README_zh.md)**
 
 </div>
 
 ---
 
-## Current Scope
+## What It Does
 
-HDR Toolbox is a Universal Brightness Control style Windows tray app. The shared Rust/TypeScript display contract includes `BrightnessSource`, normalized `brightness`, provider identity, and DDC VCP code metadata. Provider modules contain DDC/CI physical-monitor plus internal-panel WMI enumeration/write paths, the Rust service merges HDR SDR, DDC/CI, and WMI provider results into one display list, and backend brightness writes route by source.
+HDR Toolbox lives in the Windows system tray and gives you a compact brightness panel for supported displays. It can adjust HDR SDR white level, external monitor brightness through DDC/CI, and built-in display brightness through Windows when available.
+
+If one physical monitor supports both HDR and DDC/CI brightness, it stays as one display in the app. Turning HDR on or off changes what the slider controls instead of creating duplicate monitor entries.
 
 ---
 
-## ✨ Features
+## Features
 
 | Feature | Description |
 |---------|-------------|
-| 🎚️ **Brightness Slider** | Real-time SDR white level adjustment (80-480 nits) |
-| 🌗 **HDR Toggle** | One-click HDR mode on/off |
-| ⌨️ **Global Hotkeys** | Customizable shortcuts (default `Ctrl+Alt+↑/↓`) |
-| 🖱️ **Mouse Wheel** | Fine-tune with 2% steps on slider |
-| 🖥️ **Multi-Display** | Independent control per monitor, with optional synced brightness |
-| ⚡ **Silent Refresh** | Auto-sync state when waking from tray |
-| 🔄 **Manual Refresh** | Re-detect displays via title bar |
-| 🚀 **Auto-start** | Launch on system boot (optional) |
-| 📍 **Tray Control** | Left-click show/hide, right-click menu |
-| 🎨 **Native Theme** | Acrylic window surface, Fluent UI controls, and a fixed Codex accent color |
-| 🧾 **Rolling Logs** | Timestamped `.log` files are written under `log/`, capped at 10MB each with at most 3 files |
-| 🧭 **Universal brightness model** | Internal `DisplayInfo` carries `BrightnessSource`, normalized `brightness`, raw metadata, provider identity, and Rust-side source routing |
-| 🧱 **Structured provider errors** | DDC/CI and WMI failures use stable structured error codes across Rust commands and frontend handling |
-| 🧩 **Provider module boundaries** | Architecture tests keep physical monitor APIs in `display/ddcci.rs` and WMI APIs in `display/wmi.rs` |
-| 🧮 **DDC/CI provider** | Rust provider code enumerates physical monitor handles, reads high-level/VCP brightness, writes high-level/VCP brightness, and keeps tested raw/percent helpers |
-| 🖥️ **WMI provider** | Rust provider code connects to `ROOT\WMI`, reads `WmiMonitorBrightness`, and writes `WmiMonitorBrightnessMethods.WmiSetBrightness` |
-| 🔀 **Provider merge** | Rust service merges HDR SDR, DDC/CI, and WMI provider results behind the existing display-list command |
-| 🔀 **HDR source switching** | HDR toggle automatically flips between SDR white level and physical brightness (DDC/CI or internal WMI) on the same display entry — no duplicate entries |
-| 🎛️ **Source-routed backend writes** | Rust brightness commands now route HDR SDR, DDC/CI high-level, DDC/CI VCP, and WMI writes through the selected display's `BrightnessSource` |
-| 🧩 **Generic frontend state** | Frontend display-state hooks now read and update normalized `brightness` instead of deriving every slider value from HDR SDR nits |
-| 🏷️ **Source-aware UI labels** | The main slider and status bar describe HDR SDR, DDC/CI, and WMI brightness sources and allow non-HDR brightness controls |
-| 📍 **Generic tray summaries** | Tray menu and tooltip summaries use source-aware brightness percentages instead of HDR-only nits |
+| 🎚️ Brightness slider | Adjust the selected display from the tray window |
+| 🌗 HDR toggle | Turn HDR on or off per supported display |
+| 🖥️ Multi-display support | Control each detected display independently |
+| 🔗 Sync brightness | Optionally apply one brightness change to all supported displays |
+| 📍 Tray control | Left-click to show or hide; right-click for the tray menu |
+| ⌨️ Hotkeys | Use customizable brightness shortcuts |
+| 🖱️ Mouse wheel | Fine-tune brightness directly on the slider |
+| 🚀 Auto-start | Launch automatically when Windows starts |
+| 🎨 Light and dark themes | Follow Windows or choose a fixed theme |
+| 🧾 Rolling logs | Keep small local logs for troubleshooting |
 
 ---
 
-## 📋 Requirements
+## Requirements
 
-- **OS:** Windows 10 or Windows 11
-- **Display:** HDR-capable monitor
-- **Note:** HDR can be off initially — the app detects HDR displays and enables HDR per-display
+- Windows 10 or Windows 11
+- A display with at least one supported brightness control method:
+  - HDR SDR white level
+  - DDC/CI brightness on an external monitor
+  - Windows brightness control on a built-in display
+
+Some monitors expose only part of this functionality. For example, a display may support HDR but not DDC/CI brightness, or DDC/CI brightness but not HDR.
 
 ---
 
-## 🚀 Quick Start
-
-### Download
+## Download
 
 Get the latest release from **[Releases](https://github.com/tyth66/hdr-toolbox/releases)**:
 
-```
+```text
 hdr-toolbox.exe
 ```
 
-### Build from Source
-
-```bash
-# Clone the repository
-git clone https://github.com/tyth66/hdr-toolbox.git
-cd hdr-toolbox
-
-# Install dependencies
-npm install
-
-# Run in development mode
-npm run tauri dev
-
-# Build for production
-npm run tauri build
-```
-
-> **Output:** `src-tauri/target/release/hdr-toolbox.exe`
+Run the executable and the app icon will appear in the system tray.
 
 ---
 
-## 🔁 CI/CD
+## Usage
 
-- Every branch push and pull request runs the Windows CI workflow.
-- CI validates TypeScript, frontend tests, Rust formatting, `cargo check`, clippy, Rust tests, and the Vite frontend build.
-- After CI succeeds for a `main` branch push, the release workflow automatically builds the Windows Tauri release bundle, uploads it as a workflow artifact, and publishes the formal `HDR Toolbox` GitHub Release.
-- The formal release uses the fixed `release` tag and stable asset names without version suffixes: `hdr-toolbox.exe`, `hdr-toolbox-setup.exe`, and `hdr-toolbox.msi`.
+1. Launch HDR Toolbox.
+2. Left-click the tray icon to show or hide the brightness window.
+3. Select a display from the side rail.
+4. Drag the slider, use the mouse wheel, or press your brightness hotkeys.
+5. Use the HDR switch when you want to change HDR mode for the selected display.
 
----
+When HDR is on, the slider controls SDR white level. When HDR is off and the display supports physical brightness control, the same slider controls monitor brightness instead.
 
-## 📖 Usage
+### Refresh Behavior
 
-```
-1. Launch the app → icon appears in system tray
-2. Left-click tray icon → show/hide brightness window
-3. Right-click tray icon → open device menu
-4. Drag slider or use wheel/keyboard to adjust brightness
-5. Click HDR toggle to switch between SDR white level and physical brightness
-```
+| Action | What happens | Refresh button spins |
+|--------|--------------|----------------------|
+| Open from tray | Reads the current state of known displays | No |
+| Window gets focus | Reads the current state of known displays | No |
+| Click the refresh button | Re-detects displays and brightness controls | Yes |
 
-### ⌨️ Hotkeys
+Use the refresh button after plugging in a monitor, changing display hardware, or when a monitor does not look right in the app. Normal tray wake and window-focus updates are quiet and should not animate the refresh button.
+
+### Hotkeys
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+Alt+↑` | Brightness +4% |
-| `Ctrl+Alt+↓` | Brightness -4% |
+| `Ctrl+Alt+Up` | Brightness +4% |
+| `Ctrl+Alt+Down` | Brightness -4% |
 
-> Customize hotkeys in **Settings**
+You can change these shortcuts in Settings.
 
 ---
 
-## ⚙️ Configuration
+## Settings
 
 | Setting | Description |
 |---------|-------------|
-| **Auto-start** | Enable/disable in Settings |
-| **Sync all displays** | Apply brightness changes to every detected HDR-capable display |
-| **Theme** | Follow system theme by default, or choose Light/Dark in Settings |
-| **Brightness Range** | Fixed at **80-480 nits** |
-| **Logs** | Debug builds write to the repository `log/`; release builds write to `log/` beside the executable. Each timestamped file is capped at 10MB, with at most 3 files kept. |
-
-> ℹ️ With HDR enabled, this app controls **SDR White Level**. With HDR disabled, it switches to physical brightness through DDC/CI or WMI when available.
-
-### Appearance
-
-The app uses a transparent Tauri window with a Windows Acrylic backdrop and Fluent UI v9 controls. A fixed Codex accent (`#339CFF`) is applied to sliders, switches, selected displays, and hover/focus states. The accent variables are refreshed before the tray window is shown.
+| Auto-start | Launch HDR Toolbox when Windows starts |
+| Sync all displays | Apply brightness changes to every display with supported brightness control |
+| Theme | Follow Windows, or choose light/dark manually |
 
 ---
 
-## ❓ FAQ
+## Notes
+
+- HDR SDR white level is controlled in the 80-480 nit range.
+- DDC/CI support depends on the monitor, cable, GPU path, and monitor settings.
+- Some monitors require DDC/CI to be enabled in the monitor's on-screen menu.
+- Windows, the monitor OSD, and other brightness tools can change the same hardware value. The app refreshes known display state when the tray window is shown or focused.
+
+---
+
+## FAQ
 
 | Question | Answer |
 |----------|--------|
-| **HDR toggle is grayed out** | Display does not support HDR. DDC/WMI brightness still available without HDR. |
-| **Adjustments have no effect** | Some monitors may not support this control path. |
-| **How to exit** | Right-click tray icon → **Quit** |
+| HDR toggle is disabled | The selected display does not report HDR support. Brightness may still work through another supported method. |
+| Brightness does not change | The selected monitor may not expose a usable brightness control path, or DDC/CI may be disabled in the monitor menu. |
+| I changed brightness somewhere else | Show or focus the app window; it will read the current known display state. Use refresh if the display setup changed. |
+| How do I exit? | Right-click the tray icon and choose Quit. |
 
 ---
 
-## 🛠️ Tech Stack
+## Build From Source
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 18 · TypeScript · Vite |
-| UI | Fluent UI v9 · CSS tokens · Windows Acrylic |
-| Backend | Rust · Tauri 2 |
-| System API | Windows DisplayConfig API · DDC/CI · WMI provider APIs |
+```bash
+npm install
+npm run tauri dev
+npm run tauri build
+```
+
+The release executable is created under `src-tauri/target/release/`.
 
 ---
 
-## 📄 License
+## License
 
-MIT License · see [LICENSE](LICENSE) for details
+MIT License. See [LICENSE](LICENSE) for details.

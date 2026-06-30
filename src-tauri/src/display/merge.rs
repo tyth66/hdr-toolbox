@@ -11,14 +11,19 @@ pub(super) fn merge_ddc_display(displays: &mut Vec<DisplayInfo>, display: DdcDis
         BrightnessSource::DdcVcp
     };
 
-    if let Some(existing) = displays.iter_mut().find(|existing| {
-        existing.brightness_source == BrightnessSource::HdrSdr && existing.name == display.name
-    }) {
-        existing.fallback_source = Some(fallback_source);
-        existing.brightness_device_id = display.device_key;
-        existing.brightness_vcp_code = display.vcp_code.map(u32::from);
-        existing.brightness_raw = Some(display.brightness_raw);
-        existing.brightness_raw_max = Some(display.brightness_raw_max);
+    if let Some(existing) = displays
+        .iter_mut()
+        .find(|existing| matches_ddc_display(existing, &display))
+    {
+        inject_provider_fallback(
+            existing,
+            fallback_source,
+            display.device_key,
+            display.brightness_percent,
+            display.brightness_raw,
+            display.brightness_raw_max,
+            display.vcp_code.map(u32::from),
+        );
         return;
     }
 
@@ -50,11 +55,15 @@ pub(super) fn merge_wmi_display(displays: &mut Vec<DisplayInfo>, display: WmiDis
     if let Some(existing) = displays.iter_mut().find(|existing| {
         existing.brightness_source == BrightnessSource::HdrSdr && existing.name == display.name
     }) {
-        existing.fallback_source = Some(BrightnessSource::Wmi);
-        existing.brightness_device_id = display.key;
-        existing.brightness_raw = Some(display.brightness_percent);
-        existing.brightness_raw_max = Some(100);
-        existing.brightness_vcp_code = None;
+        inject_provider_fallback(
+            existing,
+            BrightnessSource::Wmi,
+            display.key,
+            display.brightness_percent,
+            display.brightness_percent,
+            100,
+            None,
+        );
         return;
     }
 
@@ -80,6 +89,50 @@ pub(super) fn merge_wmi_display(displays: &mut Vec<DisplayInfo>, display: WmiDis
         min_nits: None,
         max_nits: None,
     });
+}
+
+fn matches_ddc_display(existing: &DisplayInfo, display: &DdcDisplay) -> bool {
+    existing.brightness_source == BrightnessSource::HdrSdr
+        && (monitor_identity_matches(&existing.brightness_device_id, &display.device_key)
+            || existing.name == display.name)
+}
+
+fn inject_provider_fallback(
+    existing: &mut DisplayInfo,
+    fallback_source: BrightnessSource,
+    device_key: String,
+    brightness_percent: u32,
+    brightness_raw: u32,
+    brightness_raw_max: u32,
+    vcp_code: Option<u32>,
+) {
+    existing.brightness_device_id = device_key;
+    existing.brightness_vcp_code = vcp_code;
+    existing.brightness_raw = Some(brightness_raw);
+    existing.brightness_raw_max = Some(brightness_raw_max);
+
+    if existing.hdr_enabled {
+        existing.fallback_source = Some(fallback_source);
+        return;
+    }
+
+    existing.brightness_source = fallback_source;
+    existing.fallback_source = Some(BrightnessSource::HdrSdr);
+    existing.brightness = brightness_percent;
+}
+
+fn monitor_identity_matches(hdr_device_id: &str, ddc_device_key: &str) -> bool {
+    let ddc_match_key = ddc_device_key
+        .rsplit_once('#')
+        .filter(|(_, suffix)| suffix.chars().all(|character| character.is_ascii_digit()))
+        .map(|(base, _)| base)
+        .unwrap_or(ddc_device_key);
+
+    normalize_monitor_identity(hdr_device_id) == normalize_monitor_identity(ddc_match_key)
+}
+
+fn normalize_monitor_identity(value: &str) -> String {
+    value.trim().to_ascii_lowercase()
 }
 
 fn next_provider_target_id(displays: &[DisplayInfo]) -> u32 {
@@ -164,5 +217,70 @@ mod tests {
         assert_eq!(displays[0].brightness_source, BrightnessSource::Wmi);
         assert_eq!(displays[0].brightness, 42);
         assert_eq!(displays[0].fallback_source, None);
+    }
+
+    #[test]
+    fn merge_ddc_uses_monitor_identity_when_names_differ() {
+        let monitor_path =
+            r"\\?\DISPLAY#SKG2512#5&eb5a9cc&0&UID532#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}";
+        let mut displays = Vec::new();
+        push_hdr_display_for_test(&mut displays, "H25T7-3", 1, 2, 532, 280, true);
+        displays[0].brightness_device_id = monitor_path.to_string();
+
+        merge_ddc_display(
+            &mut displays,
+            DdcDisplay {
+                device_key: format!("{monitor_path}#0"),
+                name: "Generic PnP Monitor".to_string(),
+                brightness_percent: 64,
+                brightness_raw: 163,
+                brightness_raw_max: 254,
+                high_level_supported: false,
+                vcp_code: Some(0x10),
+            },
+        );
+
+        assert_eq!(displays.len(), 1);
+        assert_eq!(displays[0].name, "H25T7-3");
+        assert_eq!(displays[0].brightness_source, BrightnessSource::HdrSdr);
+        assert_eq!(displays[0].fallback_source, Some(BrightnessSource::DdcVcp));
+        assert_eq!(
+            displays[0].brightness_device_id,
+            format!("{monitor_path}#0")
+        );
+        assert_eq!(displays[0].brightness_vcp_code, Some(0x10));
+        assert_eq!(displays[0].brightness_raw, Some(163));
+        assert_eq!(displays[0].brightness_raw_max, Some(254));
+    }
+
+    #[test]
+    fn merge_ddc_activates_fallback_brightness_when_hdr_is_off() {
+        let monitor_path =
+            r"\\?\DISPLAY#SKG2512#5&eb5a9cc&0&UID532#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}";
+        let mut displays = Vec::new();
+        push_hdr_display_for_test(&mut displays, "H25T7-3", 1, 2, 532, 280, false);
+        displays[0].brightness_device_id = monitor_path.to_string();
+
+        merge_ddc_display(
+            &mut displays,
+            DdcDisplay {
+                device_key: format!("{monitor_path}#0"),
+                name: "Generic PnP Monitor".to_string(),
+                brightness_percent: 64,
+                brightness_raw: 163,
+                brightness_raw_max: 254,
+                high_level_supported: false,
+                vcp_code: Some(0x10),
+            },
+        );
+
+        assert_eq!(displays.len(), 1);
+        assert_eq!(displays[0].brightness_source, BrightnessSource::DdcVcp);
+        assert_eq!(displays[0].fallback_source, Some(BrightnessSource::HdrSdr));
+        assert_eq!(displays[0].brightness, 64);
+        assert_eq!(
+            displays[0].brightness_device_id,
+            format!("{monitor_path}#0")
+        );
     }
 }

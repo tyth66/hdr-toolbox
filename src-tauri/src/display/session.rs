@@ -168,6 +168,13 @@ pub(super) fn sync_display_cache(
     displays
 }
 
+pub(super) fn sync_cached_display_state(app: &AppHandle, state: &AppState) -> Vec<DisplayInfo> {
+    let displays = cached_displays(state);
+    replace_cached_tray_state(state, &displays);
+    refresh_tray(app);
+    displays
+}
+
 pub(super) fn clear_display_cache(app: &AppHandle, state: &AppState) -> Vec<DisplayInfo> {
     sync_display_cache(app, state, Vec::new())
 }

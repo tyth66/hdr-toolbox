@@ -58,6 +58,17 @@ pub(super) fn set_ddc_vcp_brightness(
     set_ddc_vcp_brightness_windows(device_key, vcp_code, percent, raw_max)
 }
 
+pub(super) fn read_ddc_high_level_brightness(device_key: &str) -> Result<DdcDisplay, DisplayError> {
+    read_ddc_high_level_brightness_windows(device_key)
+}
+
+pub(super) fn read_ddc_vcp_brightness(
+    device_key: &str,
+    vcp_code: u8,
+) -> Result<DdcDisplay, DisplayError> {
+    read_ddc_vcp_brightness_windows(device_key, vcp_code)
+}
+
 fn choose_brightness_vcp(supported: &[u8]) -> Option<u8> {
     BRIGHTNESS_VCP_CODES
         .into_iter()
@@ -180,6 +191,25 @@ fn set_ddc_high_level_brightness_windows(
 }
 
 #[cfg(windows)]
+fn read_ddc_high_level_brightness_windows(device_key: &str) -> Result<DdcDisplay, DisplayError> {
+    with_physical_monitor(device_key, |handle| {
+        read_high_level_brightness(device_key, "DDC/CI Display", handle).ok_or_else(|| {
+            DisplayError::ddc_brightness_failed(format!(
+                "GetMonitorBrightness failed for {device_key}: {}",
+                WindowsError::from_thread()
+            ))
+        })
+    })
+}
+
+#[cfg(not(windows))]
+fn read_ddc_high_level_brightness_windows(device_key: &str) -> Result<DdcDisplay, DisplayError> {
+    Err(DisplayError::ddc_brightness_failed(format!(
+        "DDC/CI provider requires Windows for {device_key}"
+    )))
+}
+
+#[cfg(windows)]
 fn set_ddc_vcp_brightness_windows(
     device_key: &str,
     vcp_code: u8,
@@ -207,6 +237,31 @@ fn set_ddc_vcp_brightness_windows(
     _percent: u32,
     _raw_max: u32,
 ) -> Result<(), DisplayError> {
+    Err(DisplayError::ddc_brightness_failed(format!(
+        "DDC/CI provider requires Windows for {device_key}"
+    )))
+}
+
+#[cfg(windows)]
+fn read_ddc_vcp_brightness_windows(
+    device_key: &str,
+    vcp_code: u8,
+) -> Result<DdcDisplay, DisplayError> {
+    with_physical_monitor(device_key, |handle| {
+        read_vcp_brightness_code(device_key, "DDC/CI Display", handle, vcp_code).ok_or_else(|| {
+            DisplayError::ddc_brightness_failed(format!(
+                "GetVCPFeatureAndVCPFeatureReply failed for {device_key} code {vcp_code:#04x}: {}",
+                WindowsError::from_thread()
+            ))
+        })
+    })
+}
+
+#[cfg(not(windows))]
+fn read_ddc_vcp_brightness_windows(
+    device_key: &str,
+    _vcp_code: u8,
+) -> Result<DdcDisplay, DisplayError> {
     Err(DisplayError::ddc_brightness_failed(format!(
         "DDC/CI provider requires Windows for {device_key}"
     )))
@@ -291,34 +346,46 @@ fn read_high_level_brightness(device_key: &str, name: &str, handle: HANDLE) -> O
 #[cfg(windows)]
 fn read_vcp_brightness(device_key: &str, name: &str, handle: HANDLE) -> Option<DdcDisplay> {
     for code in BRIGHTNESS_VCP_CODES {
-        let mut current = 0;
-        let mut max = 0;
-        let ok = unsafe {
-            GetVCPFeatureAndVCPFeatureReply(handle, code, None, &mut current, Some(&mut max))
-        };
-
-        if ok == 0 || max == 0 {
-            continue;
+        if let Some(display) = read_vcp_brightness_code(device_key, name, handle, code) {
+            return Some(display);
         }
-
-        return Some(DdcDisplay {
-            device_key: device_key.to_string(),
-            name: name.to_string(),
-            brightness_percent: raw_to_percent(current, max),
-            brightness_raw: current,
-            brightness_raw_max: max,
-            high_level_supported: false,
-            vcp_code: Some(code),
-        });
     }
 
     None
 }
 
 #[cfg(windows)]
-fn with_physical_monitor<F>(device_key: &str, mut action: F) -> Result<(), DisplayError>
+fn read_vcp_brightness_code(
+    device_key: &str,
+    name: &str,
+    handle: HANDLE,
+    code: u8,
+) -> Option<DdcDisplay> {
+    let mut current = 0;
+    let mut max = 0;
+    let ok = unsafe {
+        GetVCPFeatureAndVCPFeatureReply(handle, code, None, &mut current, Some(&mut max))
+    };
+
+    if ok == 0 || max == 0 {
+        return None;
+    }
+
+    Some(DdcDisplay {
+        device_key: device_key.to_string(),
+        name: name.to_string(),
+        brightness_percent: raw_to_percent(current, max),
+        brightness_raw: current,
+        brightness_raw_max: max,
+        high_level_supported: false,
+        vcp_code: Some(code),
+    })
+}
+
+#[cfg(windows)]
+fn with_physical_monitor<F, T>(device_key: &str, mut action: F) -> Result<T, DisplayError>
 where
-    F: FnMut(HANDLE) -> Result<(), DisplayError>,
+    F: FnMut(HANDLE) -> Result<T, DisplayError>,
 {
     let physical_monitor_lists = enumerate_physical_monitor_lists().map_err(|error| {
         DisplayError::ddc_brightness_failed(format!(

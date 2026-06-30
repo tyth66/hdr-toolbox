@@ -5,7 +5,7 @@
 
 ## OVERVIEW
 
-React 18 single-window UI for HDR brightness control. Frontend is split into composition, hooks, services, presentational components, and Node-based tests for pure logic.
+React 18 single-window UI for universal brightness control across HDR SDR, DDC/CI, and WMI sources. Frontend is split into composition, hooks, services, presentational components, and Node-based tests for pure logic.
 
 ## WHERE TO LOOK
 
@@ -16,11 +16,11 @@ React 18 single-window UI for HDR brightness control. Frontend is split into com
 | App render surface exports | `components/AppSurfaces.tsx` | Barrel export for state shells and main shell |
 | App state shells | `components/AppStateSurfaces.tsx` | Loading, error, and empty JSX |
 | Main shell | `components/MainSurface.tsx` | Main display/settings/about/startup shell with grouped props |
-| App-level control | `app/useAppController.ts` | Composition over focused app controllers |
+| App-level control | `app/useAppController.ts` | Composition over focused app controllers and window-focus state refresh |
 | Dialog control | `app/useDialogController.ts` | Settings/about dialog state |
 | Settings control | `app/useSettingsController.ts` | Autostart, sync brightness, and theme preference |
 | Hotkey control | `app/useHotkeyController.ts` | Hotkey recording, validation, persistence, and registration |
-| Tray events | `app/useTrayDisplayEvents.ts` | Initial display load and Tauri tray events |
+| Tray events | `app/useTrayDisplayEvents.ts` | Initial display load and Tauri tray wake state refresh |
 | Brightness control | `brightness/useBrightnessController.ts` | Slider drag, commit, wheel |
 | Brightness capability | `brightness/brightnessCapability.ts` | Source-aware slider adjustability rule |
 | Brightness interaction | `brightness/brightnessInteraction.ts` | Pure wheel-step brightness math |
@@ -52,6 +52,9 @@ React 18 single-window UI for HDR brightness control. Frontend is split into com
 - `StatusBar` HDR toggle flips brightness source; shows fallback source label (DDC or WMI) when HDR is off
 - Slider adjustability uses `brightness/brightnessCapability.ts`: HDR SDR requires HDR active; DDC/WMI sources remain adjustable when HDR is off; HDR-pending blocks all sources
 - Frontend consumes Rust-owned state; no push sync paths
+- Tray wake and window focus use known-device state refresh; if HDR remains off and the active source is already DDC/WMI, refresh must keep that source. Manual refresh remains full provider discovery.
+- Only manual refresh should animate the title-bar refresh button; silent tray/focus known-state refreshes must not set `isRefreshing`.
+- `silent: true` still allows non-blocking refresh error notices through `mapRefreshError`, but it must not trigger loading/startup state or the visible title-bar refresh indicator.
 
 ## TEST COVERAGE
 

@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import {
   getHdrDisplays,
+  refreshCachedDisplays,
+  refreshKnownDisplayState,
   setBrightness as setDisplayBrightness,
   setBrightnessAll,
   setHdrEnabled,
@@ -10,6 +12,8 @@ import type { DisplayInfo } from "../types";
 
 export type DisplayCommandClient = {
   getDisplays: () => Promise<DisplayInfo[]>;
+  refreshCachedDisplays: () => Promise<DisplayInfo[]>;
+  refreshKnownDisplayState: () => Promise<DisplayInfo[]>;
   setBrightness: (
     display: DisplayInfo,
     percentage: number
@@ -27,6 +31,8 @@ export function useDisplayCommandClient(): DisplayCommandClient {
   return useMemo(
     () => ({
       getDisplays: getHdrDisplays,
+      refreshCachedDisplays,
+      refreshKnownDisplayState,
       setBrightness: (display, percentage) =>
         setDisplayBrightness(
           display.adapter_id_low,

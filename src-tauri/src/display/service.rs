@@ -5,11 +5,12 @@ use std::time::Duration;
 use windows::Win32::Foundation::LUID;
 
 use super::ffi::{
-    get_advanced_color_info, get_display_name, get_sdr_white_level_raw, query_active_display_paths,
-    set_advanced_color_state, DisplayPath,
+    get_advanced_color_info, get_display_device_path, get_display_name, get_sdr_white_level_raw,
+    query_active_display_paths, set_advanced_color_state, DisplayPath,
 };
 use super::merge::{merge_ddc_display, merge_wmi_display};
 use super::model::{luminance, BrightnessSource, DisplayInfo};
+use super::reader;
 use super::DisplayError;
 use super::{ddcci, wmi, writer};
 
@@ -105,6 +106,31 @@ pub(super) fn get_displays_impl() -> Result<Vec<DisplayInfo>, DisplayError> {
     } else {
         Ok(displays)
     }
+}
+
+pub(super) fn refresh_known_display_state_impl(
+    displays: Vec<DisplayInfo>,
+) -> Result<Vec<DisplayInfo>, DisplayError> {
+    if displays.is_empty() {
+        return get_hdr_displays_impl();
+    }
+
+    let mut refreshed = Vec::with_capacity(displays.len());
+    for cached_display in displays {
+        match reader::read_known_display_state(&cached_display) {
+            Ok(refreshed_display) => refreshed.push(refreshed_display),
+            Err(error) => {
+                tracing::warn!(
+                    "Known display state refresh failed for '{}': {}. Falling back to full discovery.",
+                    cached_display.name,
+                    error
+                );
+                return get_hdr_displays_impl();
+            }
+        }
+    }
+
+    Ok(refreshed)
 }
 
 fn enumerate_all_brightness_displays() -> Vec<DisplayInfo> {
@@ -223,6 +249,9 @@ fn enumerate_hdr_sdr_displays() -> Result<Vec<DisplayInfo>, DisplayError> {
         }
 
         let display_name = get_display_name(path);
+        let display_device_id = get_display_device_path(path).unwrap_or_else(|| {
+            display_identity(path.adapter_id_low, path.adapter_id_high, path.target_id)
+        });
         let advanced_color_info = get_advanced_color_info(path);
         let hdr_supported = advanced_color_info.is_supported();
         let hdr_enabled = advanced_color_info.is_enabled();
@@ -265,11 +294,7 @@ fn enumerate_hdr_sdr_displays() -> Result<Vec<DisplayInfo>, DisplayError> {
             brightness_source: BrightnessSource::HdrSdr,
             brightness_raw: Some(brightness),
             brightness_raw_max: Some(100),
-            brightness_device_id: display_identity(
-                path.adapter_id_low,
-                path.adapter_id_high,
-                path.target_id,
-            ),
+            brightness_device_id: display_device_id,
             brightness_vcp_code: None,
             fallback_source: None,
             nits,

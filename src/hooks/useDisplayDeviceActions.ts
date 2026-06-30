@@ -81,8 +81,11 @@ export function useDisplayDeviceActions({
     ]
   );
 
-  const refreshDisplays = useCallback(
-    async (options?: { initial?: boolean; silent?: boolean }) => {
+  const runDisplayRefresh = useCallback(
+    async (
+      loadDisplays: () => Promise<DisplayInfo[]>,
+      options?: { initial?: boolean; silent?: boolean }
+    ) => {
       const { initial = false, silent = false } = options ?? {};
       const previousDisplay = displaysRef.current[selectedIndexRef.current];
 
@@ -94,7 +97,7 @@ export function useDisplayDeviceActions({
         refreshInFlightRef.current = true;
         feedback.beginRefresh({ initial, silent });
 
-        const result = await commands.getDisplays();
+        const result = await loadDisplays();
         syncDisplayState(result);
 
         if (result.length > 0) {
@@ -130,6 +133,27 @@ export function useDisplayDeviceActions({
       startStartupOverlay,
       syncDisplayState,
     ]
+  );
+
+  const refreshDisplays = useCallback(
+    async (options?: { initial?: boolean; silent?: boolean }) => {
+      await runDisplayRefresh(commands.getDisplays, options);
+    },
+    [commands.getDisplays, runDisplayRefresh]
+  );
+
+  const refreshCachedDisplays = useCallback(
+    async (options?: { initial?: boolean; silent?: boolean }) => {
+      await runDisplayRefresh(commands.refreshCachedDisplays, options);
+    },
+    [commands.refreshCachedDisplays, runDisplayRefresh]
+  );
+
+  const refreshKnownDisplayState = useCallback(
+    async (options?: { initial?: boolean; silent?: boolean }) => {
+      await runDisplayRefresh(commands.refreshKnownDisplayState, options);
+    },
+    [commands.refreshKnownDisplayState, runDisplayRefresh]
   );
 
   const loadDisplays = useCallback(async () => {
@@ -170,6 +194,8 @@ export function useDisplayDeviceActions({
   return {
     applyBrightness,
     refreshDisplays,
+    refreshCachedDisplays,
+    refreshKnownDisplayState,
     loadDisplays,
     toggleHdr,
   };

@@ -3,14 +3,14 @@ import { listen } from "@tauri-apps/api/event";
 
 type UseTrayDisplayEventsOptions = {
   loadDisplays: () => Promise<void>;
-  refreshDisplays: (options?: { initial?: boolean; silent?: boolean }) => Promise<void>;
+  refreshKnownDisplayState: (options?: { initial?: boolean; silent?: boolean }) => Promise<void>;
   selectDisplay: (idx: number) => void;
   showWindow: () => Promise<void>;
 };
 
 export function useTrayDisplayEvents({
   loadDisplays,
-  refreshDisplays,
+  refreshKnownDisplayState,
   selectDisplay,
   showWindow,
 }: UseTrayDisplayEventsOptions) {
@@ -19,7 +19,7 @@ export function useTrayDisplayEvents({
 
     const unlistenShowWindow = listen("show-window", async () => {
       await showWindow();
-      await refreshDisplays({ silent: true });
+      await refreshKnownDisplayState({ silent: true });
     });
 
     const unlistenSelectDisplay = listen<number>("select-display", (event) => {
@@ -30,5 +30,5 @@ export function useTrayDisplayEvents({
       unlistenShowWindow.then((fn) => fn());
       unlistenSelectDisplay.then((fn) => fn());
     };
-  }, [loadDisplays, refreshDisplays, selectDisplay, showWindow]);
+  }, [loadDisplays, refreshKnownDisplayState, selectDisplay, showWindow]);
 }
