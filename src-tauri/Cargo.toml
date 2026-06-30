@@ -1,10 +1,10 @@
 [package]
-name = "hdr-toolbox"
+name = "brightbox"
 version = "1.0.0"
 edition = "2021"
 
 [lib]
-name = "hdr_toolbox_lib"
+name = "brightbox_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

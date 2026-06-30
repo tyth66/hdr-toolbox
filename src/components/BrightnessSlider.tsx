@@ -67,7 +67,7 @@ export const BrightnessSlider = memo(function BrightnessSlider({
 
       <div className="slider-range">
         <span>{SLIDER.MIN}</span>
-        <span>{SLIDER.MAX}%</span>
+        <span>{SLIDER.MAX}</span>
       </div>
     </div>
   );

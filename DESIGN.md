@@ -4,7 +4,7 @@
 
 - Status: Active
 - Last refreshed: 2026-06-30
-- Product: HDR Toolbox, a fixed-size Windows tray utility controlling display brightness across HDR SDR white level, DDC/CI, and internal WMI panel paths. HDR toggle flips between SDR white level and physical brightness on the same display entry.
+- Product: BrightBox, a fixed-size Windows tray utility controlling display brightness across HDR SDR white level, DDC/CI, and internal WMI panel paths. HDR toggle flips between SDR white level and physical brightness on the same display entry.
 - Primary surfaces:
   - 300 x 200 tray flyout
   - Display rail
@@ -50,7 +50,7 @@ This file is the current UI source of truth. Do not revive deleted one-off phase
 
 ## Design Direction
 
-HDR Toolbox should feel like a native Windows 11 tray flyout: compact, translucent, quiet, and utility-first.
+BrightBox should feel like a native Windows 11 tray flyout: compact, translucent, quiet, and utility-first.
 
 Use a neutral Acrylic shell, Fluent UI v9 controls, the fixed Codex accent color, visible focus states, and 4-8px control radii. Avoid website composition, dashboard density, decorative gradients, glows, marketing copy, large cards, and extra explanatory text in the main surface.
 

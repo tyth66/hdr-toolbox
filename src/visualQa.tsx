@@ -251,10 +251,10 @@ function StateSurface({ type }: { type: "loading" | "empty" | "error" }) {
     <>
       <TitleBar minimal onClose={noop} />
       <div className={`app-state app-state-${type}`}>
-        {type === "loading" ? <span>Looking for HDR-capable displays...</span> : null}
+        {type === "loading" ? <span>Looking for supported displays...</span> : null}
         {type === "empty" ? (
           <div className="state-message">
-            No HDR-capable displays found.
+            No supported displays found.
             <br />
             Check your display connection or Windows display settings.
           </div>
@@ -271,7 +271,7 @@ function VisualQaApp() {
   return (
     <main className="visual-qa-page">
       <header className="visual-qa-header">
-        <h1>HDR Toolbox Phase 5 Visual QA</h1>
+        <h1>BrightBox Phase 5 Visual QA</h1>
         <p>Static harness using production components, fixed 300 x 200 windows, and production CSS.</p>
       </header>
       <div className="visual-qa-grid">

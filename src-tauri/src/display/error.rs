@@ -1,4 +1,4 @@
-//! Structured error types for HDR Toolbox commands.
+//! Structured error types for BrightBox commands.
 //!
 //! These errors are serialized as JSON and sent to the frontend,
 //! allowing precise error handling based on error codes.
@@ -10,8 +10,8 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DisplayErrorCode {
-    /// No HDR-capable displays found
-    NoHdrDisplays,
+    /// No supported displays found
+    NoSupportedDisplays,
     /// Display path enumeration failed
     NoDisplayPaths,
     /// DisplayConfig API call failed
@@ -53,10 +53,10 @@ impl DisplayError {
         }
     }
 
-    pub fn no_hdr_displays() -> Self {
+    pub fn no_supported_displays() -> Self {
         Self::new(
-            DisplayErrorCode::NoHdrDisplays,
-            "No HDR-capable displays found. Ensure your monitor supports HDR and the display driver is working correctly.",
+            DisplayErrorCode::NoSupportedDisplays,
+            "No supported displays found. Ensure your monitor exposes a supported brightness path and the display driver is working correctly.",
         )
     }
 

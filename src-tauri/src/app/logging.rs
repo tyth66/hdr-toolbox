@@ -106,7 +106,7 @@ impl Write for LogWriteGuard {
         let stderr_result = self.stderr.write_all(buf);
 
         if let Err(error) = file_result {
-            let _ = writeln!(self.stderr, "Failed to write HDR Toolbox log file: {error}");
+            let _ = writeln!(self.stderr, "Failed to write BrightBox log file: {error}");
         }
 
         stderr_result?;
@@ -144,7 +144,7 @@ pub fn init_logging() {
             .with_writer(writer)
             .init(),
         Err(error) => {
-            eprintln!("Failed to initialize HDR Toolbox file logging: {error}");
+            eprintln!("Failed to initialize BrightBox file logging: {error}");
             tracing_subscriber::fmt()
                 .with_env_filter(env_filter)
                 .with_target(false)
@@ -366,7 +366,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("system time should be after unix epoch")
             .as_nanos();
-        std::env::temp_dir().join(format!("hdr-toolbox-{name}-{id}"))
+        std::env::temp_dir().join(format!("brightbox-{name}-{id}"))
     }
 
     fn write_sized_file(path: &Path, bytes: usize) {

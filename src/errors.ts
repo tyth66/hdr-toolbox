@@ -8,7 +8,7 @@ export type AppNotice = {
  * These are snake_case strings matching the Rust enum variants.
  */
 export type DisplayErrorCode =
-  | "no_hdr_displays"
+  | "no_supported_displays"
   | "no_display_paths"
   | "api_failed"
   | "display_not_found"
@@ -57,17 +57,17 @@ function getErrorText(error: unknown): string {
   return String(error);
 }
 
-function isNoHdrDisplaysError(error: unknown): boolean {
+function isNoSupportedDisplaysError(error: unknown): boolean {
   if (isStructuredError(error)) {
-    return error.code === "no_hdr_displays";
+    return error.code === "no_supported_displays";
   }
   const message = getErrorText(error).toLowerCase();
-  return message.includes("no hdr displays found") || message.includes("no hdr-capable displays found");
+  return message.includes("no supported displays found");
 }
 
 export function mapInitialLoadError(error: unknown): string {
-  if (isNoHdrDisplaysError(error)) {
-    return "No HDR-capable displays found. Check your display connection or Windows display settings, then refresh and try again.";
+  if (isNoSupportedDisplaysError(error)) {
+    return "No supported displays found. Check your display connection or Windows display settings, then refresh and try again.";
   }
 
   // For structured errors, include the specific message
@@ -75,15 +75,15 @@ export function mapInitialLoadError(error: unknown): string {
     return error.message;
   }
 
-  return "HDR Toolbox couldn't load the current display state. Check your display connection and Windows display settings, then try again.";
+  return "BrightBox couldn't load the current display state. Check your display connection and Windows display settings, then try again.";
 }
 
 export function mapRefreshError(error: unknown, silent = false): AppNotice {
-  if (isNoHdrDisplaysError(error)) {
+  if (isNoSupportedDisplaysError(error)) {
     return {
-      title: silent ? "Display state unavailable" : "No HDR-capable displays found",
+      title: silent ? "Display state unavailable" : "No supported displays found",
       message: silent
-        ? "HDR Toolbox couldn't confirm the latest display state, so the last known values are still shown."
+        ? "BrightBox couldn't confirm the latest display state, so the last known values are still shown."
         : "Check your display connection or Windows display settings, then refresh and try again.",
     };
   }
@@ -115,7 +115,7 @@ export function mapBrightnessError(error: unknown = null): AppNotice {
 
   return {
     title: "Brightness update failed",
-    message: "HDR Toolbox couldn't update SDR brightness for the selected display.",
+    message: "BrightBox couldn't update SDR brightness for the selected display.",
   };
 }
 
@@ -130,7 +130,7 @@ export function mapHdrToggleError(error: unknown = null): AppNotice {
 
   return {
     title: "HDR toggle failed",
-    message: "HDR Toolbox couldn't change the HDR setting for the selected display.",
+    message: "BrightBox couldn't change the HDR setting for the selected display.",
   };
 }
 
@@ -144,7 +144,7 @@ export function mapAutostartError(): AppNotice {
 export function mapQuitError(): AppNotice {
   return {
     title: "Quit failed",
-    message: "HDR Toolbox couldn't close cleanly. Try again from the tray menu.",
+    message: "BrightBox couldn't close cleanly. Try again from the tray menu.",
   };
 }
 

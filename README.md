@@ -1,8 +1,8 @@
-<!-- HDR Toolbox -->
+<!-- BrightBox -->
 
 <div align="center">
 
-# HDR Toolbox
+# BrightBox
 
 **A lightweight Windows tray app for controlling monitor brightness**
 
@@ -20,7 +20,7 @@
 
 ## What It Does
 
-HDR Toolbox lives in the Windows system tray and gives you a compact brightness panel for supported displays. It can adjust HDR SDR white level, external monitor brightness through DDC/CI, and built-in display brightness through Windows when available.
+BrightBox lives in the Windows system tray and gives you a compact brightness panel for supported displays. It can adjust HDR SDR white level, external monitor brightness through DDC/CI, and built-in display brightness through Windows when available.
 
 If one physical monitor supports both HDR and DDC/CI brightness, it stays as one display in the app. Turning HDR on or off changes what the slider controls instead of creating duplicate monitor entries.
 
@@ -60,7 +60,7 @@ Some monitors expose only part of this functionality. For example, a display may
 Get the latest release from **[Releases](https://github.com/tyth66/hdr-toolbox/releases)**:
 
 ```text
-hdr-toolbox.exe
+brightbox.exe
 ```
 
 Run the executable and the app icon will appear in the system tray.
@@ -69,7 +69,7 @@ Run the executable and the app icon will appear in the system tray.
 
 ## Usage
 
-1. Launch HDR Toolbox.
+1. Launch BrightBox.
 2. Left-click the tray icon to show or hide the brightness window.
 3. Select a display from the side rail.
 4. Drag the slider, use the mouse wheel, or press your brightness hotkeys.
@@ -102,7 +102,7 @@ You can change these shortcuts in Settings.
 
 | Setting | Description |
 |---------|-------------|
-| Auto-start | Launch HDR Toolbox when Windows starts |
+| Auto-start | Launch BrightBox when Windows starts |
 | Sync all displays | Apply brightness changes to every display with supported brightness control |
 | Theme | Follow Windows, or choose light/dark manually |
 

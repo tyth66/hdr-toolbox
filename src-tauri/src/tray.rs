@@ -1,4 +1,4 @@
-//! System tray management for HDR Toolbox.
+//! System tray management for BrightBox.
 
 use crate::app::{AppState, TrayDisplaySummary};
 use tauri::{
@@ -21,7 +21,7 @@ fn build_full_menu(
         let no_display = MenuItem::with_id(
             app,
             "no-display",
-            "No HDR-capable displays",
+            "No supported displays",
             false,
             None::<&str>,
         )
@@ -101,14 +101,14 @@ pub fn update_tray_tooltip(app: &AppHandle) {
         };
 
         let tooltip = if tray_state.displays.is_empty() {
-            "HDR Toolbox - No HDR-capable displays".to_string()
+            "BrightBox - No supported displays".to_string()
         } else if tray_state.displays.len() == 1 {
             format!(
-                "HDR Toolbox - {}: {}%",
+                "BrightBox - {}: {}%",
                 tray_state.displays[0].name, tray_state.displays[0].brightness
             )
         } else {
-            format!("HDR Toolbox - {} displays", tray_state.displays.len())
+            format!("BrightBox - {} displays", tray_state.displays.len())
         };
 
         let _ = tray.set_tooltip(Some(&tooltip));
@@ -230,7 +230,7 @@ pub fn setup_tray(app: &AppHandle) -> Result<TrayIcon, tauri::Error> {
     })?;
 
     let tray = TrayIconBuilder::with_id(TRAY_ID)
-        .tooltip("HDR Toolbox")
+        .tooltip("BrightBox")
         .icon(icon)
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|tray, event| {

@@ -102,7 +102,7 @@ pub(super) fn get_displays_impl() -> Result<Vec<DisplayInfo>, DisplayError> {
     let displays = enumerate_all_brightness_displays();
 
     if displays.is_empty() {
-        Err(DisplayError::no_hdr_displays())
+        Err(DisplayError::no_supported_displays())
     } else {
         Ok(displays)
     }

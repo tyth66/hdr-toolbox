@@ -4,5 +4,5 @@
 #![allow(unused_imports)]
 
 fn main() {
-    hdr_toolbox_lib::run()
+    brightbox_lib::run()
 }

@@ -153,7 +153,7 @@ export const SettingsDialog = memo(function SettingsDialog({
 
           <section className="settings-group">
             <div className="settings-row">
-              <span>HDR Toolbox</span>
+              <span>BrightBox</span>
               <Button className="about-link" appearance="secondary" size="small" onClick={onShowAbout}>
                 About
               </Button>

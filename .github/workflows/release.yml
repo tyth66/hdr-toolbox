@@ -67,18 +67,18 @@ jobs:
           $stage = "release-assets"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
 
-          Copy-Item "src-tauri/target/release/hdr-toolbox.exe" "$stage/hdr-toolbox.exe"
+          Copy-Item "src-tauri/target/release/brightbox.exe" "$stage/brightbox.exe"
 
           $setup = Get-ChildItem "src-tauri/target/release/bundle" -Recurse -File -Filter "*.exe" |
             Select-Object -First 1
           if ($setup) {
-            Copy-Item $setup.FullName "$stage/hdr-toolbox-setup.exe"
+            Copy-Item $setup.FullName "$stage/brightbox-setup.exe"
           }
 
           $msi = Get-ChildItem "src-tauri/target/release/bundle" -Recurse -File -Filter "*.msi" |
             Select-Object -First 1
           if ($msi) {
-            Copy-Item $msi.FullName "$stage/hdr-toolbox.msi"
+            Copy-Item $msi.FullName "$stage/brightbox.msi"
           }
 
           Get-ChildItem $stage
@@ -86,7 +86,7 @@ jobs:
       - name: Upload bundled artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: hdr-toolbox-windows-release
+          name: brightbox-windows-release
           path: |
             release-assets/*
           if-no-files-found: error
@@ -118,7 +118,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: release
-          name: HDR Toolbox
+          name: BrightBox
           files: |
             release-assets/*
           fail_on_unmatched_files: false
@@ -126,6 +126,6 @@ jobs:
           prerelease: false
           make_latest: true
           body: |
-            Latest stable Windows build for HDR Toolbox.
+            Latest stable Windows build for BrightBox.
 
             Assets use stable filenames without version suffixes.

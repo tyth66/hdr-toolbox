@@ -1,4 +1,4 @@
-# Clippy configuration for HDR Toolbox
+# Clippy configuration for BrightBox
 
 # Allow lints we can't fix or are stylistic choices
 avoid-breaking-exported-api = false

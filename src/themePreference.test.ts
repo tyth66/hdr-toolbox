@@ -47,7 +47,7 @@ test("theme preference can return to system", () => {
 });
 
 test("theme preference ignores invalid stored values", () => {
-  store.set("hdr-toolbox-theme-preference", "blue");
+  store.set("brightbox-theme-preference", "blue");
 
   assert.equal(loadThemePreference(), "system");
 });

@@ -14,7 +14,7 @@ export const LoadingSurface = memo(function LoadingSurface({
     <div className={windowClassName}>
       <TitleBar minimal onClose={onClose} />
       <div className="app-state app-state-loading">
-        <span>Looking for HDR-capable displays...</span>
+        <span>Looking for supported displays...</span>
       </div>
     </div>
   );
@@ -48,7 +48,7 @@ export const EmptySurface = memo(function EmptySurface({
       <TitleBar minimal onClose={onClose} />
       <div className="app-state app-state-empty">
         <div className="state-message">
-          No HDR-capable displays found.
+          No supported displays found.
           <br />
           Check your display connection or Windows display settings.
         </div>

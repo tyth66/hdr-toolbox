@@ -1,4 +1,4 @@
-const SYNC_BRIGHTNESS_SETTINGS_KEY = "hdr-toolbox-sync-brightness";
+const SYNC_BRIGHTNESS_SETTINGS_KEY = "brightbox-sync-brightness";
 
 export function loadSyncBrightnessEnabled(): boolean {
   if (typeof window === "undefined") {

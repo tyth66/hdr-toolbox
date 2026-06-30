@@ -72,7 +72,7 @@ test("LUMINANCE constants are correct", () => {
 test("WINDOW_CONFIG constants are correct", () => {
   assert.equal(WINDOW_CONFIG.WIDTH, 300);
   assert.equal(WINDOW_CONFIG.HEIGHT, 200);
-  assert.equal(WINDOW_CONFIG.POSITION_KEY, "hdr-toolbox-window-position");
+  assert.equal(WINDOW_CONFIG.POSITION_KEY, "brightbox-window-position");
 });
 
 test("HOTKEYS constants are correct", () => {

@@ -37,7 +37,7 @@ test("sync brightness persists enabled state", () => {
 });
 
 test("sync brightness falls back to disabled for invalid stored values", () => {
-  store.set("hdr-toolbox-sync-brightness", "not-json");
+  store.set("brightbox-sync-brightness", "not-json");
 
   assert.equal(loadSyncBrightnessEnabled(), false);
 });

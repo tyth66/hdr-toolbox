@@ -23,10 +23,10 @@ export const AboutDialog = memo(function AboutDialog({ open, hotkeys, onClose }:
         aria-modal="true"
         aria-labelledby="about-dialog-title"
       >
-        <h2 id="about-dialog-title">HDR Toolbox</h2>
+        <h2 id="about-dialog-title">BrightBox</h2>
         <p>
-          A lightweight tray app for adjusting SDR brightness on HDR-capable
-          displays without opening Windows Settings.
+          A lightweight tray app for controlling supported display brightness
+          without opening Windows Settings.
         </p>
         <div className="dialog-list">
           <div>

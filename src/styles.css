@@ -250,7 +250,7 @@ input {
 }
 
 .title-bar-title {
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-title-text);
   text-transform: uppercase;
@@ -474,7 +474,7 @@ input {
   overflow: hidden;
   max-width: 100%;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -489,7 +489,7 @@ input {
 
 .slider-helper {
   margin-top: -2px;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.1;
   color: var(--text-muted);
   overflow: hidden;
@@ -498,7 +498,7 @@ input {
 }
 
 .slider-label {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   color: #64748b;
   text-transform: uppercase;
@@ -519,7 +519,7 @@ input {
 }
 
 .nits-unit {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--win-blue);
   opacity: 0.8;
@@ -589,7 +589,7 @@ input {
 .slider-range {
   display: flex;
   justify-content: space-between;
-  font-size: 8px;
+  font-size: 11px;
   color: #475569;
   line-height: 1;
   margin-top: -4px;
@@ -629,7 +629,7 @@ input {
 }
 
 .status-text {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -716,7 +716,7 @@ input {
 }
 
 .status-label {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;

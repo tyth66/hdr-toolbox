@@ -65,19 +65,19 @@ test("DisplayErrorCode contract includes DDC and WMI provider failures", () => {
   }
 });
 
-test("mapInitialLoadError recognizes HDR-capable display empty-state errors", () => {
+test("mapInitialLoadError recognizes supported display empty-state errors", () => {
   assert.equal(
     mapInitialLoadError(
-      "No HDR-capable displays found. Ensure your monitor supports HDR and the display driver is working correctly."
+      "No supported displays found. Ensure your monitor exposes a supported brightness path and the display driver is working correctly."
     ),
-    "No HDR-capable displays found. Check your display connection or Windows display settings, then refresh and try again."
+    "No supported displays found. Check your display connection or Windows display settings, then refresh and try again."
   );
 });
 
 test("mapInitialLoadError handles lowercase variant", () => {
   assert.equal(
-    mapInitialLoadError("no hdr displays found"),
-    "No HDR-capable displays found. Check your display connection or Windows display settings, then refresh and try again."
+    mapInitialLoadError("no supported displays found"),
+    "No supported displays found. Check your display connection or Windows display settings, then refresh and try again."
   );
 });
 
@@ -85,23 +85,23 @@ test("mapInitialLoadError handles generic errors", () => {
   const genericError = "Something went wrong";
   assert.equal(
     mapInitialLoadError(genericError),
-    "HDR Toolbox couldn't load the current display state. Check your display connection and Windows display settings, then try again."
+    "BrightBox couldn't load the current display state. Check your display connection and Windows display settings, then try again."
   );
 });
 
 test("mapInitialLoadError handles Error objects", () => {
-  const error = new Error("No HDR-capable displays found");
+  const error = new Error("No supported displays found");
   assert.equal(
     mapInitialLoadError(error),
-    "No HDR-capable displays found. Check your display connection or Windows display settings, then refresh and try again."
+    "No supported displays found. Check your display connection or Windows display settings, then refresh and try again."
   );
 });
 
-test("mapRefreshError uses the no-display messaging for HDR-capable display empty state", () => {
+test("mapRefreshError uses the no-display messaging for supported display empty state", () => {
   assert.deepEqual(
-    mapRefreshError("No HDR-capable displays found.", false),
+    mapRefreshError("No supported displays found.", false),
     {
-      title: "No HDR-capable displays found",
+      title: "No supported displays found",
       message: "Check your display connection or Windows display settings, then refresh and try again.",
     }
   );
@@ -109,10 +109,10 @@ test("mapRefreshError uses the no-display messaging for HDR-capable display empt
 
 test("mapRefreshError silent mode uses different title", () => {
   assert.deepEqual(
-    mapRefreshError("No HDR-capable displays found.", true),
+    mapRefreshError("No supported displays found.", true),
     {
       title: "Display state unavailable",
-      message: "HDR Toolbox couldn't confirm the latest display state, so the last known values are still shown.",
+      message: "BrightBox couldn't confirm the latest display state, so the last known values are still shown.",
     }
   );
 });
@@ -140,7 +140,7 @@ test("mapRefreshError generic error silent", () => {
 test("mapBrightnessError returns correct notice", () => {
   assert.deepEqual(mapBrightnessError(), {
     title: "Brightness update failed",
-    message: "HDR Toolbox couldn't update SDR brightness for the selected display.",
+    message: "BrightBox couldn't update SDR brightness for the selected display.",
   });
 });
 
@@ -171,7 +171,7 @@ test("maps WMI brightness errors to specific notices", () => {
 test("mapHdrToggleError returns correct notice", () => {
   assert.deepEqual(mapHdrToggleError(), {
     title: "HDR toggle failed",
-    message: "HDR Toolbox couldn't change the HDR setting for the selected display.",
+    message: "BrightBox couldn't change the HDR setting for the selected display.",
   });
 });
 
@@ -185,7 +185,7 @@ test("mapAutostartError returns correct notice", () => {
 test("mapQuitError returns correct notice", () => {
   assert.deepEqual(mapQuitError(), {
     title: "Quit failed",
-    message: "HDR Toolbox couldn't close cleanly. Try again from the tray menu.",
+    message: "BrightBox couldn't close cleanly. Try again from the tray menu.",
   });
 });
 

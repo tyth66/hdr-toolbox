@@ -26,8 +26,8 @@ export const StartupInfoDialog = memo(function StartupInfoDialog({
         aria-modal="true"
         aria-labelledby="startup-dialog-title"
       >
-        <h2 id="startup-dialog-title">HDR Toolbox</h2>
-        <p>Found {displays.length} HDR-capable display{displays.length === 1 ? "" : "s"}:</p>
+        <h2 id="startup-dialog-title">BrightBox</h2>
+        <p>Found {displays.length} supported display{displays.length === 1 ? "" : "s"}:</p>
         <ul className="startup-display-list">
           {displays.map((display) => (
             <li

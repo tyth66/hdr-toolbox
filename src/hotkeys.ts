@@ -1,7 +1,7 @@
 import type { HotkeyConfig } from "./types.ts";
 import { HOTKEYS } from "./types.ts";
 
-const HOTKEY_SETTINGS_KEY = "hdr-toolbox-hotkeys";
+const HOTKEY_SETTINGS_KEY = "brightbox-hotkeys";
 
 export function getDefaultHotkeys(): HotkeyConfig {
   return {

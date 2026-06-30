@@ -1,6 +1,6 @@
 import type { ThemePreference } from "./types";
 
-const THEME_PREFERENCE_SETTINGS_KEY = "hdr-toolbox-theme-preference";
+const THEME_PREFERENCE_SETTINGS_KEY = "brightbox-theme-preference";
 
 export function isThemePreference(value: string | null): value is ThemePreference {
   return value === "system" || value === "light" || value === "dark";

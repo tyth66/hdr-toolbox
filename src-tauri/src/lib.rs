@@ -15,7 +15,7 @@ pub use tray::{setup_tray, update_tray_menu, update_tray_tooltip};
 pub fn run() {
     app::logging::init_logging();
 
-    tracing::info!("HDR Toolbox starting...");
+    tracing::info!("BrightBox starting...");
 
     tauri::Builder::default()
         .manage(app::AppState::default())

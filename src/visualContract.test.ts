@@ -168,7 +168,7 @@ test("settings dialog keeps settings accessible without section headings", () =>
   const settingsDialog = readRepoFile("src/components/SettingsDialog.tsx");
   const styles = readRepoFile("src/styles.css");
 
-  for (const label of ["Auto-start", "Theme", "Sync all displays", "Brightness +", "Brightness -", "HDR Toolbox"]) {
+  for (const label of ["Auto-start", "Theme", "Sync all displays", "Brightness +", "Brightness -", "BrightBox"]) {
     assert.ok(settingsDialog.includes(`<span>${label}</span>`));
   }
 

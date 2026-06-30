@@ -1,5 +1,5 @@
 /**
- * Shared type definitions for HDR Toolbox
+ * Shared type definitions for BrightBox
  */
 
 // Note: DisplayInfo must match the Rust struct exactly
@@ -51,7 +51,7 @@ export const LUMINANCE = {
 export const WINDOW_CONFIG = {
   WIDTH: 300,
   HEIGHT: 200,
-  POSITION_KEY: "hdr-toolbox-window-position",
+  POSITION_KEY: "brightbox-window-position",
 } as const;
 
 export const HOTKEYS: HotkeyConfig & { STEP: number } = {

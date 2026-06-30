@@ -22,7 +22,7 @@ export const TitleBar = memo(function TitleBar({
 }: TitleBarProps) {
   return (
     <header className="title-bar" onMouseDown={onMouseDown}>
-      <span className="title-bar-title">HDR Toolbox</span>
+      <span className="title-bar-title">BrightBox</span>
       {minimal ? (
         <Button
           className="title-bar-btn title-bar-close"

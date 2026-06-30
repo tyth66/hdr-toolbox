@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "HDR Toolbox",
+  "productName": "BrightBox",
   "version": "1.0.0",
-  "identifier": "com.hdrtoolbox.app",
+  "identifier": "com.brightbox.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "withGlobalTauri": false,
     "windows": [
       {
-        "title": "HDR Toolbox",
+        "title": "BrightBox",
         "width": 300,
         "height": 200,
         "resizable": false,
