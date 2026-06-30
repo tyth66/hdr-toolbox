@@ -39,10 +39,17 @@ Windows system tray app currently controlling HDR monitor SDR brightness via Win
 | Task | Location | Notes |
 |------|----------|-------|
 | Frontend composition | `src/App.tsx` | Wires controllers, hooks, and components |
-| App render surfaces | `src/components/AppSurfaces.tsx` | Loading, error, empty, and main shell JSX |
+| App render exports | `src/components/AppSurfaces.tsx` | Barrel export for state and main surfaces |
+| App state surfaces | `src/components/AppStateSurfaces.tsx` | Loading, error, and empty shell JSX |
+| Main app surface | `src/components/MainSurface.tsx` | Main display/settings/about/startup shell with grouped props |
 | Tauri API boundary | `src/services/tauriApi.ts` | Only place that calls `invoke()` |
-| App-level control | `src/app/useAppController.ts` | Init, tray events, autostart, dialogs, quit |
+| App-level control | `src/app/useAppController.ts` | Composition over focused app controllers |
+| Dialog control | `src/app/useDialogController.ts` | Settings/about dialog state |
+| Settings control | `src/app/useSettingsController.ts` | Autostart, sync brightness, theme preference |
+| Hotkey control | `src/app/useHotkeyController.ts` | Hotkey recording, validation, persistence, registration |
+| Tray events | `src/app/useTrayDisplayEvents.ts` | Initial load and Tauri tray events |
 | Brightness control | `src/brightness/useBrightnessController.ts` | Slider drag, commit, wheel |
+| Brightness interaction | `src/brightness/brightnessInteraction.ts` | Pure wheel-step brightness math |
 | Display facade | `src/hooks/useDisplays.ts` | Public display-state hook |
 | Display state store | `src/hooks/useDisplayStateStore.ts` | Selected display, refs, percentage, HDR-active derivation |
 | Display command client | `src/hooks/useDisplayCommandClient.ts` | Frontend display-command adapter over typed Tauri wrappers |
@@ -72,7 +79,8 @@ Windows system tray app currently controlling HDR monitor SDR brightness via Win
 ## FRONTEND ARCHITECTURE
 
 - `components/`: presentational UI only
-- `components/AppSurfaces.tsx`: app-level render surfaces; keeps `App.tsx` focused on composition and state branching
+- `components/AppSurfaces.tsx`: barrel export; `AppStateSurfaces.tsx` owns loading/error/empty shells and `MainSurface.tsx` owns the main app shell with grouped props
+- `app/useAppController.ts`: composition over focused app controllers for dialogs, settings, hotkeys, and tray events
 - `hooks/`: stateful logic and side effects; display flow is split into state store, command client, feedback state, and device action orchestration
 - `services/`: typed Tauri bridge
 - `theme.ts`: Fluent UI v9 brand ramp and effective theme helpers
@@ -80,7 +88,7 @@ Windows system tray app currently controlling HDR monitor SDR brightness via Win
 - `types.ts`: shared constants, conversion helpers, and `BrightnessSource`/`DisplayInfo` contract
 - `*.test.ts`: Node test runner coverage for pure frontend logic
 
-**Key rules:** No raw `invoke()` outside `services/tauriApi.ts`; display actions use `useDisplayCommandClient()` rather than Tauri services directly; keep `App.tsx` as composition and keep app-level JSX shells in `components/AppSurfaces.tsx`; error copy in `errors.ts`; keep visual QA using a non-blue test accent so accent regressions are visible.
+**Key rules:** No raw `invoke()` outside `services/tauriApi.ts`; display actions use `useDisplayCommandClient()` rather than Tauri services directly; keep `App.tsx` as composition; keep `components/AppSurfaces.tsx` as a re-export barrel with state shells in `AppStateSurfaces.tsx` and main shell JSX in `MainSurface.tsx`; error copy in `errors.ts`; keep visual QA using a non-blue test accent so accent regressions are visible.
 
 ## RUST ARCHITECTURE
 
@@ -113,7 +121,7 @@ Windows system tray app currently controlling HDR monitor SDR brightness via Win
 ### Frontend
 - React hooks only; no router
 - Keep `App.tsx` as composition, not business logic dumping ground
-- Keep loading/error/empty/main shell JSX in `components/AppSurfaces.tsx`
+- Keep `components/AppSurfaces.tsx` as a re-export barrel; loading/error/empty shells belong in `components/AppStateSurfaces.tsx`, and main shell JSX belongs in `components/MainSurface.tsx`
 - No raw `invoke()` outside `services/tauriApi.ts`
 - `useDisplayDeviceActions.ts` must depend on `useDisplayCommandClient.ts`, not `services/tauriApi.ts`
 - Keep display selection/refs in `useDisplayStateStore.ts` and display loading/error/notice state in `useDisplayFeedbackState.ts`

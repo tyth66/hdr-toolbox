@@ -13,8 +13,17 @@ React 18 single-window UI for HDR brightness control. Frontend is split into com
 |------|----------|-------|
 | App wiring | `App.tsx` | Composes hooks and components |
 | App render surfaces | `components/AppSurfaces.tsx` | Loading, error, empty, and main shell JSX |
-| App-level control | `app/useAppController.ts` | Init, tray events, autostart, dialogs, quit |
+| App render surface exports | `components/AppSurfaces.tsx` | Barrel export for state shells and main shell |
+| App state shells | `components/AppStateSurfaces.tsx` | Loading, error, and empty JSX |
+| Main shell | `components/MainSurface.tsx` | Main display/settings/about/startup shell with grouped props |
+| App-level control | `app/useAppController.ts` | Composition over focused app controllers |
+| Dialog control | `app/useDialogController.ts` | Settings/about dialog state |
+| Settings control | `app/useSettingsController.ts` | Autostart, sync brightness, and theme preference |
+| Hotkey control | `app/useHotkeyController.ts` | Hotkey recording, validation, persistence, and registration |
+| Tray events | `app/useTrayDisplayEvents.ts` | Initial display load and Tauri tray events |
 | Brightness control | `brightness/useBrightnessController.ts` | Slider drag, commit, wheel |
+| Brightness capability | `brightness/brightnessCapability.ts` | Source-aware slider adjustability rule |
+| Brightness interaction | `brightness/brightnessInteraction.ts` | Pure wheel-step brightness math |
 | Display facade | `hooks/useDisplays.ts` | Public display-state hook |
 | Display state store | `hooks/useDisplayStateStore.ts` | Selected display, refs, percentage, HDR-active |
 | Display command client | `hooks/useDisplayCommandClient.ts` | Display-command adapter over typed Tauri wrappers |
@@ -31,7 +40,8 @@ React 18 single-window UI for HDR brightness control. Frontend is split into com
 - `useDisplayDeviceActions.ts` must use `useDisplayCommandClient.ts`, not import Tauri services directly
 - `useDisplays.ts` composes display state, feedback, commands, and actions; keep it as the public facade
 - `App.tsx` is composition only, not business logic
-- Keep app-level render shells in `components/AppSurfaces.tsx`
+- Keep `components/AppSurfaces.tsx` as a re-export barrel; app-level state shells live in `components/AppStateSurfaces.tsx` and the main shell lives in `components/MainSurface.tsx`
+- Keep `app/useAppController.ts` as a composition hook; put dialogs, settings, hotkeys, and tray events in their focused controller hooks
 - `types.ts` is the only place for shared frontend constants
 - `DisplayInfo.hdr_supported` ≠ `DisplayInfo.hdr_enabled` — stay aligned with Rust
 - Pure logic goes in helper modules before hooks
@@ -40,12 +50,14 @@ React 18 single-window UI for HDR brightness control. Frontend is split into com
 ## UI RULES
 
 - `StatusBar` HDR toggle flips brightness source; shows fallback source label (DDC or WMI) when HDR is off
-- Slider disabled only during HDR-pending; HDR-off uses fallback source (DDC or WMI)
+- Slider adjustability uses `brightness/brightnessCapability.ts`: HDR SDR requires HDR active; DDC/WMI sources remain adjustable when HDR is off; HDR-pending blocks all sources
 - Frontend consumes Rust-owned state; no push sync paths
 
 ## TEST COVERAGE
 
 - `types.test.ts`: nits/percentage conversion
+- `brightness/brightnessCapability.test.ts`: source-aware brightness adjustability
+- `brightness/brightnessInteraction.test.ts`: wheel-step brightness behavior
 - `displayContract.test.ts`: TS/Rust contract checks
 - `architectureContract.test.ts`: frontend/Rust boundary checks
 - `visualContract.test.ts`: visual implementation contract checks

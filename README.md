@@ -21,8 +21,6 @@
 
 HDR Toolbox is a Universal Brightness Control style Windows tray app. The shared Rust/TypeScript display contract includes `BrightnessSource`, normalized `brightness`, provider identity, and DDC VCP code metadata. Provider modules contain DDC/CI physical-monitor plus internal-panel WMI enumeration/write paths, the Rust service merges HDR SDR, DDC/CI, and WMI provider results into one display list, and backend brightness writes route by source.
 
-Remaining documentation contract and final verification work is tracked in `docs/superpowers/plans/2026-06-29-universal-brightness-control.md`.
-
 ---
 
 ## ✨ Features
@@ -39,12 +37,12 @@ Remaining documentation contract and final verification work is tracked in `docs
 | 🚀 **Auto-start** | Launch on system boot (optional) |
 | 📍 **Tray Control** | Left-click show/hide, right-click menu |
 | 🎨 **Native Theme** | Acrylic window surface, Fluent UI controls, and a fixed Codex accent color |
-| 🧭 **Universal brightness foundation** | Internal `DisplayInfo` model carries `BrightnessSource`, generic `brightness`, raw metadata, and Rust-side source routing helpers |
-| 🧱 **Provider error contracts** | Structured DDC/CI and WMI error codes are ready for upcoming provider enumeration and write paths |
-| 🧩 **Provider boundaries** | Empty Rust provider modules and architecture tests reserve DDC/CI APIs for `display/ddcci.rs` and WMI APIs for `display/wmi.rs` |
-| 🧮 **DDC/CI provider foundation** | Rust provider code enumerates physical monitor handles, reads high-level/VCP brightness, writes high-level/VCP brightness, and keeps tested raw/percent helpers |
-| 🖥️ **WMI provider foundation** | Rust provider code connects to `ROOT\WMI`, reads `WmiMonitorBrightness`, and writes `WmiMonitorBrightnessMethods.WmiSetBrightness` |
-| 🔀 **Provider merge foundation** | Rust service merges HDR SDR, DDC/CI, and WMI provider results behind the existing display-list command |
+| 🧭 **Universal brightness model** | Internal `DisplayInfo` carries `BrightnessSource`, normalized `brightness`, raw metadata, provider identity, and Rust-side source routing |
+| 🧱 **Structured provider errors** | DDC/CI and WMI failures use stable structured error codes across Rust commands and frontend handling |
+| 🧩 **Provider module boundaries** | Architecture tests keep physical monitor APIs in `display/ddcci.rs` and WMI APIs in `display/wmi.rs` |
+| 🧮 **DDC/CI provider** | Rust provider code enumerates physical monitor handles, reads high-level/VCP brightness, writes high-level/VCP brightness, and keeps tested raw/percent helpers |
+| 🖥️ **WMI provider** | Rust provider code connects to `ROOT\WMI`, reads `WmiMonitorBrightness`, and writes `WmiMonitorBrightnessMethods.WmiSetBrightness` |
+| 🔀 **Provider merge** | Rust service merges HDR SDR, DDC/CI, and WMI provider results behind the existing display-list command |
 | 🔀 **HDR source switching** | HDR toggle automatically flips between SDR white level and physical brightness (DDC/CI or internal WMI) on the same display entry — no duplicate entries |
 | 🎛️ **Source-routed backend writes** | Rust brightness commands now route HDR SDR, DDC/CI high-level, DDC/CI VCP, and WMI writes through the selected display's `BrightnessSource` |
 | 🧩 **Generic frontend state** | Frontend display-state hooks now read and update normalized `brightness` instead of deriving every slider value from HDR SDR nits |
@@ -131,7 +129,7 @@ npm run tauri build
 | **Theme** | Follow system theme by default, or choose Light/Dark in Settings |
 | **Brightness Range** | Fixed at **80-480 nits** |
 
-> ℹ️ This app controls **SDR White Level** (Windows display adapter), not monitor OSD backlight brightness.
+> ℹ️ With HDR enabled, this app controls **SDR White Level**. With HDR disabled, it switches to physical brightness through DDC/CI or WMI when available.
 
 ### Appearance
 
@@ -156,7 +154,7 @@ The app uses a transparent Tauri window with a Windows Acrylic backdrop and Flue
 | Frontend | React 18 · TypeScript · Vite |
 | UI | Fluent UI v9 · CSS tokens · Windows Acrylic |
 | Backend | Rust · Tauri 2 |
-| System API | Windows DisplayConfig API; DDC/CI and WMI provider APIs are planned |
+| System API | Windows DisplayConfig API · DDC/CI · WMI provider APIs |
 
 ---
 

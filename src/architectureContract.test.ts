@@ -66,6 +66,36 @@ test("useDisplays composes explicit display state, feedback, and command boundar
   assert.equal(useDisplaysSource.includes("useDisplaySelection"), false);
 });
 
+test("app surfaces stay split between state shells and the main shell", () => {
+  const appSurfacesPath = path.resolve(srcDir, "components", "AppSurfaces.tsx");
+  const appStateSurfacesPath = path.resolve(srcDir, "components", "AppStateSurfaces.tsx");
+  const mainSurfacePath = path.resolve(srcDir, "components", "MainSurface.tsx");
+  const appSurfacesSource = readFile(appSurfacesPath);
+  const mainSurfaceSource = readFile(mainSurfacePath);
+
+  assert.equal(existsSync(appStateSurfacesPath), true);
+  assert.equal(existsSync(mainSurfacePath), true);
+  assert.doesNotMatch(appSurfacesSource, /function\s+(LoadingSurface|ErrorSurface|EmptySurface|MainSurface)/);
+  assert.match(appSurfacesSource, /export \{[^}]*LoadingSurface[^}]*\} from "\.\/AppStateSurfaces"/s);
+  assert.match(appSurfacesSource, /export \{[^}]*MainSurface[^}]*\} from "\.\/MainSurface"/s);
+  assert.match(mainSurfaceSource, /type MainSurfaceDisplayProps/);
+  assert.match(mainSurfaceSource, /type MainSurfaceSettingsProps/);
+  assert.match(mainSurfaceSource, /type MainSurfaceBrightnessProps/);
+  assert.match(mainSurfaceSource, /type MainSurfaceActions/);
+});
+
+test("app controller composes focused controller hooks", () => {
+  const useAppControllerSource = readFile(path.resolve(srcDir, "app", "useAppController.ts"));
+
+  assert.match(useAppControllerSource, /useDialogController/);
+  assert.match(useAppControllerSource, /useSettingsController/);
+  assert.match(useAppControllerSource, /useHotkeyController/);
+  assert.match(useAppControllerSource, /useTrayDisplayEvents/);
+  assert.doesNotMatch(useAppControllerSource, /window\.addEventListener/);
+  assert.doesNotMatch(useAppControllerSource, /\blisten\(/);
+  assert.doesNotMatch(useAppControllerSource, /\bisEnabled\(/);
+});
+
 test("DisplayConfig API calls stay inside display/ffi.rs", () => {
   const allowedPath = "src-tauri/src/display/ffi.rs";
   const displayConfigPattern =
@@ -108,6 +138,28 @@ test("WMI brightness calls stay inside display/wmi.rs", () => {
     .map(relativePath);
 
   assert.deepEqual(violations, []);
+});
+
+test("display service delegates provider merge and writer routing to dedicated modules", () => {
+  const mergePath = path.resolve(tauriSrcDir, "display", "merge.rs");
+  const writerPath = path.resolve(tauriSrcDir, "display", "writer.rs");
+  const serviceSource = readFile(path.resolve(tauriSrcDir, "display", "service.rs"));
+
+  assert.equal(existsSync(mergePath), true);
+  assert.equal(existsSync(writerPath), true);
+  assert.equal(/fn\s+merge_ddc_display\b/.test(serviceSource), false);
+  assert.equal(/fn\s+merge_wmi_display\b/.test(serviceSource), false);
+  assert.equal(/match\s+display\.brightness_source/.test(serviceSource), false);
+});
+
+test("display brightness projection is centralized outside command and session boundaries", () => {
+  const projectionPath = path.resolve(tauriSrcDir, "display", "projection.rs");
+  const commandsSource = readFile(path.resolve(tauriSrcDir, "display", "commands.rs"));
+  const sessionSource = readFile(path.resolve(tauriSrcDir, "display", "session.rs"));
+
+  assert.equal(existsSync(projectionPath), true);
+  assert.equal(/match\s+display\.brightness_source/.test(commandsSource), false);
+  assert.equal(/match\s+display\.brightness_source/.test(sessionSource), false);
 });
 
 test("display command boundary delegates cache and tray synchronization", () => {

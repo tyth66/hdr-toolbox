@@ -114,7 +114,7 @@ test("display navigation icon hover and selected state use fixed Codex accent", 
 });
 
 test("main brightness surface shows the selected display name", () => {
-  const appSurfaces = readRepoFile("src/components/AppSurfaces.tsx");
+  const mainSurface = readRepoFile("src/components/MainSurface.tsx");
   const brightnessSlider = readRepoFile("src/components/BrightnessSlider.tsx");
   const styles = readRepoFile("src/styles.css");
   const contentRule = extractCssRule(styles, ".content");
@@ -125,7 +125,7 @@ test("main brightness surface shows the selected display name", () => {
   assert.match(brightnessSlider, /className="display-name"/);
   assert.match(brightnessSlider, /title=\{displayName\}/);
   assert.match(brightnessSlider, /className="brightness-slider-control"/);
-  assert.match(appSurfaces, /displayName=\{selectedDisplay\?\.name \?\? "Unknown display"\}/);
+  assert.match(mainSurface, /displayName=\{selectedDisplay\?\.name \?\? "Unknown display"\}/);
   assert.match(styles, /\.content\s*\{[\s\S]*min-width:\s*0/);
   assert.match(styles, /\.slider-section\s*\{[\s\S]*min-width:\s*0/);
   assert.match(styles, /\.display-name\s*\{[\s\S]*max-width:\s*100%/);
@@ -188,7 +188,7 @@ test("settings dialog keeps settings accessible without section headings", () =>
 
 test("theme preference can override system color scheme", () => {
   const app = readRepoFile("src/App.tsx");
-  const useAppController = readRepoFile("src/app/useAppController.ts");
+  const useSettingsController = readRepoFile("src/app/useSettingsController.ts");
   const useAccentColor = readRepoFile("src/hooks/useAccentColor.ts");
   const tauriApi = readRepoFile("src/services/tauriApi.ts");
   const displayMod = readRepoFile("src-tauri/src/display/mod.rs");
@@ -197,8 +197,8 @@ test("theme preference can override system color scheme", () => {
   const styles = readRepoFile("src/styles.css");
   const theme = readRepoFile("src/theme.ts");
 
-  assert.match(useAppController, /loadThemePreference/);
-  assert.match(useAppController, /saveThemePreference/);
+  assert.match(useSettingsController, /loadThemePreference/);
+  assert.match(useSettingsController, /saveThemePreference/);
   assert.match(useAccentColor, /refreshAccentColor/);
   assert.match(useAccentColor, /FIXED_CODEX_ACCENT_COLOR\s*=\s*"#339CFF"/);
   assert.doesNotMatch(useAccentColor, /getSystemAccentColor/);
@@ -231,14 +231,14 @@ test("theme preference can override system color scheme", () => {
 
 test("settings and notice actions use Fluent UI Button instead of raw buttons", () => {
   const app = readRepoFile("src/App.tsx");
-  const appSurfaces = readRepoFile("src/components/AppSurfaces.tsx");
+  const mainSurface = readRepoFile("src/components/MainSurface.tsx");
   const settingsDialog = readRepoFile("src/components/SettingsDialog.tsx");
   const visualQa = readRepoFile("src/visualQa.tsx");
 
   assert.match(app, /import \{[\s\S]*FluentProvider,[\s\S]*webDarkTheme,/);
-  assert.match(appSurfaces, /import \{[\s\S]*Button[\s\S]*\} from "@fluentui\/react-components"/);
-  assert.match(appSurfaces, /<Button[\s\S]*className="notice-dismiss"/);
-  assert.doesNotMatch(appSurfaces, /<button[\s\S]*className="notice-dismiss"/);
+  assert.match(mainSurface, /import \{[\s\S]*Button[\s\S]*\} from "@fluentui\/react-components"/);
+  assert.match(mainSurface, /<Button[\s\S]*className="notice-dismiss"/);
+  assert.doesNotMatch(mainSurface, /<button[\s\S]*className="notice-dismiss"/);
 
   assert.match(settingsDialog, /<Button[\s\S]*className=\{`theme-option/);
   assert.match(settingsDialog, /<Button[\s\S]*className=\{`btn shortcut-btn/);
@@ -252,7 +252,7 @@ test("secondary states use a shared dialog and state shell", () => {
   const aboutDialog = readRepoFile("src/components/AboutDialog.tsx");
   const settingsDialog = readRepoFile("src/components/SettingsDialog.tsx");
   const startupDialog = readRepoFile("src/components/StartupInfoDialog.tsx");
-  const appSurfaces = readRepoFile("src/components/AppSurfaces.tsx");
+  const appStateSurfaces = readRepoFile("src/components/AppStateSurfaces.tsx");
   const styles = readRepoFile("src/styles.css");
 
   for (const dialog of [aboutDialog, settingsDialog, startupDialog]) {
@@ -261,9 +261,9 @@ test("secondary states use a shared dialog and state shell", () => {
   }
 
   assert.doesNotMatch(startupDialog, /style=\{\{/);
-  assert.match(appSurfaces, /className="app-state app-state-loading"/);
-  assert.match(appSurfaces, /className="app-state app-state-error"/);
-  assert.match(appSurfaces, /className="app-state app-state-empty"/);
+  assert.match(appStateSurfaces, /className="app-state app-state-loading"/);
+  assert.match(appStateSurfaces, /className="app-state app-state-error"/);
+  assert.match(appStateSurfaces, /className="app-state app-state-empty"/);
   assert.match(styles, /\.dialog-overlay\s*\{/);
   assert.match(styles, /\.dialog-shell\s*\{/);
   assert.match(styles, /\.app-state\s*\{/);
