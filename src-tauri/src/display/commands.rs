@@ -1,11 +1,12 @@
-use super::model::{BrightnessSource, DisplayInfo};
+use super::model::DisplayInfo;
+use super::projection::apply_brightness_projection;
 use super::service::{
-    get_hdr_displays_impl, set_brightness_all_impl,
-    set_display_brightness_impl, set_hdr_enabled_impl,
+    get_hdr_displays_impl, set_brightness_all_impl, set_display_brightness_impl,
+    set_hdr_enabled_impl,
 };
 use super::session::{
-    cached_displays, clear_display_cache, sync_brightness_outcome, sync_cached_brightness,
-    sync_display_cache, flip_hdr_source_in_cache, DisplayTarget,
+    cached_displays, clear_display_cache, flip_hdr_source_in_cache, sync_brightness_outcome,
+    sync_cached_brightness, sync_display_cache, DisplayTarget,
 };
 use crate::{app::AppState, display::DisplayError};
 use tauri::{AppHandle, State};
@@ -37,19 +38,7 @@ fn build_brightness_all_outcome(
         .map(|(mut display, result)| {
             match result {
                 Ok(()) => {
-                    let percentage = percentage.clamp(0, 100);
-                    display.brightness = percentage;
-                    display.brightness_raw = Some(match display.brightness_source {
-                        BrightnessSource::DdcVcp => {
-                            (percentage * display.brightness_raw_max.unwrap_or(100)) / 100
-                        }
-                        BrightnessSource::HdrSdr
-                        | BrightnessSource::DdcHighLevel
-                        | BrightnessSource::Wmi => percentage,
-                    });
-                    if display.brightness_source == BrightnessSource::HdrSdr {
-                        display.nits = super::brightness::percent_to_sdr_nits(percentage);
-                    }
+                    apply_brightness_projection(&mut display, percentage);
                 }
                 Err(error) => failures.push(BrightnessAllFailure {
                     adapter_id_low: display.adapter_id_low,

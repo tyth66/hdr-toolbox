@@ -1,17 +1,15 @@
 import { useCallback, useEffect, useRef, type RefObject, type WheelEvent } from "react";
-import { SLIDER } from "../types";
+import { getWheelBrightnessPercentage } from "./brightnessInteraction";
 
 type UseBrightnessControllerOptions = {
-  hdrActive: boolean;
-  isHdrPending: boolean;
+  canAdjustBrightness: boolean;
   currentPercentageRef: RefObject<number>;
   previewPercentage: (percentage: number) => void;
   applyBrightness: (percentage: number) => Promise<void>;
 };
 
 export function useBrightnessController({
-  hdrActive,
-  isHdrPending,
+  canAdjustBrightness,
   currentPercentageRef,
   previewPercentage,
   applyBrightness,
@@ -42,7 +40,7 @@ export function useBrightnessController({
   }, [clearSliderDebounce, clearWheelDebounce]);
 
   const handleSliderChange = useCallback((percentage: number, element: HTMLInputElement) => {
-    if (!hdrActive || isHdrPending) {
+    if (!canAdjustBrightness) {
       return;
     }
 
@@ -58,19 +56,19 @@ export function useBrightnessController({
         sliderDebounceRef.current = null;
       }
     }, 50);
-  }, [applyBrightness, clearSliderDebounce, hdrActive, isHdrPending, previewPercentage]);
+  }, [applyBrightness, canAdjustBrightness, clearSliderDebounce, previewPercentage]);
 
   const handleSliderDown = useCallback(() => {
-    if (!hdrActive || isHdrPending) {
+    if (!canAdjustBrightness) {
       return;
     }
 
     clearSliderDebounce();
     isDraggingRef.current = true;
-  }, [clearSliderDebounce, hdrActive, isHdrPending]);
+  }, [canAdjustBrightness, clearSliderDebounce]);
 
   const handleSliderCommit = useCallback(async (percentage: number) => {
-    if (!hdrActive || isHdrPending) {
+    if (!canAdjustBrightness) {
       return;
     }
 
@@ -81,23 +79,19 @@ export function useBrightnessController({
       await applyBrightness(percentage);
     } catch {
     }
-  }, [applyBrightness, clearSliderDebounce, hdrActive, isHdrPending]);
+  }, [applyBrightness, canAdjustBrightness, clearSliderDebounce]);
 
   const handleSliderWheel = useCallback((event: WheelEvent<HTMLDivElement>) => {
-    if (!hdrActive || isHdrPending) {
+    if (!canAdjustBrightness) {
       return;
     }
 
     event.preventDefault();
 
-    const direction = event.deltaY > 0 ? -1 : 1;
     const currentPercentage = currentPercentageRef.current ?? 0;
-    const nextPercentage = Math.max(
-      SLIDER.MIN,
-      Math.min(
-        SLIDER.MAX,
-        currentPercentage + (direction * SLIDER.WHEEL_STEP)
-      )
+    const nextPercentage = getWheelBrightnessPercentage(
+      currentPercentage,
+      event.deltaY
     );
 
     if (nextPercentage === currentPercentage) {
@@ -117,10 +111,9 @@ export function useBrightnessController({
     }, 60);
   }, [
     applyBrightness,
+    canAdjustBrightness,
     clearWheelDebounce,
     currentPercentageRef,
-    hdrActive,
-    isHdrPending,
     previewPercentage,
   ]);
 

@@ -6,6 +6,7 @@ import {
   webLightTheme,
 } from "@fluentui/react-components";
 import { useAppController } from "./app/useAppController";
+import { isBrightnessAdjustable } from "./brightness/brightnessCapability";
 import { useNoticeController } from "./app/useNoticeController";
 import { useBrightnessController } from "./brightness/useBrightnessController";
 import {
@@ -85,6 +86,13 @@ function App() {
     applyBrightness,
     setNotice,
   });
+  const selectedBrightnessSource =
+    displays[selectedIndex]?.brightness_source ?? "hdr_sdr";
+  const canAdjustBrightness = isBrightnessAdjustable(
+    selectedBrightnessSource,
+    hdrActive,
+    isHdrPending
+  );
 
   const {
     handleSliderChange,
@@ -92,8 +100,7 @@ function App() {
     handleSliderCommit,
     handleSliderWheel,
   } = useBrightnessController({
-    hdrActive,
-    isHdrPending,
+    canAdjustBrightness,
     currentPercentageRef,
     previewPercentage,
     applyBrightness,
@@ -144,40 +151,48 @@ function App() {
     return (
       <MainSurface
         windowClassName={windowClassName}
-        displays={displays}
-        selectedIndex={selectedIndex}
-        currentPercentage={currentPercentage}
-        hdrActive={hdrActive}
-        isHdrPending={isHdrPending}
-        isRefreshing={isRefreshing}
-        notice={notice}
-        showSettings={showSettings}
-        showAbout={showAbout}
-        autostartEnabled={autostartEnabled}
-        syncBrightnessEnabled={syncBrightnessEnabled}
-        themePreference={themePreference}
-        hotkeys={hotkeys}
-        hotkeyRecordingDirection={hotkeyRecordingDirection}
-        showStartupInfo={showStartupInfo}
-        onTitleBarMouseDown={handleTitleBarMouseDown}
-        onRefreshDisplays={refreshDisplays}
-        onSelectDisplay={selectDisplay}
-        onSetNotice={setNotice}
-        onSetShowSettings={setShowSettings}
-        onSetShowAbout={setShowAbout}
-        onToggleHdr={toggleHdr}
-        onSliderChange={handleSliderChange}
-        onSliderDown={handleSliderDown}
-        onSliderCommit={handleSliderCommit}
-        onSliderWheel={handleSliderWheel}
-        onToggleAutostart={handleToggleAutostart}
-        onToggleSyncBrightness={handleToggleSyncBrightness}
-        onChangeThemePreference={handleThemePreferenceChange}
-        onStartHotkeyRecording={handleStartHotkeyRecording}
-        hotkeyError={hotkeyError}
-        hotkeyErrorSeq={hotkeyErrorSeq}
         onClose={hideWindow}
-        onCloseStartupOverlay={closeStartupOverlay}
+        display={{
+          displays,
+          selectedIndex,
+          currentPercentage,
+          hdrActive,
+          isHdrPending,
+          isRefreshing,
+          notice,
+          showStartupInfo,
+        }}
+        settings={{
+          showSettings,
+          showAbout,
+          autostartEnabled,
+          syncBrightnessEnabled,
+          themePreference,
+          hotkeys,
+          hotkeyRecordingDirection,
+          hotkeyError,
+          hotkeyErrorSeq,
+        }}
+        brightness={{
+          onSliderChange: handleSliderChange,
+          onSliderDown: handleSliderDown,
+          onSliderCommit: handleSliderCommit,
+          onSliderWheel: handleSliderWheel,
+        }}
+        actions={{
+          onTitleBarMouseDown: handleTitleBarMouseDown,
+          onRefreshDisplays: refreshDisplays,
+          onSelectDisplay: selectDisplay,
+          onSetNotice: setNotice,
+          onSetShowSettings: setShowSettings,
+          onSetShowAbout: setShowAbout,
+          onToggleHdr: toggleHdr,
+          onToggleAutostart: handleToggleAutostart,
+          onToggleSyncBrightness: handleToggleSyncBrightness,
+          onChangeThemePreference: handleThemePreferenceChange,
+          onStartHotkeyRecording: handleStartHotkeyRecording,
+          onCloseStartupOverlay: closeStartupOverlay,
+        }}
       />
     );
   };

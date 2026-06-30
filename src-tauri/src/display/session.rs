@@ -1,4 +1,6 @@
-use super::model::{BrightnessSource, DisplayInfo};
+use super::model::DisplayInfo;
+use super::projection::apply_brightness_projection;
+use super::source_state::transition_brightness_source;
 use crate::{
     app::{AppState, TrayState},
     tray,
@@ -47,22 +49,7 @@ pub(super) fn flip_hdr_source_in_cache(
                 .find(|d| target.matches(d))
                 .ok_or_else(crate::display::DisplayError::display_not_found)?;
 
-            if hdr_enabled {
-                // HDR turned ON: restore HdrSdr, save current source as fallback_source
-                if display.fallback_source.is_some() || display.brightness_source != BrightnessSource::HdrSdr {
-                    let current = display.brightness_source;
-                    display.brightness_source = BrightnessSource::HdrSdr;
-                    display.fallback_source = Some(current);
-                }
-            } else {
-                // HDR turned OFF: switch to fallback_source if available
-                if let Some(ddc) = display.fallback_source.take() {
-                    display.brightness_source = ddc;
-                    display.fallback_source = Some(BrightnessSource::HdrSdr);
-                }
-                // If no fallback_source, slider will be disabled by frontend
-            }
-            display.hdr_enabled = hdr_enabled;
+            transition_brightness_source(display, hdr_enabled);
 
             let displays = guard.clone();
             drop(guard);
@@ -77,17 +64,7 @@ pub(super) fn flip_hdr_source_in_cache(
             );
             let mut guard = poisoned.into_inner();
             if let Some(display) = guard.iter_mut().find(|d| target.matches(d)) {
-                if hdr_enabled && display.fallback_source.is_some() {
-                    let current = display.brightness_source;
-                    display.brightness_source = BrightnessSource::HdrSdr;
-                    display.fallback_source = Some(current);
-                } else if !hdr_enabled {
-                    if let Some(ddc) = display.fallback_source.take() {
-                        display.brightness_source = ddc;
-                        display.fallback_source = Some(BrightnessSource::HdrSdr);
-                    }
-                }
-                display.hdr_enabled = hdr_enabled;
+                transition_brightness_source(display, hdr_enabled);
             }
             let displays = guard.clone();
             drop(guard);
@@ -225,19 +202,7 @@ fn refresh_tray(app: &AppHandle) {
 
 fn update_display_brightness(displays: &mut [DisplayInfo], target: DisplayTarget, percentage: u32) {
     if let Some(display) = displays.iter_mut().find(|display| target.matches(display)) {
-        let percentage = percentage.clamp(0, 100);
-        display.brightness = percentage;
-        display.brightness_raw = Some(match display.brightness_source {
-            BrightnessSource::DdcVcp => {
-                (percentage * display.brightness_raw_max.unwrap_or(100)) / 100
-            }
-            BrightnessSource::HdrSdr | BrightnessSource::DdcHighLevel | BrightnessSource::Wmi => {
-                percentage
-            }
-        });
-        if display.brightness_source == BrightnessSource::HdrSdr {
-            display.nits = super::brightness::percent_to_sdr_nits(percentage);
-        }
+        apply_brightness_projection(display, percentage);
     }
 }
 
@@ -257,6 +222,7 @@ fn replace_cached_tray_state(state: &AppState, displays: &[DisplayInfo]) {
 
 #[cfg(test)]
 mod tests {
+    use super::transition_brightness_source;
     use super::{
         replace_cached_brightness_outcome, replace_cached_displays, update_cached_brightness,
         DisplayTarget,
@@ -360,5 +326,42 @@ mod tests {
 
         assert!(replace_cached_brightness_outcome(&state, displays.clone()));
         assert_eq!(*state.displays.lock().unwrap(), displays);
+    }
+
+    #[test]
+    fn source_transition_switches_to_fallback_when_hdr_turns_off() {
+        let mut display = display("Display A", 1, 280);
+        display.fallback_source = Some(BrightnessSource::DdcVcp);
+
+        transition_brightness_source(&mut display, false);
+
+        assert_eq!(display.brightness_source, BrightnessSource::DdcVcp);
+        assert_eq!(display.fallback_source, Some(BrightnessSource::HdrSdr));
+        assert!(!display.hdr_enabled);
+    }
+
+    #[test]
+    fn source_transition_restores_hdr_sdr_when_hdr_turns_on() {
+        let mut display = display("Display A", 1, 280);
+        display.brightness_source = BrightnessSource::Wmi;
+        display.fallback_source = Some(BrightnessSource::HdrSdr);
+        display.hdr_enabled = false;
+
+        transition_brightness_source(&mut display, true);
+
+        assert_eq!(display.brightness_source, BrightnessSource::HdrSdr);
+        assert_eq!(display.fallback_source, Some(BrightnessSource::Wmi));
+        assert!(display.hdr_enabled);
+    }
+
+    #[test]
+    fn source_transition_keeps_hdr_sdr_without_fallback_when_hdr_turns_off() {
+        let mut display = display("Display A", 1, 280);
+
+        transition_brightness_source(&mut display, false);
+
+        assert_eq!(display.brightness_source, BrightnessSource::HdrSdr);
+        assert_eq!(display.fallback_source, None);
+        assert!(!display.hdr_enabled);
     }
 }
