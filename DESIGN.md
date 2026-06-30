@@ -33,6 +33,7 @@ This file is the current UI source of truth. Do not revive deleted one-off phase
 - Component surface status: `BrightnessSlider`, `StatusBar`, and `AppSurfaces` are source-aware; HDR SDR displays with fallback (DDC or WMI) are never disabled; the slider always works and HDR toggle flips the active source. Displays without any fallback show the disabled state when HDR is off.
 - Tray status: `TrayDisplaySummary` stores generic brightness percentage plus `BrightnessSource`, and tray tooltip/menu text uses percentage summaries instead of HDR-only nits.
 - UI implication: keep compact tray-flyout density while source-specific labels describe the active `BrightnessSource`.
+- Frontend tooling status: Bun `1.3.14` owns package installation, script execution, and frontend tests; Vite remains the frontend dev server and production frontend bundler for Tauri. Bun bundler and Vite+ are intentionally not adopted in the current release path.
 
 ## Refresh Model
 
@@ -162,15 +163,15 @@ Use a neutral Acrylic shell, Fluent UI v9 controls, the fixed Codex accent color
 Run these after UI/theme changes:
 
 ```bash
-npm run test:frontend
-npm run typecheck
-npm run build
+bun run test:frontend
+bun run typecheck
+bun run build
 ```
 
 Run full verification before release or commit batches that touch Rust:
 
 ```bash
-npm test
+bun run test
 ```
 
 For visual changes, use `agent-browser` against:

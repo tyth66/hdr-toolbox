@@ -36,11 +36,10 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 20
-          cache: npm
+          bun-version: 1.3.14
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -52,14 +51,14 @@ jobs:
             src-tauri -> target
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Run tests before release
         if: github.event_name != 'workflow_run'
-        run: npm test
+        run: bun run test
 
       - name: Build Tauri release
-        run: npm run tauri build
+        run: bun run tauri build
 
       - name: Stage release assets
         shell: pwsh

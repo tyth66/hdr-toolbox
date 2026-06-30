@@ -152,10 +152,13 @@ Windows system tray app for universal brightness control across HDR SDR white le
 
 ## TOOLING
 
+- Bun `1.3.14` is the JavaScript package manager and script runner; `bun.lock` is the authoritative JS lockfile. Do not recreate `package-lock.json`.
+- Frontend tests use Bun's test runner through `bun test`; `tsx` is not a direct project dependency.
+- Vite remains the frontend dev server and production frontend bundler for Tauri. Do not replace it with Bun bundler or Vite+ without a separate compatibility pass for Tauri dev server behavior, asset output, and release builds.
 - `rustfmt.toml` — Rust formatting (src-tauri/)
 - `clippy.toml` — Clippy lint configuration (src-tauri/)
 - CI runs on every branch push and pull request
-- CI should run `cargo fmt --check`, `cargo clippy`, frontend checks, and Rust tests
+- CI should run `bun install --frozen-lockfile`, frontend typecheck, Bun frontend tests, `cargo fmt --check`, `cargo clippy`, Rust tests, and frontend build
 - Release builds run automatically after successful `main` push CI, upload Windows Tauri artifacts, and publish the formal `BrightBox` GitHub Release
 - Formal release publishing uses the fixed `release` tag and stable asset filenames without version suffixes. The workflow deletes and recreates the rolling GitHub Release after a successful build so the release page timestamp reflects the latest publish while download URLs remain stable.
 
@@ -205,14 +208,14 @@ Windows system tray app for universal brightness control across HDR SDR white le
 ## COMMANDS
 
 ```bash
-npm run tauri dev   # Development
-npm run tauri build # Production build
-npm test            # Frontend + Rust tests
+bun run tauri dev   # Development
+bun run tauri build # Production build
+bun run test        # Frontend + Rust tests
 ```
 
 ## BUILD STATUS
 
 - Frontend build: ✓
 - Rust `cargo check`: ✓
-- Node tests: ✓
+- Bun frontend tests: ✓
 - Rust unit tests: ✓

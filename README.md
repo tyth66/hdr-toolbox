@@ -130,10 +130,12 @@ You can change these shortcuts in Settings.
 
 ## Build From Source
 
+BrightBox uses Bun for package management, scripts, and frontend tests. Vite remains the frontend dev server and production frontend bundler.
+
 ```bash
-npm install
-npm run tauri dev
-npm run tauri build
+bun install
+bun run tauri dev
+bun run tauri build
 ```
 
 The release executable is created under `src-tauri/target/release/`.
